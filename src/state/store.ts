@@ -95,7 +95,7 @@ export const useAppStore = create<AppState>()(
   anchorSim: Date.now(),
   anchorReal: performance.now(),
 
-  view: 'split',
+  view: '3d',
   camera: 'free',
   quality: 'standard',
   layers: {
@@ -151,16 +151,16 @@ export const useAppStore = create<AppState>()(
     {
       // Настройки интерфейса запоминаются в браузере; данные спутника — нет (они в кэше CelesTrak)
       name: 'kepler:prefs',
-      version: 1,
+      version: 2,
+      // v2: вид и последний спутник больше не запоминаются (по умолчанию — МКС на глобусе)
+      migrate: (persisted) => persisted as AppState,
       storage: createJSONStorage(() => localStorage),
       partialize: (s) => ({
-        view: s.view,
         camera: s.camera,
         quality: s.quality,
         layers: s.layers,
         revsBack: s.revsBack,
         revsForward: s.revsForward,
-        lastNorad: s.lastNorad,
       }),
       merge: (persisted, current) => {
         const p = (persisted ?? {}) as Partial<AppState>;

@@ -25,11 +25,11 @@ export function App() {
   const sidebarOpen = useAppStore((s) => s.sidebarOpen);
   const setSidebarOpen = useAppStore((s) => s.setSidebarOpen);
 
-  // Первый запуск: спутник из адреса → последний выбранный → МКС
+  // Запуск: спутник и вид из адреса страницы, иначе — МКС на глобусе
   useEffect(() => {
     const { sat, view } = readUrl();
-    if (view) useAppStore.getState().setView(view);
-    void loadNorad(sat ?? useAppStore.getState().lastNorad ?? DEFAULT_NORAD);
+    useAppStore.getState().setView(view ?? '3d');
+    void loadNorad(sat ?? DEFAULT_NORAD);
   }, [loadNorad]);
 
   // Адрес страницы следует за выбранным спутником и видом

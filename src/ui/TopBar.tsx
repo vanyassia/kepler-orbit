@@ -1,8 +1,6 @@
-import { Info, PanelLeft } from 'lucide-react';
-import { useState } from 'react';
+import { PanelLeft } from 'lucide-react';
 import { useWallClock } from '../hooks/useSimClock';
 import { useAppStore } from '../state/store';
-import { AboutDialog } from './AboutDialog';
 import { DataStatus } from './DataStatus';
 import { SatelliteSearch } from './SatelliteSearch';
 import styles from './TopBar.module.css';
@@ -10,7 +8,6 @@ import { fmtTime } from './format';
 
 export function TopBar() {
   const now = useWallClock();
-  const [aboutOpen, setAboutOpen] = useState(false);
   const sidebarOpen = useAppStore((s) => s.sidebarOpen);
   const setSidebarOpen = useAppStore((s) => s.setSidebarOpen);
 
@@ -44,11 +41,7 @@ export function TopBar() {
             <span className={styles.zone}>МСК</span> <span className="num">{fmtTime(now, 'MSK')}</span>
           </span>
         </div>
-        <button type="button" className={styles.iconBtn} onClick={() => setAboutOpen(true)} aria-label="О модели" title="О модели">
-          <Info size={18} />
-        </button>
       </div>
-      <AboutDialog open={aboutOpen} onClose={() => setAboutOpen(false)} />
     </header>
   );
 }
