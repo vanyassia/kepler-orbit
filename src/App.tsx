@@ -1,8 +1,30 @@
+import { useEffect } from 'react';
+import styles from './App.module.css';
+import { useSimClock } from './hooks/useSimClock';
+import { useAppStore } from './state/store';
+import { Sidebar } from './ui/Sidebar';
+import { Timeline } from './ui/Timeline';
+import { TopBar } from './ui/TopBar';
+import { Workspace } from './ui/Workspace';
+
+const DEFAULT_NORAD = 25544; // МКС
+
 export function App() {
+  useSimClock();
+  const loadNorad = useAppStore((s) => s.loadNorad);
+
+  useEffect(() => {
+    void loadNorad(DEFAULT_NORAD);
+  }, [loadNorad]);
+
   return (
-    <div style={{ padding: 32 }}>
-      <h1 style={{ fontFamily: 'var(--font-display)', fontWeight: 600, fontSize: 'var(--fs-display)' }}>Кеплер</h1>
-      <p>Каркас приложения. Высота МКС: <span className="num">418,6 км</span></p>
+    <div className={styles.app}>
+      <TopBar />
+      <Sidebar />
+      <main className={styles.main}>
+        <Workspace />
+      </main>
+      <Timeline />
     </div>
   );
 }
