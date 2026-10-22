@@ -9,13 +9,15 @@ export interface City {
   lon: number;
   /** Российский город — особая отметка. */
   highlight?: boolean;
+  /** С какой стороны от точки подпись (по умолчанию справа). */
+  labelSide?: 'left' | 'right';
 }
 
 export const CITIES: City[] = [
   { name: 'Москва', lat: 55.7558, lon: 37.6173, highlight: true },
-  { name: 'Смоленск', lat: 54.7826, lon: 32.0453, highlight: true },
+  { name: 'Смоленск', lat: 54.7826, lon: 32.0453, highlight: true, labelSide: 'left' },
 
-  { name: 'Минск', lat: 53.9006, lon: 27.559 },
+  { name: 'Минск', lat: 53.9006, lon: 27.559, labelSide: 'left' },
   { name: 'Киев', lat: 50.4501, lon: 30.5234 },
   { name: 'Варшава', lat: 52.2297, lon: 21.0122 },
   { name: 'Берлин', lat: 52.52, lon: 13.405 },
