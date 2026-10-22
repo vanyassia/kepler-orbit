@@ -12,7 +12,8 @@
     "test:watch": "vitest",
     "typecheck": "tsc -b --noEmit",
     "fetch:textures": "node scripts/fetch-textures.mjs",
-    "update:fallback": "node scripts/update-fallback.mjs"
+    "update:fallback": "node scripts/update-fallback.mjs",
+    "deploy": "sh scripts/deploy.sh"
   },
   "dependencies": {
     "@fontsource/ibm-plex-mono": "^5.3.0",
