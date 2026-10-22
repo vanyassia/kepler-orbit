@@ -13,6 +13,7 @@ import type { BorderPaths } from './geo';
 import { tracePath, WORLD_H, WORLD_W } from './geo';
 import type { NightMasks } from './nightMask';
 import type { TrackWindow } from '../trackCache';
+import { revsLabel } from '../../ui/format';
 
 export const COLORS = {
   bg: '#081120',
@@ -67,6 +68,9 @@ export interface MapScene {
   /** Центральный угол зоны радиовидимости, рад. */
   visibilityBeta: number;
   satLabel: string;
+  /** Окно трассы в витках — для подписей на его концах. */
+  revsBack: number;
+  revsForward: number;
   cities: City[];
   hoverCity: City | null;
 }
@@ -185,26 +189,88 @@ export function renderMap(ctx: CanvasRenderingContext2D, sc: MapScene): void {
   if (layers.grid) drawGridLabels(ctx, v);
   drawSun(ctx, v, sc.subsolar);
   if (layers.cities) drawCities(ctx, v, sc.cities, sc.hoverCity);
+  if (sc.track) drawTrackEnds(ctx, v, sc.track, sc.revsBack, sc.revsForward);
   if (sc.track) drawSatellite(ctx, v, sc.track.current, sc.satLabel);
 }
 
+/** Доля трассы на каждом конце, которая плавно гаснет: конец окна виден как «горизонт», а не обрыв. */
+const FADE_SHARE = 0.15;
+const FADE_STEPS = 8;
+
+/**
+ * Трасса: прошлое — сплошной линией, будущее — пунктиром.
+ * Дальний конец (начало прошлого, конец будущего) плавно гаснет.
+ */
 function drawTrack(ctx: CanvasRenderingContext2D, pts: TrackPoint[], px: number, future: boolean) {
-  const segments = splitAtAntimeridian(pts);
+  const n = pts.length;
+  if (n < 2) return;
+  const fadeN = Math.max(2, Math.round(n * FADE_SHARE));
+  // Для прошлого «дальний» конец — в начале массива: разворачиваем, чтобы гасить с конца
+  const ordered = future ? pts : [...pts].reverse();
+  const bodyEnd = n - fadeN;
+  let dash = strokeTrack(ctx, ordered.slice(0, bodyEnd + 1), px, future, 1, 0);
+  for (let k = 0; k < FADE_STEPS; k++) {
+    const a = bodyEnd + Math.floor((k * fadeN) / FADE_STEPS);
+    const b = bodyEnd + Math.floor(((k + 1) * fadeN) / FADE_STEPS);
+    if (b <= a) continue;
+    dash += strokeTrack(ctx, ordered.slice(a, Math.min(b + 1, n)), px, future, 1 - (k + 0.5) / FADE_STEPS, dash);
+  }
+}
+
+/** Обводка участка трассы с заданной непрозрачностью; возвращает длину участка (для непрерывного пунктира). */
+function strokeTrack(ctx: CanvasRenderingContext2D, pts: TrackPoint[], px: number, future: boolean, alpha: number, dashOffset: number): number {
+  let length = 0;
   ctx.beginPath();
-  for (const seg of segments) {
-    seg.forEach((p, i) => (i === 0 ? ctx.moveTo(p.lon + 180, 90 - p.lat) : ctx.lineTo(p.lon + 180, 90 - p.lat)));
+  for (const seg of splitAtAntimeridian(pts)) {
+    seg.forEach((p, i) => {
+      const x = p.lon + 180;
+      const y = 90 - p.lat;
+      if (i === 0) ctx.moveTo(x, y);
+      else {
+        length += Math.hypot(x - (seg[i - 1].lon + 180), y - (90 - seg[i - 1].lat));
+        ctx.lineTo(x, y);
+      }
+    });
   }
   ctx.lineJoin = 'round';
   ctx.lineCap = 'round';
   // Подсветка под линией
-  ctx.strokeStyle = future ? 'rgba(70, 214, 255, 0.16)' : 'rgba(70, 214, 255, 0.12)';
+  ctx.strokeStyle = `rgba(70, 214, 255, ${(future ? 0.16 : 0.12) * alpha})`;
   ctx.lineWidth = 5 * px;
   ctx.stroke();
-  ctx.strokeStyle = future ? 'rgba(70, 214, 255, 0.95)' : 'rgba(70, 214, 255, 0.6)';
+  ctx.strokeStyle = `rgba(70, 214, 255, ${(future ? 0.95 : 0.6) * alpha})`;
   ctx.lineWidth = (future ? 1.6 : 1.8) * px;
-  if (future) ctx.setLineDash([7 * px, 5 * px]);
+  if (future) {
+    ctx.setLineDash([7 * px, 5 * px]);
+    ctx.lineDashOffset = dashOffset;
+  }
   ctx.stroke();
   ctx.setLineDash([]);
+  ctx.lineDashOffset = 0;
+  return length;
+}
+
+/** Подписи на концах окна трассы: «−1 виток» в начале прошлого, «+2 витка» в конце будущего. */
+function drawTrackEnds(ctx: CanvasRenderingContext2D, v: View, track: TrackWindow, revsBack: number, revsForward: number) {
+  const ends: [TrackPoint | undefined, string][] = [
+    [revsBack > 0 && track.past.length > 2 ? track.past[0] : undefined, `−${revsLabel(revsBack)}`],
+    [track.future.length > 2 ? track.future[track.future.length - 1] : undefined, `+${revsLabel(revsForward)}`],
+  ];
+  ctx.font = '500 10px "IBM Plex Mono", monospace';
+  ctx.textBaseline = 'middle';
+  ctx.textAlign = 'left';
+  for (const [p, text] of ends) {
+    if (!p) continue;
+    const [x, y] = toScreen(v, p.lon, p.lat);
+    if (x < -40 || y < -20 || x > v.w + 40 || y > v.h + 20) continue;
+    ctx.beginPath();
+    ctx.arc(x, y, 3, 0, Math.PI * 2);
+    ctx.strokeStyle = 'rgba(70, 214, 255, 0.7)';
+    ctx.lineWidth = 1.2;
+    ctx.stroke();
+    ctx.fillStyle = 'rgba(160, 230, 255, 0.85)';
+    textWithHalo(ctx, text, x + 7, y);
+  }
 }
 
 function textWithHalo(ctx: CanvasRenderingContext2D, text: string, x: number, y: number) {

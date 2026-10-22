@@ -27,7 +27,7 @@ import { orbitEllipse, positionAtTrueAnomaly, propagate } from '../../physics/pr
 import { sunDirectionInertial } from '../../physics/sun';
 import { greenwichSiderealTime } from '../../physics/time';
 import { useAppStore } from '../../state/store';
-import { fmt } from '../../ui/format';
+import { fmt, revsLabel } from '../../ui/format';
 import { satelliteTitle } from '../../ui/satelliteTitle';
 import { TrackCache } from '../trackCache';
 import { geoToLocal, toScene } from './coords';
@@ -84,12 +84,16 @@ export function GlobeScene({ overlay, onReady }: { overlay: React.RefObject<HTML
   const record = useAppStore((s) => s.record);
   const layers = useAppStore((s) => s.layers);
   const quality = useAppStore((s) => s.quality);
+  const revsBack = useAppStore((s) => s.revsBack);
+  const revsForward = useAppStore((s) => s.revsForward);
   const tex = useEarthTextures(quality, gl);
 
   const earthGroup = useRef<Group>(null!);
   const satGroup = useRef<Group>(null!);
   const sunSprite = useRef<Sprite>(null!);
   const subMarker = useRef<Mesh>(null!);
+  const startMarker = useRef<Mesh>(null!);
+  const endMarker = useRef<Mesh>(null!);
   const labelLayer = useRef<LabelLayer | null>(null);
 
   // Материалы с шейдерами и динамические линии создаются один раз
@@ -198,6 +202,13 @@ export function GlobeScene({ overlay, onReady }: { overlay: React.RefObject<HTML
     if (orbit) {
       specs.push({ id: 'sat', text: record ? satelliteTitle(record.elements).title : '', className: 'globe-label sat', anchor: (out) => out.copy(satGroup.current.position) });
     }
+    if (orbit) {
+      // Концы окна трассы (положения маркеров обновляются каждый кадр)
+      if (revsBack > 0) {
+        specs.push({ id: 'track-start', text: `−${revsLabel(revsBack)}`, className: 'globe-label helper', anchor: (out) => out.setFromMatrixPosition(startMarker.current.matrixWorld) });
+      }
+      specs.push({ id: 'track-end', text: `+${revsLabel(revsForward)}`, className: 'globe-label helper', anchor: (out) => out.setFromMatrixPosition(endMarker.current.matrixWorld) });
+    }
     if (layers.cities) {
       for (const c of CITIES.filter((x) => x.highlight)) {
         specs.push({ id: `city-${c.name}`, text: c.name, className: `globe-label ru${c.labelSide === 'left' ? ' left' : ''}`, anchor: onEarth(geoToLocal(c.lat, c.lon, 1.001)) });
@@ -215,7 +226,7 @@ export function GlobeScene({ overlay, onReady }: { overlay: React.RefObject<HTML
     }
     labelSpecs.current = specs;
     labelLayer.current?.setSpecs(specs);
-  }, [orbit, record, geometry, layers.cities, layers.helpers]);
+  }, [orbit, record, geometry, layers.cities, layers.helpers, revsBack, revsForward]);
 
   // Плавная перестановка камеры при выборе нового спутника
   const camAnim = useRef<{ from: Vector3; to: Vector3; start: number } | null>(null);
@@ -297,6 +308,11 @@ export function GlobeScene({ overlay, onReady }: { overlay: React.RefObject<HTML
       };
       lines.past.setPoints(buf.past, fill(w.past, buf.past));
       lines.future.setPoints(buf.future, fill(w.future, buf.future));
+      const first = w.past[0];
+      const last = w.future[w.future.length - 1];
+      geoToLocal(first.lat, first.lon, TRACK_R, startMarker.current.position);
+      geoToLocal(last.lat, last.lon, TRACK_R, endMarker.current.position);
+      startMarker.current.visible = st.revsBack > 0;
 
       // Подспутниковая точка и окружность зоны радиовидимости радиуса β
       const c = geoToLocal(w.current.lat, w.current.lon, 1, new Vector3());
@@ -365,6 +381,14 @@ export function GlobeScene({ overlay, onReady }: { overlay: React.RefObject<HTML
         <primitive object={lines.past} />
         <primitive object={lines.future} />
         <primitive object={lines.visibility} visible={layers.visibility} />
+        <mesh ref={startMarker}>
+          <sphereGeometry args={[0.005, 12, 8]} />
+          <meshBasicMaterial color={ORBIT_COLOR} toneMapped={false} transparent opacity={0.6} />
+        </mesh>
+        <mesh ref={endMarker}>
+          <sphereGeometry args={[0.005, 12, 8]} />
+          <meshBasicMaterial color={ORBIT_COLOR} toneMapped={false} />
+        </mesh>
         <mesh ref={subMarker}>
           <sphereGeometry args={[0.007, 16, 12]} />
           <meshBasicMaterial color={SAT_COLOR} toneMapped={false} />

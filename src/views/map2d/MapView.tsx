@@ -169,6 +169,8 @@ export function MapView() {
         track,
         visibilityBeta: track ? visibilityAngle(track.current.h) : 0,
         satLabel: track ? `${title}, ${fmt(track.current.h, 0)} км` : '',
+        revsBack: st.revsBack,
+        revsForward: st.revsForward,
         cities: CITIES,
         hoverCity: hoverRef.current,
       });

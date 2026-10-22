@@ -14,6 +14,14 @@ export function fmt(value: number, digits = 0): string {
   return f.format(value).replace('-', '−');
 }
 
+/** «1 виток», «2 витка», «5 витков». */
+export function revsLabel(n: number): string {
+  const m10 = n % 10;
+  const m100 = n % 100;
+  const word = m10 === 1 && m100 !== 11 ? 'виток' : m10 >= 2 && m10 <= 4 && (m100 < 12 || m100 > 14) ? 'витка' : 'витков';
+  return `${n}\u00a0${word}`;
+}
+
 /** Широта: 55,756° с. ш. */
 export function fmtLat(deg: number, digits = 3): string {
   return `${fmt(Math.abs(deg), digits)}° ${deg >= 0 ? 'с. ш.' : 'ю. ш.'}`;
