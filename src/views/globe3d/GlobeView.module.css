@@ -1,0 +1,135 @@
+.wrap {
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(ellipse at 50% 40%, #0b1730 0%, #04080f 70%);
+}
+
+.canvas {
+  display: block;
+  touch-action: none;
+}
+
+.toolbar {
+  position: absolute;
+  top: var(--sp-3);
+  right: var(--sp-3);
+  z-index: 10;
+  display: flex;
+  align-items: flex-start;
+  gap: var(--sp-2);
+}
+
+.segmented {
+  display: flex;
+  padding: 2px;
+  border: 1px solid var(--line-strong);
+  border-radius: var(--r-control);
+  background: rgb(12 24 41 / 0.82);
+  backdrop-filter: blur(10px);
+}
+
+.segmented button {
+  height: 26px;
+  padding: 0 var(--sp-3);
+  border: 0;
+  border-radius: 6px;
+  background: none;
+  color: var(--text-1);
+  font-size: var(--fs-caption);
+  white-space: nowrap;
+}
+
+.segmented button:hover {
+  color: var(--text-0);
+}
+
+.segmented button[aria-checked='true'] {
+  background: var(--bg-3);
+  color: var(--text-0);
+}
+
+.quality {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--sp-2);
+  padding: var(--sp-2) var(--sp-2) 2px;
+  font-size: var(--fs-caption);
+}
+
+.quality .segmented {
+  backdrop-filter: none;
+}
+
+.hint {
+  position: absolute;
+  left: var(--sp-3);
+  bottom: var(--sp-3);
+  color: var(--text-2);
+  font-size: var(--fs-micro);
+  pointer-events: none;
+}
+
+/* Подписи на сцене: позицию (transform) задаёт LabelLayer каждый кадр */
+.labels {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  pointer-events: none;
+}
+
+:global(.globe-label) {
+  position: absolute;
+  left: 0;
+  top: 0;
+  translate: 10px -50%;
+  padding: 2px 7px;
+  border-radius: 6px;
+  background: rgb(8 17 32 / 0.78);
+  color: var(--text-0);
+  font: 500 11px/1.4 var(--font-ui);
+  white-space: nowrap;
+  user-select: none;
+  transition: opacity 120ms linear;
+  will-change: transform;
+}
+
+:global(.globe-label[data-hidden='true']) {
+  opacity: 0;
+}
+
+:global(.globe-label.sat) {
+  border: 1px solid rgb(255 181 71 / 0.6);
+  color: var(--sat);
+  font-weight: 600;
+  font-size: 12px;
+  translate: 14px -130%;
+}
+
+:global(.globe-label.ru) {
+  color: #ffd9d6;
+  border: 1px solid rgb(255 93 93 / 0.5);
+  font-weight: 600;
+}
+
+:global(.globe-label.ru.left) {
+  translate: calc(-100% - 10px) -50%;
+}
+
+:global(.globe-label.helper) {
+  background: transparent;
+  color: var(--text-1);
+  font-family: var(--font-data);
+  font-size: 11px;
+  text-shadow: 0 0 4px #04080f, 0 0 2px #04080f;
+}
+
+@media (max-width: 720px) {
+  .hint {
+    display: none;
+  }
+  .toolbar {
+    flex-direction: column;
+    align-items: flex-end;
+  }
+}

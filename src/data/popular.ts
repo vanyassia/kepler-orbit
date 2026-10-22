@@ -20,5 +20,5 @@ export const POPULAR_SATELLITES: PopularSatellite[] = [
   { noradId: 49260, title: 'Landsat 9', note: 'Съёмка поверхности' },
   { noradId: 32275, title: 'ГЛОНАСС', note: 'Средняя орбита, ~19 100 км' },
   { noradId: 52145, title: 'Меридиан-10', note: 'Орбита «Молния», e ≈ 0,68' },
-  { noradId: 44903, title: 'Электро-Л №3', note: 'Геостационарная' },
+  { noradId: 55506, title: 'Электро-Л №4', note: 'Геостационарная' },
 ];

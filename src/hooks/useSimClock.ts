@@ -1,20 +1,26 @@
 import { useEffect, useState } from 'react';
 import { useAppStore } from '../state/store';
 
-/** Единый цикл времени симуляции: каждый кадр t_sim += Δt_реальное · скорость. */
+/**
+ * Единый цикл времени симуляции. Время считается от опорной точки
+ * (t_sim = t_опорн + Δt_реальное · скорость), а не накоплением шагов кадра,
+ * поэтому при пропуске кадров оно не отстаёт от реального.
+ */
 export function useSimClock(): void {
   useEffect(() => {
     let raf = 0;
-    let last = performance.now();
     const tick = (now: number) => {
-      // Ограничиваем шаг, чтобы после сворачивания вкладки время не «прыгало»
-      const dt = Math.min(now - last, 250);
-      last = now;
-      useAppStore.getState().advance(dt);
+      useAppStore.getState().tick(now);
       raf = requestAnimationFrame(tick);
     };
     raf = requestAnimationFrame(tick);
-    return () => cancelAnimationFrame(raf);
+    // Вкладка снова видна — сразу догоняем время
+    const onVisible = () => useAppStore.getState().tick(performance.now());
+    document.addEventListener('visibilitychange', onVisible);
+    return () => {
+      cancelAnimationFrame(raf);
+      document.removeEventListener('visibilitychange', onVisible);
+    };
   }, []);
 }
 

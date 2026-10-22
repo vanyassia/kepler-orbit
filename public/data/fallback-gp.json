@@ -1,5 +1,5 @@
 {
-  "savedAt": "2026-10-22T17:30:15.038Z",
+  "savedAt": "2026-10-22T18:01:31.861Z",
   "source": "https://celestrak.org (GP API, OMM JSON)",
   "items": [
     {
@@ -174,22 +174,22 @@
       "MEAN_MOTION_DDOT": 0
     },
     {
-      "OBJECT_NAME": "ELEKTRO-L 3",
-      "OBJECT_ID": "2019-095A",
-      "EPOCH": "2026-10-09T14:12:21.030912",
-      "MEAN_MOTION": 0.99421243,
-      "ECCENTRICITY": 0.00030627,
-      "INCLINATION": 0.0514,
-      "RA_OF_ASC_NODE": 281.3302,
-      "ARG_OF_PERICENTER": 236.7228,
-      "MEAN_ANOMALY": 66.5229,
+      "OBJECT_NAME": "ELEKTRO-L 4",
+      "OBJECT_ID": "2023-016A",
+      "EPOCH": "2026-10-20T11:00:50.250816",
+      "MEAN_MOTION": 1.00269978,
+      "ECCENTRICITY": 0.00016488,
+      "INCLINATION": 0.057,
+      "RA_OF_ASC_NODE": 267.2205,
+      "ARG_OF_PERICENTER": 306.4429,
+      "MEAN_ANOMALY": 146.3573,
       "EPHEMERIS_TYPE": 0,
       "CLASSIFICATION_TYPE": "U",
-      "NORAD_CAT_ID": 44903,
+      "NORAD_CAT_ID": 55506,
       "ELEMENT_SET_NO": 999,
-      "REV_AT_EPOCH": 2485,
+      "REV_AT_EPOCH": 1359,
       "BSTAR": 0,
-      "MEAN_MOTION_DOT": -0.00000188,
+      "MEAN_MOTION_DOT": -5.3e-7,
       "MEAN_MOTION_DDOT": 0
     }
   ]

@@ -44,7 +44,7 @@ const outputs = [
   ['clouds_8192.tif', 'earth_clouds_4k.jpg', 4096, 85],
   ['sss_normal.tif', 'earth_normal_4k.jpg', 4096, 90],
   ['sss_specular.tif', 'earth_specular_2k.jpg', 2048, 85],
-  ['sss_stars.jpg', 'stars_8k.jpg', 8192, 85],
+  ['sss_stars.jpg', 'stars_4k.jpg', 4096, 85],
 ];
 
 mkdirSync(SRC, { recursive: true });

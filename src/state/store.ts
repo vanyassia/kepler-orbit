@@ -40,6 +40,12 @@ interface AppState {
   simTime: number;
   playing: boolean;
   speed: number;
+  /**
+   * Опорная точка часов: t_sim = anchorSim + (t_реальное − anchorReal)·скорость.
+   * Время не «отстаёт», даже если кадры пропускаются (свёрнутая вкладка, тяжёлая сцена).
+   */
+  anchorSim: number;
+  anchorReal: number;
 
   view: ViewMode;
   camera: CameraMode;
@@ -51,7 +57,8 @@ interface AppState {
   loadNorad: (id: number) => Promise<void>;
   setRecord: (rec: SatelliteRecord) => void;
   setSimTime: (t: number) => void;
-  advance: (realDtMs: number) => void;
+  /** Пересчёт времени симуляции по реальным часам (вызывается каждый кадр). */
+  tick: (realNowMs: number) => void;
   setPlaying: (p: boolean) => void;
   setSpeed: (s: number) => void;
   resetToNow: () => void;
@@ -74,6 +81,8 @@ export const useAppStore = create<AppState>((set, get) => ({
   simTime: Date.now(),
   playing: true,
   speed: 1,
+  anchorSim: Date.now(),
+  anchorReal: performance.now(),
 
   view: 'split',
   camera: 'free',
@@ -108,14 +117,14 @@ export const useAppStore = create<AppState>((set, get) => ({
     set({ record: rec, orbit: prepareOrbit(rec.elements), loading: false, error: null, pendingNorad: null });
   },
 
-  setSimTime: (t) => set({ simTime: t }),
-  advance: (realDtMs) => {
-    const { playing, speed, simTime } = get();
-    if (playing) set({ simTime: simTime + realDtMs * speed });
+  setSimTime: (t) => set({ simTime: t, anchorSim: t, anchorReal: performance.now() }),
+  tick: (realNow) => {
+    const { playing, speed, anchorSim, anchorReal } = get();
+    if (playing) set({ simTime: anchorSim + (realNow - anchorReal) * speed });
   },
-  setPlaying: (p) => set({ playing: p }),
-  setSpeed: (s) => set({ speed: s }),
-  resetToNow: () => set({ simTime: Date.now(), speed: 1, playing: true }),
+  setPlaying: (p) => set((s) => ({ playing: p, anchorSim: s.simTime, anchorReal: performance.now() })),
+  setSpeed: (v) => set((s) => ({ speed: v, anchorSim: s.simTime, anchorReal: performance.now() })),
+  resetToNow: () => set({ simTime: Date.now(), anchorSim: Date.now(), anchorReal: performance.now(), speed: 1, playing: true }),
 
   setView: (v) => set({ view: v }),
   setCamera: (c) => set({ camera: c }),
@@ -123,3 +132,6 @@ export const useAppStore = create<AppState>((set, get) => ({
   toggleLayer: (k) => set((s) => ({ layers: { ...s.layers, [k]: !s.layers[k] } })),
   setRevs: (back, forward) => set({ revsBack: back, revsForward: forward }),
 }));
+
+// Доступ к состоянию из консоли браузера при разработке (для проверки и отладки)
+if (import.meta.env.DEV) (globalThis as Record<string, unknown>).__kepler = useAppStore;

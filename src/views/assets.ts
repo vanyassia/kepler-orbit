@@ -15,7 +15,7 @@ export const TEXTURES = {
   clouds: `${base}textures/earth_clouds_4k.jpg`,
   normal: `${base}textures/earth_normal_4k.jpg`,
   specular: `${base}textures/earth_specular_2k.jpg`,
-  stars: `${base}textures/stars_8k.jpg`,
+  stars: `${base}textures/stars_4k.jpg`,
 } as const;
 
 const cache = new Map<string, Promise<HTMLImageElement>>();
