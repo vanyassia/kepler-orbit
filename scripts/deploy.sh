@@ -11,6 +11,6 @@ rm -rf .git
 git init -q -b gh-pages
 git add -A
 git -c user.name="$(git -C .. config user.name)" -c user.email="$(git -C .. config user.email)" commit -q -m "Публикация сайта"
-git push -q -f "$REMOTE" gh-pages
+git -c credential.helper= -c credential.helper="!gh auth git-credential" push -q -f "$REMOTE" gh-pages
 rm -rf .git
 echo "Готово: сайт обновится через 1–2 минуты."
