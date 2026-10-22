@@ -1,7 +1,7 @@
 .app {
   display: grid;
   grid-template-columns: var(--sidebar-w) minmax(0, 1fr);
-  grid-template-rows: var(--topbar-h) minmax(0, 1fr) var(--timeline-h);
+  grid-template-rows: calc(var(--topbar-h) + env(safe-area-inset-top)) minmax(0, 1fr) calc(var(--timeline-h) + env(safe-area-inset-bottom));
   grid-template-areas:
     'top top'
     'side main'
@@ -15,8 +15,31 @@
   position: relative;
   min-width: 0;
   min-height: 0;
+  outline: none;
 }
 
+.skip {
+  position: absolute;
+  left: var(--sp-3);
+  top: -100px;
+  z-index: 100;
+  padding: var(--sp-2) var(--sp-3);
+  border-radius: var(--r-control);
+  background: var(--orbit);
+  color: #04121f;
+  font-weight: 600;
+  text-decoration: none;
+}
+
+.skip:focus {
+  top: var(--sp-3);
+}
+
+.backdrop {
+  display: none;
+}
+
+/* Планшет и телефон: боковая панель выдвигается поверх визуализации */
 @media (max-width: 1100px) {
   .app {
     grid-template-columns: minmax(0, 1fr);
@@ -24,5 +47,20 @@
       'top'
       'main'
       'time';
+  }
+
+  .backdrop {
+    display: block;
+    position: fixed;
+    inset: 0;
+    z-index: 55;
+    background: rgb(4 9 18 / 0.55);
+    backdrop-filter: blur(2px);
+  }
+}
+
+@media (max-width: 860px) {
+  .app {
+    grid-template-rows: calc(var(--topbar-h) + env(safe-area-inset-top)) minmax(0, 1fr) auto;
   }
 }

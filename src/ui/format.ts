@@ -24,19 +24,36 @@ export function fmtLon(deg: number, digits = 3): string {
   return `${fmt(Math.abs(deg), digits)}° ${deg >= 0 ? 'в. д.' : 'з. д.'}`;
 }
 
-const pad = (n: number) => String(n).padStart(2, '0');
+/** Часовые пояса интерфейса: всемирное время и московское. */
+export type Zone = 'UTC' | 'MSK';
+const TZ: Record<Zone, string> = { UTC: 'UTC', MSK: 'Europe/Moscow' };
 
-/** «22.10.2026 14:05:09» в UTC или со смещением (МСК = +3 ч). */
-export function fmtDateTime(ms: number, offsetHours = 0, withSeconds = true): string {
-  const d = new Date(ms + offsetHours * 3_600_000);
-  const date = `${pad(d.getUTCDate())}.${pad(d.getUTCMonth() + 1)}.${d.getUTCFullYear()}`;
-  const time = `${pad(d.getUTCHours())}:${pad(d.getUTCMinutes())}${withSeconds ? ':' + pad(d.getUTCSeconds()) : ''}`;
-  return `${date} ${time}`;
+const dtCache = new Map<string, Intl.DateTimeFormat>();
+function dtf(zone: Zone, withDate: boolean, withSeconds: boolean): Intl.DateTimeFormat {
+  const key = `${zone}|${withDate}|${withSeconds}`;
+  let f = dtCache.get(key);
+  if (!f) {
+    f = new Intl.DateTimeFormat('ru-RU', {
+      timeZone: TZ[zone],
+      ...(withDate ? { day: '2-digit', month: '2-digit', year: 'numeric' } : {}),
+      hour: '2-digit',
+      minute: '2-digit',
+      ...(withSeconds ? { second: '2-digit' } : {}),
+      hourCycle: 'h23',
+    });
+    dtCache.set(key, f);
+  }
+  return f;
 }
 
-export function fmtTime(ms: number, offsetHours = 0): string {
-  const d = new Date(ms + offsetHours * 3_600_000);
-  return `${pad(d.getUTCHours())}:${pad(d.getUTCMinutes())}:${pad(d.getUTCSeconds())}`;
+/** «22.10.2026 14:05:09» во всемирном (UTC) или московском времени. */
+export function fmtDateTime(ms: number, zone: Zone = 'UTC', withSeconds = true): string {
+  return dtf(zone, true, withSeconds).format(ms).replace(',', '');
+}
+
+/** «14:05:09». */
+export function fmtTime(ms: number, zone: Zone = 'UTC'): string {
+  return dtf(zone, false, true).format(ms);
 }
 
 /** Длительность: «1 ч 32 мин», «2 сут 4 ч», «45 с». */

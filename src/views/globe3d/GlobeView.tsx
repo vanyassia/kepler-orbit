@@ -1,5 +1,6 @@
 import { Canvas } from '@react-three/fiber';
-import { Suspense, useRef } from 'react';
+import { Earth, Move3d, Satellite } from 'lucide-react';
+import { Suspense, useRef, useState } from 'react';
 import { ACESFilmicToneMapping } from 'three';
 import type { CameraMode } from '../../state/store';
 import { useAppStore } from '../../state/store';
@@ -7,10 +8,10 @@ import { LayersMenu, RevsControl } from '../../ui/LayersMenu';
 import { GlobeScene } from './GlobeScene';
 import styles from './GlobeView.module.css';
 
-const CAMERA_MODES: { id: CameraMode; label: string; hint: string }[] = [
-  { id: 'free', label: 'Свободно', hint: 'Камера неподвижна в инерциальной системе (АГЭСК)' },
-  { id: 'follow', label: 'За спутником', hint: 'Камера поворачивается вслед за спутником' },
-  { id: 'earth', label: 'С Землёй', hint: 'Камера вращается вместе с Землёй (ГСК)' },
+const CAMERA_MODES: { id: CameraMode; label: string; hint: string; icon: typeof Earth }[] = [
+  { id: 'free', label: 'Свободно', hint: 'Камера неподвижна в инерциальной системе (АГЭСК)', icon: Move3d },
+  { id: 'follow', label: 'За спутником', hint: 'Камера поворачивается вслед за спутником', icon: Satellite },
+  { id: 'earth', label: 'С Землёй', hint: 'Камера вращается вместе с Землёй (ГСК)', icon: Earth },
 ];
 
 /** 3D-вид: глобус, орбита, трасса. Загружается отдельным чанком (three.js). */
@@ -20,6 +21,7 @@ export default function GlobeView() {
   const quality = useAppStore((s) => s.quality);
   const setQuality = useAppStore((s) => s.setQuality);
   const overlay = useRef<HTMLDivElement>(null);
+  const [ready, setReady] = useState(false);
 
   return (
     <div className={styles.wrap}>
@@ -31,16 +33,21 @@ export default function GlobeView() {
         aria-label="Трёхмерный вид: Земля, орбита и трасса спутника"
       >
         <Suspense fallback={null}>
-          <GlobeScene overlay={overlay} />
+          <GlobeScene overlay={overlay} onReady={() => setReady(true)} />
         </Suspense>
       </Canvas>
       <div ref={overlay} className={styles.labels} aria-hidden="true" />
+      <div className={styles.loader} data-done={ready} role="status">
+        <span className={styles.spinner} aria-hidden="true" />
+        Загрузка глобуса…
+      </div>
 
       <div className={styles.toolbar}>
         <div className={styles.segmented} role="radiogroup" aria-label="Камера">
           {CAMERA_MODES.map((m) => (
-            <button key={m.id} type="button" role="radio" aria-checked={camera === m.id} title={m.hint} onClick={() => setCamera(m.id)}>
-              {m.label}
+            <button key={m.id} type="button" role="radio" aria-checked={camera === m.id} title={m.hint} aria-label={m.label} onClick={() => setCamera(m.id)}>
+              <m.icon size={14} className={styles.camIcon} />
+              <span className={styles.camLabel}>{m.label}</span>
             </button>
           ))}
         </div>

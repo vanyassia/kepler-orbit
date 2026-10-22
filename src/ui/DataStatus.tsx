@@ -37,6 +37,8 @@ export function DataStatus() {
   return (
     <div
       className={styles.status}
+      role="status"
+      aria-live="polite"
       data-kind={loading ? 'loading' : record.source}
       title={stale ? 'Элементам больше 3 суток: точность расчёта снижена' : undefined}
     >

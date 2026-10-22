@@ -1,4 +1,4 @@
-import { Columns2, Globe2, Map } from 'lucide-react';
+import { Columns2, Globe2, Map, RotateCw, SatelliteDish } from 'lucide-react';
 import { lazy, Suspense } from 'react';
 import type { ViewMode } from '../state/store';
 import { useAppStore } from '../state/store';
@@ -17,6 +17,9 @@ const VIEWS: { id: ViewMode; label: string; icon: typeof Map }[] = [
 export function Workspace() {
   const view = useAppStore((s) => s.view);
   const setView = useAppStore((s) => s.setView);
+  const hasRecord = useAppStore((s) => !!s.record);
+  const error = useAppStore((s) => s.error);
+  const loading = useAppStore((s) => s.loading);
 
   return (
     <div className={styles.workspace} data-view={view}>
@@ -28,6 +31,7 @@ export function Workspace() {
           </button>
         ))}
       </div>
+      {!hasRecord && (error || loading) && <EmptyState error={error} />}
       {view !== '2d' && (
         <section className={styles.pane} aria-label="Трёхмерный вид">
           <Suspense fallback={<div className={styles.loading}>Загрузка глобуса…</div>}>
@@ -40,6 +44,35 @@ export function Workspace() {
           <MapView />
         </section>
       )}
+    </div>
+  );
+}
+
+/** Нет данных: идёт загрузка или все источники недоступны. */
+function EmptyState({ error }: { error: string | null }) {
+  const retry = () => {
+    const s = useAppStore.getState();
+    void s.loadNorad(s.lastNorad ?? 25544);
+  };
+  return (
+    <div className={styles.empty} role={error ? 'alert' : 'status'}>
+      <div className={styles.emptyCard}>
+        <SatelliteDish size={28} aria-hidden="true" />
+        {error ? (
+          <>
+            <h2>Не удалось получить элементы орбиты</h2>
+            <p>{error}</p>
+            <p className={styles.emptyHint}>
+              Проверьте подключение к интернету и повторите запрос, выберите другой спутник или введите TLE вручную через поиск.
+            </p>
+            <button type="button" className={styles.retry} onClick={retry}>
+              <RotateCw size={15} aria-hidden="true" /> Повторить запрос
+            </button>
+          </>
+        ) : (
+          <h2>Загрузка элементов орбиты…</h2>
+        )}
+      </div>
     </div>
   );
 }

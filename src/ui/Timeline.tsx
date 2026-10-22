@@ -4,7 +4,7 @@ import { useThrottledSimTime, useWallClock } from '../hooks/useSimClock';
 import { ascendingNodeTimes } from '../physics/propagate';
 import { SPEEDS, useAppStore } from '../state/store';
 import styles from './Timeline.module.css';
-import { fmtDateTime } from './format';
+import { fmtDateTime, fmtTime } from './format';
 
 const HALF_WINDOW_MS = 24 * 3_600_000;
 
@@ -71,22 +71,22 @@ export function Timeline() {
             value={Math.round((t - start) / 1000)}
             onChange={(e) => setSimTime(start + Number(e.target.value) * 1000)}
             aria-label="Время симуляции"
-            aria-valuetext={fmtDateTime(t, 3) + ' МСК'}
+            aria-valuetext={fmtDateTime(t, 'MSK') + ' МСК'}
           />
         </div>
         <div className={styles.scale}>
-          <span className="num">{fmtDateTime(start, 3, false)}</span>
+          <span className="num">{fmtDateTime(start, 'MSK', false)}</span>
           <span className={styles.legend}>
             <i className={styles.legendNode} /> восходящий узел (начало витка)
           </span>
-          <span className="num">{fmtDateTime(start + span, 3, false)}</span>
+          <span className="num">{fmtDateTime(start + span, 'MSK', false)}</span>
         </div>
       </div>
 
       <div className={styles.readout}>
-        <div className={`${styles.time} num`}>{fmtDateTime(t, 3)}</div>
+        <div className={`${styles.time} num`}>{fmtDateTime(t, 'MSK')}</div>
         <div className={styles.sub}>
-          МСК, <span className="num">UTC {fmtDateTime(t).slice(11)}</span>
+          МСК, <span className="num">UTC {fmtTime(t)}</span>
           {!live && Math.abs(offsetH) >= 0.01 && (
             <span className={styles.offset}>
               {' '}
@@ -97,24 +97,40 @@ export function Timeline() {
         </div>
       </div>
 
-      <button type="button" className={styles.nowBtn} onClick={resetToNow} data-live={live || undefined}>
-        <RotateCcw size={15} />
-        {live ? 'В реальном времени' : 'Сейчас'}
+      <button
+        type="button"
+        className={styles.nowBtn}
+        onClick={resetToNow}
+        data-live={live || undefined}
+        aria-label={live ? 'В реальном времени' : 'Вернуться к текущему времени'}
+      >
+        <RotateCcw size={15} aria-hidden="true" />
+        <span className={styles.nowLabel}>{live ? 'В реальном времени' : 'Сейчас'}</span>
       </button>
-      <SpaceShortcut />
+      <KeyboardShortcuts />
     </footer>
   );
 }
 
-/** Пробел — пауза/пуск (если фокус не в поле ввода). */
-function SpaceShortcut() {
+/**
+ * Клавиши: пробел — пауза/пуск; ← → — шаг времени на минуту, с Shift — на час
+ * (если фокус не в поле ввода и не на ползунке, у которого стрелки свои).
+ */
+function KeyboardShortcuts() {
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
-      const tag = (e.target as HTMLElement).tagName;
-      if (e.code === 'Space' && !['INPUT', 'TEXTAREA', 'BUTTON', 'SELECT'].includes(tag)) {
+      const el = e.target as HTMLElement;
+      const tag = el.tagName;
+      const typing = ['INPUT', 'TEXTAREA', 'SELECT'].includes(tag) || el.isContentEditable;
+      if (typing || e.metaKey || e.ctrlKey || e.altKey) return;
+      const s = useAppStore.getState();
+      if (e.code === 'Space' && tag !== 'BUTTON') {
         e.preventDefault();
-        const s = useAppStore.getState();
         s.setPlaying(!s.playing);
+      } else if (e.key === 'ArrowLeft' || e.key === 'ArrowRight') {
+        e.preventDefault();
+        const step = e.shiftKey ? 3_600_000 : 60_000;
+        s.stepTime(e.key === 'ArrowLeft' ? -step : step);
       }
     };
     window.addEventListener('keydown', onKey);

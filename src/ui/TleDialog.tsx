@@ -48,6 +48,9 @@ export function TleDialog({ open, onClose }: { open: boolean; onClose: () => voi
           Две строки TLE, можно с названием в первой строке. Контрольные суммы проверяются.
         </p>
         <textarea
+          name="tle"
+          aria-label="Строки TLE"
+          autoComplete="off"
           className={styles.area}
           value={text}
           onChange={(e) => setText(e.target.value)}
@@ -56,7 +59,11 @@ export function TleDialog({ open, onClose }: { open: boolean; onClose: () => voi
           spellCheck={false}
           aria-invalid={!!error}
         />
-        {error && <p className={styles.error}>{error}</p>}
+        {error && (
+          <p className={styles.error} role="alert">
+            {error}
+          </p>
+        )}
         <div className={styles.actions}>
           <button type="button" className={styles.secondary} onClick={() => setText(EXAMPLE)}>
             Подставить пример (МКС)

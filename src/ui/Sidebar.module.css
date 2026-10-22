@@ -168,3 +168,47 @@
 .unit {
   color: var(--text-2);
 }
+
+.close {
+  display: none;
+}
+
+/* Планшет и телефон: выдвижная панель */
+@media (max-width: 1100px) {
+  .sidebar {
+    position: fixed;
+    z-index: 60;
+    top: calc(var(--topbar-h) + env(safe-area-inset-top));
+    bottom: 0;
+    left: 0;
+    width: min(380px, 92vw);
+    padding-bottom: env(safe-area-inset-bottom);
+    border-right: 1px solid var(--line-strong);
+    box-shadow: 24px 0 60px rgb(0 0 0 / 0.5);
+    transform: translateX(-102%);
+    visibility: hidden;
+    transition:
+      transform 220ms var(--ease),
+      visibility 0s linear 220ms;
+  }
+
+  .sidebar[data-open='true'] {
+    transform: none;
+    visibility: visible;
+    transition: transform 220ms var(--ease);
+  }
+
+  .close {
+    display: grid;
+    place-items: center;
+    position: absolute;
+    top: var(--sp-3);
+    right: var(--sp-3);
+    width: 32px;
+    height: 32px;
+    border: 1px solid var(--line-strong);
+    border-radius: var(--r-control);
+    background: var(--bg-2);
+    color: var(--text-1);
+  }
+}

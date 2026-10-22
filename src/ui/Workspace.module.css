@@ -80,7 +80,69 @@
   color: var(--text-2);
 }
 
-@media (max-width: 560px) {
+.empty {
+  position: absolute;
+  inset: 0;
+  z-index: 30;
+  display: grid;
+  place-items: center;
+  padding: var(--sp-4);
+  background: rgb(8 17 32 / 0.6);
+  backdrop-filter: blur(4px);
+}
+
+.emptyCard {
+  max-width: 440px;
+  padding: var(--sp-5);
+  border: 1px solid var(--line-strong);
+  border-radius: var(--r-panel);
+  background: var(--bg-1);
+  color: var(--orbit);
+  text-align: start;
+}
+
+.emptyCard h2 {
+  margin: var(--sp-3) 0 var(--sp-2);
+  color: var(--text-0);
+  font-family: var(--font-display);
+  font-weight: 500;
+  font-size: var(--fs-title);
+}
+
+.emptyCard p {
+  margin: 0 0 var(--sp-2);
+  color: var(--text-1);
+  font-size: var(--fs-caption);
+  text-wrap: pretty;
+}
+
+.emptyHint {
+  color: var(--text-2) !important;
+}
+
+.retry {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: var(--sp-2);
+  height: 36px;
+  padding: 0 var(--sp-4);
+  border: 0;
+  border-radius: var(--r-control);
+  background: var(--orbit);
+  color: #04121f;
+  font-weight: 500;
+}
+
+/* Узкая рабочая область: переключатель — слева, чтобы не перекрывать панели видов */
+@container (max-width: 900px) {
+  .switcher {
+    left: var(--sp-3);
+    transform: none;
+  }
+}
+
+@container (max-width: 640px) {
   .tab span {
     display: none;
   }

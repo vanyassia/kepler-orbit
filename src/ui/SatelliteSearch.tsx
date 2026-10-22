@@ -101,8 +101,10 @@ export function SatelliteSearch() {
         <input
           ref={inputRef}
           type="search"
+          name="satellite"
+          enterKeyHint="search"
           value={query}
-          placeholder="Спутник: название латиницей или номер NORAD"
+          placeholder="ISS, HST, 25544…"
           onChange={(e) => {
             setQuery(e.target.value);
             setOpen(true);

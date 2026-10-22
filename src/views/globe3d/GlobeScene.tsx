@@ -74,7 +74,7 @@ function lineMaterial(color: string, width: number, opacity: number, dashed = fa
   return m;
 }
 
-export function GlobeScene({ overlay }: { overlay: React.RefObject<HTMLDivElement | null> }) {
+export function GlobeScene({ overlay, onReady }: { overlay: React.RefObject<HTMLDivElement | null>; onReady?: () => void }) {
   const gl = useThree((s) => s.gl);
   const camera = useThree((s) => s.camera);
   const controls = useThree((s) => s.controls) as unknown as OrbitControlsImpl | null;
@@ -152,6 +152,11 @@ export function GlobeScene({ overlay }: { overlay: React.RefObject<HTMLDivElemen
     if (tex.specular) u.specMap.value = tex.specular;
     if (tex.clouds) u.cloudsMap.value = tex.clouds;
   }, [tex.day, tex.night, tex.normal, tex.specular, tex.clouds, mats]);
+
+  // Глобус готов, когда загружен хотя бы первый (лёгкий) дневной снимок
+  useEffect(() => {
+    if (tex.day) onReady?.();
+  }, [tex.day, onReady]);
 
   useEffect(() => {
     mats.earth.uniforms.cloudsOn.value = layers.clouds ? 1 : 0;

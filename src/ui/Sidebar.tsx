@@ -1,4 +1,5 @@
-import { useMemo } from 'react';
+import { X } from 'lucide-react';
+import { useEffect, useMemo } from 'react';
 import { POPULAR_SATELLITES } from '../data/popular';
 import { useThrottledSimTime } from '../hooks/useSimClock';
 import { RAD } from '../physics/constants';
@@ -10,8 +11,20 @@ import { fmt, fmtDateTime, fmtDuration, fmtLat, fmtLon } from './format';
 import { satelliteTitle } from './satelliteTitle';
 
 export function Sidebar() {
+  const open = useAppStore((s) => s.sidebarOpen);
+  const setOpen = useAppStore((s) => s.setSidebarOpen);
+  useEffect(() => {
+    if (!open) return;
+    const onKey = (e: KeyboardEvent) => e.key === 'Escape' && setOpen(false);
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [open, setOpen]);
+
   return (
-    <aside className={styles.sidebar} aria-label="Параметры спутника">
+    <aside id="sidebar" className={styles.sidebar} data-open={open} aria-label="Параметры спутника">
+      <button type="button" className={styles.close} onClick={() => setOpen(false)} aria-label="Закрыть панель">
+        <X size={18} />
+      </button>
       <SatelliteCard />
       <QuickPicks />
       <Telemetry />
@@ -29,7 +42,13 @@ function SatelliteCard() {
   if (!record) {
     return (
       <section className={styles.card}>
-        {error ? <p className={styles.error}>{error}</p> : <p className={styles.muted}>{loading ? 'Загрузка элементов орбиты…' : 'Выберите спутник'}</p>}
+        {error ? (
+          <p className={styles.error} role="alert">
+            {error}
+          </p>
+        ) : (
+          <p className={styles.muted}>{loading ? 'Загрузка элементов орбиты…' : 'Выберите спутник'}</p>
+        )}
       </section>
     );
   }
@@ -37,8 +56,14 @@ function SatelliteCard() {
   const { title, subtitle } = satelliteTitle(el);
   return (
     <section className={styles.card}>
-      <h1 className={styles.satName}>{title}</h1>
-      {subtitle && <div className={styles.satSub}>{subtitle}</div>}
+      <h1 className={styles.satName} translate="no">
+        {title}
+      </h1>
+      {subtitle && (
+        <div className={styles.satSub} translate="no">
+          {subtitle}
+        </div>
+      )}
       <dl className={styles.ids}>
         <div>
           <dt>NORAD</dt>
@@ -55,7 +80,11 @@ function SatelliteCard() {
           <dd className="num">{fmtDateTime(el.epochMs)}</dd>
         </div>
       </dl>
-      {error && <p className={styles.error}>{error}</p>}
+      {error && (
+        <p className={styles.error} role="alert">
+          {error}
+        </p>
+      )}
     </section>
   );
 }

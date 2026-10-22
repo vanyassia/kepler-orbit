@@ -29,6 +29,9 @@
 }
 
 .segmented button {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
   height: 26px;
   padding: 0 var(--sp-3);
   border: 0;
@@ -68,6 +71,43 @@
   color: var(--text-2);
   font-size: var(--fs-micro);
   pointer-events: none;
+}
+
+/* Загрузка текстур */
+.loader {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--sp-3);
+  color: var(--text-1);
+  font-size: var(--fs-caption);
+  pointer-events: none;
+  transition: opacity 400ms var(--ease);
+}
+
+.loader[data-done='true'] {
+  opacity: 0;
+}
+
+.spinner {
+  width: 18px;
+  height: 18px;
+  border: 2px solid var(--line-strong);
+  border-top-color: var(--orbit);
+  border-radius: 50%;
+  animation: spin 0.9s linear infinite;
+}
+
+.loader[data-done='true'] .spinner {
+  animation: none;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
 }
 
 /* Подписи на сцене: позицию (transform) задаёт LabelLayer каждый кадр */
@@ -122,6 +162,23 @@
   font-family: var(--font-data);
   font-size: 11px;
   text-shadow: 0 0 4px #04080f, 0 0 2px #04080f;
+}
+
+.camIcon {
+  display: none;
+}
+
+/* Узкая рабочая область: режимы камеры — значками */
+@container (max-width: 900px) {
+  .camIcon {
+    display: block;
+  }
+  .camLabel {
+    display: none;
+  }
+  .toolbar .segmented button {
+    padding: 0 9px;
+  }
 }
 
 @media (max-width: 720px) {

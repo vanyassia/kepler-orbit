@@ -6,6 +6,7 @@
  * Холсты 2D/3D берут значение напрямую из useAppStore.getState() в своём цикле отрисовки.
  */
 import { create } from 'zustand';
+import { createJSONStorage, persist } from 'zustand/middleware';
 import type { SatelliteRecord } from '../data/celestrak';
 import { loadByNorad } from '../data/celestrak';
 import type { PreparedOrbit } from '../physics/propagate';
@@ -36,6 +37,10 @@ interface AppState {
   error: string | null;
   /** Номер NORAD, загрузка которого идёт сейчас (для подсветки кнопки). */
   pendingNorad: number | null;
+  /** Последний запрошенный номер NORAD (для повтора и восстановления при следующем запуске). */
+  lastNorad: number | null;
+  /** Боковая панель на узких экранах. */
+  sidebarOpen: boolean;
 
   simTime: number;
   playing: boolean;
@@ -67,16 +72,22 @@ interface AppState {
   setQuality: (q: Quality) => void;
   toggleLayer: (k: keyof Layers) => void;
   setRevs: (back: number, forward: number) => void;
+  setSidebarOpen: (open: boolean) => void;
+  stepTime: (deltaMs: number) => void;
 }
 
 let loadSeq = 0;
 
-export const useAppStore = create<AppState>((set, get) => ({
+export const useAppStore = create<AppState>()(
+  persist(
+    (set, get) => ({
   record: null,
   orbit: null,
   loading: false,
   error: null,
   pendingNorad: null,
+  lastNorad: null,
+  sidebarOpen: false,
 
   simTime: Date.now(),
   playing: true,
@@ -102,7 +113,7 @@ export const useAppStore = create<AppState>((set, get) => ({
 
   loadNorad: async (id) => {
     const seq = ++loadSeq;
-    set({ loading: true, error: null, pendingNorad: id });
+    set({ loading: true, error: null, pendingNorad: id, lastNorad: id });
     try {
       const rec = await loadByNorad(id);
       if (seq !== loadSeq) return; // пользователь уже выбрал другой спутник
@@ -114,7 +125,7 @@ export const useAppStore = create<AppState>((set, get) => ({
   },
   setRecord: (rec) => {
     loadSeq++;
-    set({ record: rec, orbit: prepareOrbit(rec.elements), loading: false, error: null, pendingNorad: null });
+    set({ record: rec, orbit: prepareOrbit(rec.elements), loading: false, error: null, pendingNorad: null, lastNorad: rec.elements.noradId });
   },
 
   setSimTime: (t) => set({ simTime: t, anchorSim: t, anchorReal: performance.now() }),
@@ -131,7 +142,33 @@ export const useAppStore = create<AppState>((set, get) => ({
   setQuality: (q) => set({ quality: q }),
   toggleLayer: (k) => set((s) => ({ layers: { ...s.layers, [k]: !s.layers[k] } })),
   setRevs: (back, forward) => set({ revsBack: back, revsForward: forward }),
-}));
+  setSidebarOpen: (open) => set({ sidebarOpen: open }),
+  stepTime: (deltaMs) => {
+    const t = get().simTime + deltaMs;
+    set({ simTime: t, anchorSim: t, anchorReal: performance.now() });
+  },
+    }),
+    {
+      // Настройки интерфейса запоминаются в браузере; данные спутника — нет (они в кэше CelesTrak)
+      name: 'kepler:prefs',
+      version: 1,
+      storage: createJSONStorage(() => localStorage),
+      partialize: (s) => ({
+        view: s.view,
+        camera: s.camera,
+        quality: s.quality,
+        layers: s.layers,
+        revsBack: s.revsBack,
+        revsForward: s.revsForward,
+        lastNorad: s.lastNorad,
+      }),
+      merge: (persisted, current) => {
+        const p = (persisted ?? {}) as Partial<AppState>;
+        return { ...current, ...p, layers: { ...current.layers, ...(p.layers ?? {}) } };
+      },
+    },
+  ),
+);
 
 // Доступ к состоянию из консоли браузера при разработке (для проверки и отладки)
 if (import.meta.env.DEV) (globalThis as Record<string, unknown>).__kepler = useAppStore;

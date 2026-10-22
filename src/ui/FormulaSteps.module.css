@@ -1,0 +1,85 @@
+.section {
+  padding: var(--sp-3) var(--sp-4) var(--sp-5);
+}
+
+.head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  padding: var(--sp-1) 0;
+  border: 0;
+  background: none;
+  color: var(--text-0);
+  font-family: var(--font-display);
+  font-weight: 500;
+  font-size: var(--fs-title);
+  line-height: 1.3;
+  text-align: start;
+}
+
+.chevron {
+  color: var(--text-2);
+  transition: transform var(--dur) var(--ease);
+}
+
+.head[aria-expanded='false'] .chevron {
+  transform: rotate(-90deg);
+}
+
+.note {
+  margin: var(--sp-2) 0 var(--sp-3);
+  color: var(--text-2);
+  font-size: var(--fs-micro);
+  line-height: 1.45;
+  text-wrap: pretty;
+}
+
+.list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-2);
+}
+
+.step {
+  padding: var(--sp-2) var(--sp-3);
+  border: 1px solid var(--line);
+  border-radius: var(--r-control);
+  background: var(--bg-0);
+}
+
+.stepHead {
+  display: flex;
+  gap: var(--sp-2);
+  color: var(--text-1);
+  font-size: var(--fs-micro);
+  line-height: 1.35;
+}
+
+.no {
+  color: var(--orbit);
+  flex: none;
+}
+
+.formula {
+  overflow-x: auto;
+  overflow-y: hidden;
+  scrollbar-width: thin;
+  color: var(--text-0);
+}
+
+.formula :global(.katex-display) {
+  margin: 6px 0 2px;
+  text-align: start;
+}
+
+.formula :global(.katex-display > .katex) {
+  text-align: start;
+}
+
+.formula :global(.katex) {
+  font-size: 0.95em;
+}

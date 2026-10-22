@@ -3,7 +3,7 @@
   display: flex;
   align-items: center;
   gap: var(--sp-4);
-  padding: 0 var(--sp-4);
+  padding: 0 max(var(--sp-4), env(safe-area-inset-right)) env(safe-area-inset-bottom) max(var(--sp-4), env(safe-area-inset-left));
   border-top: 1px solid var(--line);
   background: var(--bg-1);
   min-width: 0;
@@ -214,7 +214,14 @@
   .bar {
     flex-wrap: wrap;
     gap: var(--sp-2) var(--sp-3);
-    padding: var(--sp-2) var(--sp-3);
+    padding: var(--sp-2) max(var(--sp-3), env(safe-area-inset-right)) max(var(--sp-2), env(safe-area-inset-bottom)) max(var(--sp-3), env(safe-area-inset-left));
+  }
+  .play {
+    width: 36px;
+    height: 36px;
+  }
+  .speed {
+    padding: 0 6px;
   }
   .scrub {
     order: 10;
@@ -225,6 +232,15 @@
     margin-left: auto;
   }
   .scale {
+    display: none;
+  }
+}
+
+@media (max-width: 480px) {
+  .nowLabel {
+    display: none;
+  }
+  .sub {
     display: none;
   }
 }
