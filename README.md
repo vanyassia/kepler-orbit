@@ -105,7 +105,7 @@ docs/          formulas.md — описание модели для поясни
 | Облака | NASA Visible Earth | общественное достояние |
 | Карта нормалей, маска океанов, звёзды | [Solar System Scope](https://www.solarsystemscope.com/textures/) | CC BY 4.0 |
 | Границы государств | Natural Earth (пакет world-atlas) | общественное достояние |
-| Шрифты | Unbounded, IBM Plex Sans, JetBrains Mono | SIL OFL 1.1 |
+| Шрифты | Tektur, IBM Plex Mono | SIL OFL 1.1 |
 
 Обозначения и терминология — по учебнику: Константинов М. С., Каменков Е. Ф., Перелыгин Б. П.,
 Безвербый В. К. *Механика космического полёта*. М.: Машиностроение, 1989.

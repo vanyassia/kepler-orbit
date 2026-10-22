@@ -215,7 +215,7 @@ function textWithHalo(ctx: CanvasRenderingContext2D, text: string, x: number, y:
 }
 
 function drawGridLabels(ctx: CanvasRenderingContext2D, v: View) {
-  ctx.font = '400 10px "JetBrains Mono", monospace';
+  ctx.font = '400 10px "IBM Plex Mono", monospace';
   ctx.fillStyle = 'rgba(200, 220, 245, 0.75)';
   const left = Math.max(v.ox, 0);
   const bottom = Math.min(v.oy + v.s * WORLD_H, v.h);
@@ -285,7 +285,7 @@ function drawCities(ctx: CanvasRenderingContext2D, v: View, cities: City[], hove
       ctx.stroke();
     }
     if (ru || showCapitalLabels || hover === c) {
-      ctx.font = ru ? '600 12px "IBM Plex Sans", sans-serif' : '500 11px "IBM Plex Sans", sans-serif';
+      ctx.font = ru ? '600 12px "IBM Plex Mono", monospace' : '500 11px "IBM Plex Mono", monospace';
       ctx.fillStyle = ru ? '#ffd9d6' : COLORS.text;
       ctx.textBaseline = 'middle';
       const left = c.labelSide === 'left';
@@ -331,7 +331,7 @@ function drawSatellite(ctx: CanvasRenderingContext2D, v: View, p: TrackPoint, la
   ctx.restore();
 
   // Подпись
-  ctx.font = '600 12px "IBM Plex Sans", sans-serif';
+  ctx.font = '600 12px "IBM Plex Mono", monospace';
   const w = ctx.measureText(label).width + 16;
   const lx = Math.min(Math.max(x + 14, 4), v.w - w - 4);
   const ly = Math.max(y - 34, 4);

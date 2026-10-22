@@ -31,7 +31,7 @@ export function TopBar() {
         <span className={styles.name} translate="no">
           Кеплер
         </span>
-        <span className={styles.tagline}>трасса спутника в задаче двух тел</span>
+        <span className={styles.tagline}>задача двух тел</span>
       </div>
       <SatelliteSearch />
       <div className={styles.right}>
@@ -54,11 +54,5 @@ export function TopBar() {
 }
 
 function Logo() {
-  return (
-    <svg className={styles.logo} viewBox="0 0 32 32" aria-hidden="true">
-      <circle cx="16" cy="16" r="6.5" fill="#1b6fb8" />
-      <ellipse cx="16" cy="16" rx="14" ry="6" fill="none" stroke="var(--orbit)" strokeWidth="1.6" transform="rotate(-28 16 16)" />
-      <circle cx="27.6" cy="10.2" r="2.4" fill="var(--sat)" />
-    </svg>
-  );
+  return <img className={styles.logo} src={`${import.meta.env.BASE_URL}logo.png`} width={32} height={32} alt="" />;
 }

@@ -18,9 +18,14 @@
 }
 
 .logo {
-  width: 26px;
-  height: 26px;
+  width: 32px;
+  height: 32px;
   align-self: center;
+  flex: none;
+  border-radius: 50%;
+  object-fit: cover;
+  /* Белое кольцо значка обрезаем до тёмного контура */
+  clip-path: circle(46%);
 }
 
 .name {
