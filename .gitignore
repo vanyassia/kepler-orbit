@@ -1,0 +1,8 @@
+node_modules
+dist
+.cache
+*.log
+.DS_Store
+coverage
+# 16K-текстура (~20 МБ) пересобирается командой `npm run fetch:textures`
+public/textures/earth_day_16k.jpg

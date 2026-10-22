@@ -1,0 +1,51 @@
+{
+  "name": "kepler-orbit-viewer",
+  "private": true,
+  "version": "0.1.0",
+  "description": "Визуализация трассы спутника в 2D и 3D (задача двух тел). Учебный проект МАИ.",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc -b && vite build",
+    "preview": "vite preview",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "typecheck": "tsc -b --noEmit",
+    "fetch:textures": "node scripts/fetch-textures.mjs",
+    "update:fallback": "node scripts/update-fallback.mjs"
+  },
+  "dependencies": {
+    "@fontsource/ibm-plex-sans": "^5.3.0",
+    "@fontsource/jetbrains-mono": "^5.3.0",
+    "@fontsource/unbounded": "^5.3.0",
+    "@react-three/drei": "^10.7.9",
+    "@react-three/fiber": "^9.8.2",
+    "d3-geo": "^3.1.1",
+    "d3-selection": "^3.0.0",
+    "d3-zoom": "^3.0.0",
+    "katex": "^0.19.0",
+    "lucide-react": "^1.61.0",
+    "react": "^19.3.1",
+    "react-dom": "^19.3.1",
+    "three": "^0.186.1",
+    "topojson-client": "^3.1.0",
+    "world-atlas": "^2.0.2",
+    "zustand": "^5.0.16"
+  },
+  "devDependencies": {
+    "@types/d3-geo": "^3.1.1",
+    "@types/d3-selection": "^3.0.12",
+    "@types/d3-zoom": "^3.0.9",
+    "@types/geojson": "^7946.0.16",
+    "@types/node": "^26.6.5",
+    "@types/react": "^19.3.0",
+    "@types/react-dom": "^19.3.0",
+    "@types/three": "^0.186.0",
+    "@types/topojson-client": "^3.1.5",
+    "@types/topojson-specification": "^1.0.5",
+    "@vitejs/plugin-react": "^6.1.2",
+    "typescript": "^5.9.3",
+    "vite": "^8.3.5",
+    "vitest": "^5.0.5"
+  }
+}
