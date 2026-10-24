@@ -10,8 +10,8 @@ export interface LabelSpec {
   id: string;
   text: string;
   className: string;
-  /** Записывает мировые координаты точки привязки в out. */
-  anchor: (out: Vector3) => Vector3;
+  /** Записывает мировые координаты точки привязки в out; null — подпись сейчас не показывать. */
+  anchor: (out: Vector3) => Vector3 | null;
 }
 
 export class LabelLayer {
@@ -53,7 +53,10 @@ export class LabelLayer {
     for (const s of this.specs) {
       const el = this.els.get(s.id);
       if (!el) continue;
-      s.anchor(this.p);
+      if (!s.anchor(this.p)) {
+        el.dataset.hidden = 'true';
+        continue;
+      }
       this.ndc.copy(this.p).project(camera);
       const behind = this.ndc.z > 1 || this.ndc.z < -1;
       const hidden = behind || occludedByEarth(this.p, camera.position, 0.996);

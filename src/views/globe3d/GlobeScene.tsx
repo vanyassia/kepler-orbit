@@ -27,9 +27,11 @@ import { orbitEllipse, positionAtTrueAnomaly, propagate } from '../../physics/pr
 import { sunDirectionInertial } from '../../physics/sun';
 import { greenwichSiderealTime } from '../../physics/time';
 import { useAppStore } from '../../state/store';
-import { fmt, revsLabel } from '../../ui/format';
+import { fmt, fmtDuration } from '../../ui/format';
 import { satelliteTitle } from '../../ui/satelliteTitle';
-import { TrackCache } from '../trackCache';
+import type { TrackWindow } from '../trackCache';
+import { orbitSource, referenceSource, REFERENCE_COLOR, Revolutions, revolutionColor, TrackCache } from '../trackCache';
+import { referenceState } from '../../reference/sgp4';
 import { geoToLocal, toScene } from './coords';
 import { DynamicLine } from './DynamicLine';
 import type { LabelSpec } from './LabelLayer';
@@ -131,8 +133,11 @@ export function GlobeScene({ overlay, onReady }: { overlay: React.RefObject<HTML
 
   const lines = useMemo(
     () => ({
-      past: new DynamicLine(6000, lineMaterial(ORBIT_COLOR, 1.6, 0.55)),
+      past: new DynamicLine(6000, lineMaterial(ORBIT_COLOR, 1.6, 0.6)),
       future: new DynamicLine(6000, lineMaterial(ORBIT_COLOR, 1.8, 0.95, true)),
+      refPast: new DynamicLine(6000, lineMaterial(REFERENCE_COLOR, 1.2, 0.5)),
+      refFuture: new DynamicLine(6000, lineMaterial(REFERENCE_COLOR, 1.3, 0.9, true)),
+      refLink: new DynamicLine(2, lineMaterial(REFERENCE_COLOR, 1.2, 0.8)),
       visibility: new DynamicLine(130, lineMaterial(SAT_COLOR, 1.3, 0.85)),
       radius: new DynamicLine(2, lineMaterial(SAT_COLOR, 1, 0.45)),
     }),
@@ -146,6 +151,11 @@ export function GlobeScene({ overlay, onReady }: { overlay: React.RefObject<HTML
     [],
   );
   const trackCache = useMemo(() => new TrackCache(), []);
+  const refCache = useMemo(() => new TrackCache(), []);
+  const refGroup = useRef<Group>(null!);
+  const refOn = useAppStore((s) => s.layers.reference && !!s.reference);
+  /** Начала следующих витков (в ГСК) — для подписей «+k»; null — узла нет в окне. */
+  const nodeLocal = useRef<(Vector3 | null)[]>([]);
 
   // Подстановка загруженных текстур
   useEffect(() => {
@@ -203,11 +213,24 @@ export function GlobeScene({ overlay, onReady }: { overlay: React.RefObject<HTML
       specs.push({ id: 'sat', text: record ? satelliteTitle(record.elements).title : '', className: 'globe-label sat', anchor: (out) => out.copy(satGroup.current.position) });
     }
     if (orbit) {
-      // Концы окна трассы (положения маркеров обновляются каждый кадр)
+      // Концы окна трассы (положения маркеров и время обновляются каждый кадр)
       if (revsBack > 0) {
-        specs.push({ id: 'track-start', text: `−${revsLabel(revsBack)}`, className: 'globe-label helper', anchor: (out) => out.setFromMatrixPosition(startMarker.current.matrixWorld) });
+        specs.push({ id: 'track-start', text: '', className: 'globe-label helper', anchor: (out) => out.setFromMatrixPosition(startMarker.current.matrixWorld) });
       }
-      specs.push({ id: 'track-end', text: `+${revsLabel(revsForward)}`, className: 'globe-label helper', anchor: (out) => out.setFromMatrixPosition(endMarker.current.matrixWorld) });
+      specs.push({ id: 'track-end', text: '', className: 'globe-label helper', anchor: (out) => out.setFromMatrixPosition(endMarker.current.matrixWorld) });
+      // Начала следующих витков
+      for (let k = 1; k <= revsForward; k++) {
+        specs.push({
+          id: `node-${k}`,
+          text: `+${k}`,
+          className: `globe-label node node-${k}`,
+          anchor: (out) => {
+            const p = nodeLocal.current[k];
+            return p ? earthGroup.current.localToWorld(out.copy(p)) : null;
+          },
+        });
+      }
+      if (refOn) specs.push({ id: 'ref', text: 'SGP4', className: 'globe-label ref', anchor: (out) => (refGroup.current?.visible ? out.copy(refGroup.current.position) : null) });
     }
     if (layers.cities) {
       for (const c of CITIES.filter((x) => x.highlight)) {
@@ -226,7 +249,7 @@ export function GlobeScene({ overlay, onReady }: { overlay: React.RefObject<HTML
     }
     labelSpecs.current = specs;
     labelLayer.current?.setSpecs(specs);
-  }, [orbit, record, geometry, layers.cities, layers.helpers, revsBack, revsForward]);
+  }, [orbit, record, geometry, layers.cities, layers.helpers, revsBack, revsForward, refOn]);
 
   // Плавная перестановка камеры при выборе нового спутника
   const camAnim = useRef<{ from: Vector3; to: Vector3; start: number } | null>(null);
@@ -243,7 +266,28 @@ export function GlobeScene({ overlay, onReady }: { overlay: React.RefObject<HTML
   const prevSatDir = useRef(new Vector3());
   const prevS = useRef<number | null>(null);
   const lastLabelUpdate = useRef(0);
-  const buf = useMemo(() => ({ past: new Float32Array(6000 * 3), future: new Float32Array(6000 * 3), ring: new Float32Array(130 * 3) }), []);
+  const buf = useMemo(
+    () => ({
+      past: new Float32Array(6000 * 3),
+      future: new Float32Array(6000 * 3),
+      pastRgb: new Float32Array(6000 * 3),
+      futureRgb: new Float32Array(6000 * 3),
+      refPast: new Float32Array(6000 * 3),
+      refFuture: new Float32Array(6000 * 3),
+      ring: new Float32Array(130 * 3),
+    }),
+    [],
+  );
+  /** Цвета витков в линейном пространстве (для цветов вершин линии). */
+  const revColor = useMemo(() => {
+    const cache = new Map<number, Color>();
+    return (offset: number) => {
+      const key = offset < 0 ? -1 : offset;
+      let c = cache.get(key);
+      if (!c) cache.set(key, (c = new Color(revolutionColor(key))));
+      return c;
+    };
+  }, []);
   const tmp = useMemo(() => ({ v: new Vector3(), w: new Vector3(), q: new Quaternion(), axisY: new Vector3(0, 1, 0) }), []);
 
   useFrame(() => {
@@ -294,25 +338,55 @@ export function GlobeScene({ overlay, onReady }: { overlay: React.RefObject<HTML
       // Радиус-вектор r: от центра Земли к спутнику
       lines.radius.setPoints([0, 0, 0, satPos.x, satPos.y, satPos.z], 2);
 
-      // Трасса (в ГСК, внутри группы Земли)
-      const w = trackCache.get(o, t, st.revsBack, st.revsForward);
-      const fill = (pts: typeof w.past, arr: Float32Array) => {
+      // Трасса (в ГСК, внутри группы Земли), цвет — по номеру витка
+      const w = trackCache.get(orbitSource(o), t, st.revsBack, st.revsForward)!;
+      const revs = new Revolutions(o, t, st.revsBack, st.revsForward);
+      const fill = (pts: TrackWindow['past'], arr: Float32Array, rgb?: Float32Array) => {
         const n = Math.min(pts.length, 6000);
         for (let k = 0; k < n; k++) {
           geoToLocal(pts[k].lat, pts[k].lon, TRACK_R, tmp.v);
           arr[k * 3] = tmp.v.x;
           arr[k * 3 + 1] = tmp.v.y;
           arr[k * 3 + 2] = tmp.v.z;
+          if (rgb) {
+            const c = revColor(revs.offsetAt(pts[k].timeMs));
+            rgb[k * 3] = c.r;
+            rgb[k * 3 + 1] = c.g;
+            rgb[k * 3 + 2] = c.b;
+          }
         }
         return n;
       };
-      lines.past.setPoints(buf.past, fill(w.past, buf.past));
-      lines.future.setPoints(buf.future, fill(w.future, buf.future));
+      lines.past.setPoints(buf.past, fill(w.past, buf.past, buf.pastRgb), buf.pastRgb);
+      lines.future.setPoints(buf.future, fill(w.future, buf.future, buf.futureRgb), buf.futureRgb);
       const first = w.past[0];
       const last = w.future[w.future.length - 1];
       geoToLocal(first.lat, first.lon, TRACK_R, startMarker.current.position);
       geoToLocal(last.lat, last.lon, TRACK_R, endMarker.current.position);
       startMarker.current.visible = st.revsBack > 0;
+
+      // Начала следующих витков: точные подспутниковые точки в моменты восходящих узлов
+      const windowEnd = t + st.revsForward * o.T * 1000;
+      nodeLocal.current = [];
+      for (const n of revs.nodes) {
+        if (n <= t || n > windowEnd) continue;
+        const p = orbitSource(o).at(n)!;
+        nodeLocal.current[revs.offsetAt(n)] = geoToLocal(p.lat, p.lon, TRACK_R);
+      }
+
+      // Эталон SGP4: трасса, положение и связка с нашим спутником
+      const ref = st.layers.reference && st.reference ? st.reference : null;
+      const rw = ref ? refCache.get(referenceSource(ref, o), t, st.revsBack, st.revsForward) : null;
+      const rs = ref ? referenceState(ref, t) : null;
+      lines.refPast.visible = lines.refFuture.visible = lines.refLink.visible = !!(rw && rs);
+      refGroup.current.visible = !!(rw && rs);
+      if (rw && rs) {
+        lines.refPast.setPoints(buf.refPast, fill(rw.past, buf.refPast));
+        lines.refFuture.setPoints(buf.refFuture, fill(rw.future, buf.refFuture));
+        const rp = toScene(rs.eci, tmp.w);
+        refGroup.current.position.copy(rp);
+        lines.refLink.setPoints([satPos.x, satPos.y, satPos.z, rp.x, rp.y, rp.z], 2);
+      }
 
       // Подспутниковая точка и окружность зоны радиовидимости радиуса β
       const c = geoToLocal(w.current.lat, w.current.lon, 1, new Vector3());
@@ -339,6 +413,8 @@ export function GlobeScene({ overlay, onReady }: { overlay: React.RefObject<HTML
         lastLabelUpdate.current = now;
         const title = st.record ? satelliteTitle(st.record.elements).title : '';
         labelLayer.current?.setText('sat', `${title}, ${fmt(s.h, 0)} км`);
+        labelLayer.current?.setText('track-start', `−${fmtDuration((t - first.timeMs) / 1000)}`);
+        labelLayer.current?.setText('track-end', `+${fmtDuration((last.timeMs - t) / 1000)}`);
       }
     }
 
@@ -378,6 +454,8 @@ export function GlobeScene({ overlay, onReady }: { overlay: React.RefObject<HTML
             <sphereGeometry args={[1.006, 192, 96]} />
           </mesh>
         )}
+        <primitive object={lines.refPast} />
+        <primitive object={lines.refFuture} />
         <primitive object={lines.past} />
         <primitive object={lines.future} />
         <primitive object={lines.visibility} visible={layers.visibility} />
@@ -442,6 +520,13 @@ export function GlobeScene({ overlay, onReady }: { overlay: React.RefObject<HTML
       {orbit && (
         <>
           <primitive object={lines.radius} />
+          <primitive object={lines.refLink} />
+          <group ref={refGroup} visible={false}>
+            <mesh>
+              <octahedronGeometry args={[0.014, 0]} />
+              <meshBasicMaterial color={REFERENCE_COLOR} toneMapped={false} wireframe />
+            </mesh>
+          </group>
           <group ref={satGroup}>
             <mesh>
               <sphereGeometry args={[0.012, 16, 12]} />

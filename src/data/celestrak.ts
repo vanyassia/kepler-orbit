@@ -26,6 +26,13 @@ export interface SatelliteRecord {
   source: DataSource;
   /** Когда данные были получены из CelesTrak (мс Unix). */
   fetchedAt: number;
+  /**
+   * Исходная запись каталога — нужна эталонной модели SGP4
+   * (кроме шести элементов ей нужны BSTAR, производные среднего движения и т. д.).
+   */
+  omm?: OmmRecord;
+  /** Строки TLE, если элементы введены вручную. */
+  tle?: [string, string];
 }
 
 export interface SearchResult {
@@ -97,7 +104,7 @@ export async function fetchGp(
 const toRecords = (items: OmmRecord[], source: DataSource, fetchedAt: number): SatelliteRecord[] =>
   items.flatMap((r) => {
     try {
-      return [{ elements: ommToElements(r), source, fetchedAt }];
+      return [{ elements: ommToElements(r), source, fetchedAt, omm: r }];
     } catch {
       return []; // запись с некорректными элементами пропускаем
     }

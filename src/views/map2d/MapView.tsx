@@ -14,7 +14,7 @@ import { LayersMenu, RevsControl } from '../../ui/LayersMenu';
 import { fmt, fmtLat, fmtLon } from '../../ui/format';
 import { satelliteTitle } from '../../ui/satelliteTitle';
 import { TEXTURES, useProgressiveImage } from '../assets';
-import { TrackCache } from '../trackCache';
+import { orbitSource, referenceSource, REFERENCE_COLOR, Revolutions, revolutionColor, TrackCache } from '../trackCache';
 import type { BorderPaths } from './geo';
 import { loadBorders } from './geo';
 import { createNightMasks, updateNightMasks } from './nightMask';
@@ -55,7 +55,7 @@ export function MapView() {
   useEffect(
     () =>
       useAppStore.subscribe((s, p) => {
-        if (s.layers !== p.layers || s.orbit !== p.orbit || s.revsBack !== p.revsBack || s.revsForward !== p.revsForward) dirtyRef.current = true;
+        if (s.layers !== p.layers || s.orbit !== p.orbit || s.reference !== p.reference || s.revsBack !== p.revsBack || s.revsForward !== p.revsForward) dirtyRef.current = true;
       }),
     [],
   );
@@ -107,6 +107,7 @@ export function MapView() {
     const masks = createNightMasks();
     const lights = document.createElement('canvas');
     const trackCache = new TrackCache();
+    const refCache = new TrackCache();
     let lastSub = { lat: NaN, lon: NaN };
     let lastMaskAt = 0;
     let lightsKey = '';
@@ -155,7 +156,19 @@ export function MapView() {
         lctx.drawImage(masks.lights, 0, 0, 360, 180);
       }
 
-      const track = st.orbit ? trackCache.get(st.orbit, st.simTime, st.revsBack, st.revsForward) : null;
+      const o = st.orbit;
+      const track = o ? trackCache.get(orbitSource(o), st.simTime, st.revsBack, st.revsForward) : null;
+      const reference =
+        o && st.reference && st.layers.reference ? refCache.get(referenceSource(st.reference, o), st.simTime, st.revsBack, st.revsForward) : null;
+      // Витки: границы — восходящие узлы; подписи ставятся в начале каждого следующего витка
+      const revs = o ? new Revolutions(o, st.simTime, st.revsBack, st.revsForward) : null;
+      const windowEnd = st.simTime + st.revsForward * (o?.T ?? 0) * 1000;
+      const nodePoints =
+        revs && o
+          ? revs.nodes
+              .filter((n) => n > st.simTime && n <= windowEnd)
+              .map((n) => ({ offset: revs.offsetAt(n), point: orbitSource(o).at(n)! }))
+          : [];
       const title = st.record ? satelliteTitle(st.record.elements).title : '';
       renderMap(ctx, {
         view,
@@ -169,8 +182,9 @@ export function MapView() {
         track,
         visibilityBeta: track ? visibilityAngle(track.current.h) : 0,
         satLabel: track ? `${title}, ${fmt(track.current.h, 0)} км` : '',
-        revsBack: st.revsBack,
-        revsForward: st.revsForward,
+        revs,
+        nodePoints,
+        reference,
         cities: CITIES,
         hoverCity: hoverRef.current,
       });
@@ -219,7 +233,7 @@ export function MapView() {
   const centerOnSatellite = () => {
     const st = useAppStore.getState();
     if (!st.orbit || !zoomRef.current) return;
-    const tr = new TrackCache().get(st.orbit, st.simTime, 0, 1).current;
+    const tr = orbitSource(st.orbit).at(st.simTime)!;
     const { w, h } = sizeRef.current;
     const { s0, ox0, oy0 } = baseFit(w, h);
     const k = Math.max(3, transformRef.current.k);
@@ -246,7 +260,7 @@ export function MapView() {
         role="img"
       />
       <div className={styles.toolbar}>
-        <LayersMenu keys={['imagery', 'night', 'borders', 'grid', 'cities', 'visibility']}>
+        <LayersMenu keys={['reference', 'imagery', 'night', 'borders', 'grid', 'cities', 'visibility']}>
           <RevsControl />
         </LayersMenu>
         <div className={styles.zoom}>
@@ -273,21 +287,46 @@ export function MapView() {
   );
 }
 
+/** Условные обозначения: цвета витков (сколько показано вперёд), эталон, прочие значки. */
 function Legend() {
+  const forward = useAppStore((s) => s.revsForward);
+  const showRef = useAppStore((s) => s.layers.reference && !!s.reference);
+  const revs = Array.from({ length: Math.min(forward, 3) }, (_, k) => k + 1);
+  const line = (color: string, dashed: boolean, opacity = 1) => (
+    <svg width="22" height="8" aria-hidden="true">
+      <line x1="1" y1="4" x2="21" y2="4" stroke={color} strokeOpacity={opacity} strokeWidth="2" strokeDasharray={dashed ? '5 3' : undefined} />
+    </svg>
+  );
   return (
     <ul className={styles.legend} aria-label="Условные обозначения">
       <li>
-        <svg width="22" height="8" aria-hidden="true">
-          <line x1="1" y1="4" x2="21" y2="4" stroke="var(--orbit)" strokeOpacity="0.6" strokeWidth="2" />
-        </svg>
-        пройдено
+        {line(revolutionColor(-1), false, 0.8)}
+        прошедшие
       </li>
       <li>
-        <svg width="22" height="8" aria-hidden="true">
-          <line x1="1" y1="4" x2="21" y2="4" stroke="var(--orbit)" strokeWidth="2" strokeDasharray="5 3" />
-        </svg>
-        предстоит
+        {line(revolutionColor(0), true)}
+        текущий виток
       </li>
+      {revs.map((k) => (
+        <li key={k}>
+          {line(revolutionColor(k), true)}
+          {`+${k}`}
+        </li>
+      ))}
+      {forward >= 4 && (
+        <li>
+          {line(revolutionColor(4), true)}
+          {forward === 4 ? '+4' : `+4…+${forward}`}
+        </li>
+      )}
+      {showRef && (
+        <li>
+          <svg width="22" height="8" aria-hidden="true">
+            <line x1="1" y1="4" x2="21" y2="4" stroke={REFERENCE_COLOR} strokeWidth="2" strokeDasharray="2 2" />
+          </svg>
+          эталон SGP4
+        </li>
+      )}
       <li>
         <svg width="14" height="14" aria-hidden="true">
           <circle cx="7" cy="7" r="5.5" fill="rgb(255 181 71 / 0.15)" stroke="var(--sat)" strokeDasharray="3 2" />
@@ -298,7 +337,7 @@ function Legend() {
         <svg width="14" height="14" aria-hidden="true">
           <circle cx="7" cy="7" r="3.5" fill="var(--sun)" />
         </svg>
-        подсолнечная точка
+        Солнце в зените
       </li>
     </ul>
   );

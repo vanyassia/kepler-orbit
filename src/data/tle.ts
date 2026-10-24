@@ -37,6 +37,13 @@ function cosparFromTle(s: string): string | undefined {
   return `${yy < 57 ? 2000 + yy : 1900 + yy}-${m[2]}${m[3]}`;
 }
 
+/** Две строки TLE (первая начинается с «1 », вторая — с «2 ») из произвольного текста. */
+export function extractTleLines(text: string): [string, string] | null {
+  const lines = text.split(/\r?\n/).map((l) => l.trimEnd());
+  const i = lines.findIndex((l) => l.startsWith('1 '));
+  return i >= 0 && lines[i + 1]?.startsWith('2 ') ? [lines[i], lines[i + 1]] : null;
+}
+
 /**
  * Разбор одного набора TLE: две строки или три (первая — название).
  * @throws Error с понятным описанием ошибки.

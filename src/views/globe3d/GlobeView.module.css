@@ -164,6 +164,55 @@
   text-shadow: 0 0 4px #04080f, 0 0 2px #04080f;
 }
 
+/* Начала витков и эталон SGP4 — цвета совпадают с цветами трасс (trackCache.ts) */
+:global(.globe-label.node) {
+  background: transparent;
+  font-family: var(--font-data);
+  font-size: 11px;
+  font-weight: 600;
+  text-shadow: 0 0 4px #04080f, 0 0 2px #04080f;
+  translate: 8px -110%;
+}
+
+:global(.globe-label.node-1) {
+  color: #b38cff;
+}
+
+:global(.globe-label.node-2) {
+  color: #6be07c;
+}
+
+:global(.globe-label.node-3) {
+  color: #fff07a;
+}
+
+:global(.globe-label.node-4) {
+  color: #e6eef8;
+}
+
+:global(.globe-label.node-5) {
+  color: #e6eef8;
+}
+
+:global(.globe-label.node-6) {
+  color: #e6eef8;
+}
+
+:global(.globe-label.node-7) {
+  color: #e6eef8;
+}
+
+:global(.globe-label.node-8) {
+  color: #e6eef8;
+}
+
+:global(.globe-label.ref) {
+  border: 1px solid rgb(255 111 181 / 0.6);
+  color: #ff6fb5;
+  font-weight: 600;
+  translate: 12px 20%;
+}
+
 .camIcon {
   display: none;
 }

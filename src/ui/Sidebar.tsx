@@ -6,6 +6,7 @@ import { RAD } from '../physics/constants';
 import { propagate } from '../physics/propagate';
 import { useAppStore } from '../state/store';
 import { FormulaSteps } from './FormulaSteps';
+import { ReferencePanel } from './ReferencePanel';
 import styles from './Sidebar.module.css';
 import { fmt, fmtDateTime, fmtDuration, fmtLat, fmtLon } from './format';
 import { satelliteTitle } from './satelliteTitle';
@@ -28,6 +29,7 @@ export function Sidebar() {
       <SatelliteCard />
       <QuickPicks />
       <Telemetry />
+      <ReferencePanel />
       <OrbitElements />
       <FormulaSteps />
     </aside>

@@ -11,6 +11,7 @@ export class DynamicLine extends Line2 {
   readonly capacity: number;
   private readonly seg: InstancedInterleavedBuffer;
   private readonly dist: InstancedInterleavedBuffer;
+  private col: InstancedInterleavedBuffer | null = null;
 
   /** @param capacity наибольшее число точек ломаной */
   constructor(capacity: number, material: LineMaterial) {
@@ -31,8 +32,10 @@ export class DynamicLine extends Line2 {
   /**
    * @param xyz плоский массив координат точек [x0, y0, z0, x1, …]
    * @param count число точек
+   * @param rgb цвета точек [r0, g0, b0, …] в линейном пространстве (необязательно);
+   *            при первом вызове с цветами материал переключается на цвета вершин
    */
-  setPoints(xyz: ArrayLike<number>, count: number): void {
+  setPoints(xyz: ArrayLike<number>, count: number, rgb?: ArrayLike<number>): void {
     const n = Math.max(0, Math.min(count, this.capacity) - 1);
     const s = this.seg.array as Float32Array;
     const d = this.dist.array as Float32Array;
@@ -50,6 +53,22 @@ export class DynamicLine extends Line2 {
       d[i * 2] = acc;
       acc += Math.hypot(xyz[b] - xyz[a], xyz[b + 1] - xyz[a + 1], xyz[b + 2] - xyz[a + 2]);
       d[i * 2 + 1] = acc;
+    }
+    if (rgb) {
+      if (!this.col) {
+        this.col = new InstancedInterleavedBuffer(new Float32Array(this.capacity * 6), 6, 1).setUsage(DynamicDrawUsage);
+        this.geometry.setAttribute('instanceColorStart', new InterleavedBufferAttribute(this.col, 3, 0));
+        this.geometry.setAttribute('instanceColorEnd', new InterleavedBufferAttribute(this.col, 3, 3));
+        const m = this.material as LineMaterial;
+        m.vertexColors = true;
+        m.color.set(0xffffff);
+        m.needsUpdate = true;
+      }
+      const c = this.col.array as Float32Array;
+      for (let i = 0; i < n; i++) {
+        c.set([rgb[i * 3], rgb[i * 3 + 1], rgb[i * 3 + 2], rgb[i * 3 + 3], rgb[i * 3 + 4], rgb[i * 3 + 5]], i * 6);
+      }
+      this.col.needsUpdate = true;
     }
     this.seg.needsUpdate = true;
     this.dist.needsUpdate = true;

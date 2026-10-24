@@ -1,6 +1,6 @@
 import { X } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
-import { parseTle } from '../data/tle';
+import { extractTleLines, parseTle } from '../data/tle';
 import { useAppStore } from '../state/store';
 import styles from './TleDialog.module.css';
 
@@ -26,7 +26,7 @@ export function TleDialog({ open, onClose }: { open: boolean; onClose: () => voi
     e.preventDefault();
     try {
       const elements = parseTle(text);
-      setRecord({ elements, source: 'manual', fetchedAt: Date.now() });
+      setRecord({ elements, source: 'manual', fetchedAt: Date.now(), tle: extractTleLines(text) ?? undefined });
       setError(null);
       setText('');
       onClose();
