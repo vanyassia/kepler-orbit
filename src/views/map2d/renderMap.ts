@@ -6,6 +6,8 @@
  */
 import { geoCircle } from 'd3-geo';
 import type { City } from '../../data/cities';
+import type { Region } from '../../data/regions';
+import { REGION_COLOR } from '../../data/regions';
 import { RAD } from '../../physics/constants';
 import type { TrackPoint } from '../../physics/groundTrack';
 import { splitAtAntimeridian } from '../../physics/groundTrack';
@@ -78,6 +80,9 @@ export interface MapScene {
   reference: TrackWindow | null;
   cities: City[];
   hoverCity: City | null;
+  /** Регионы тела (пусто у Земли или при выключенном слое) и радиус тела, км. */
+  regions: Region[];
+  bodyRadius: number;
 }
 
 export function renderMap(ctx: CanvasRenderingContext2D, sc: MapScene): void {
@@ -157,6 +162,9 @@ export function renderMap(ctx: CanvasRenderingContext2D, sc: MapScene): void {
     }
   }
 
+  // 4а. Регионы Луны и Марса: контур — сферический круг диаметра объекта
+  if (sc.regions.length) drawRegionOutlines(ctx, sc.regions, sc.bodyRadius, px);
+
   // 5. Линия терминатора (h☉ = 0)
   if (layers.night) {
     ctx.beginPath();
@@ -200,7 +208,9 @@ export function renderMap(ctx: CanvasRenderingContext2D, sc: MapScene): void {
   setScreen(ctx, v);
   if (layers.grid) drawGridLabels(ctx, v);
   drawSun(ctx, v, sc.subsolar);
-  if (layers.cities) drawCities(ctx, v, sc.cities, sc.hoverCity);
+  const placed: Rect[] = [];
+  if (layers.cities) drawCities(ctx, v, sc.cities, sc.hoverCity, placed);
+  if (sc.regions.length) drawRegionLabels(ctx, v, sc.regions, sc.bodyRadius, placed);
   if (sc.track) drawNodeLabels(ctx, v, sc.nodePoints);
   if (sc.track) drawTrackEnds(ctx, v, sc.track);
   if (sc.track && sc.reference) drawReference(ctx, v, sc.track.current, sc.reference.current);
@@ -396,6 +406,50 @@ function drawReference(ctx: CanvasRenderingContext2D, v: View, ours: TrackPoint,
   ctx.restore();
 }
 
+/** Угловой радиус региона, градусы: половина диаметра, делённая на радиус тела. */
+const regionRadiusDeg = (r: Region, R: number) => ((r.diameterKm / 2 / R) * 180) / Math.PI;
+
+function drawRegionOutlines(ctx: CanvasRenderingContext2D, regions: Region[], R: number, px: number) {
+  ctx.save();
+  ctx.lineWidth = px;
+  ctx.setLineDash([3 * px, 3 * px]);
+  for (const r of regions) {
+    if (!r.outline) continue;
+    ctx.beginPath();
+    tracePath(ctx, geoCircle().center([r.lon, r.lat]).radius(regionRadiusDeg(r, R)).precision(2)());
+    ctx.strokeStyle = REGION_COLOR[r.kind] + '73'; // ~45 % непрозрачности
+    ctx.stroke();
+  }
+  ctx.restore();
+}
+
+/**
+ * Подписи регионов: крупнее — для больших; подпись появляется, когда регион на экране
+ * шире 46 пикселей, и не ставится поверх уже занятого места (города, места посадок).
+ */
+function drawRegionLabels(ctx: CanvasRenderingContext2D, v: View, regions: Region[], R: number, placed: Rect[]) {
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  for (const r of regions) {
+    const sizePx = 2 * regionRadiusDeg(r, R) * v.s;
+    if (sizePx < 46) continue;
+    const [x, y] = toScreen(v, r.lon, r.lat);
+    if (x < -100 || y < -20 || x > v.w + 100 || y > v.h + 20) continue;
+    const fs = Math.round(Math.min(15, Math.max(10, 8 + sizePx / 60)));
+    ctx.font = `500 ${fs}px Tektur, "IBM Plex Mono", sans-serif`;
+    const tw = ctx.measureText(r.title).width;
+    // Место занято (город, место посадки) — пробуем чуть ниже и чуть выше центра региона
+    const shift = Math.min(sizePx / 4, fs * 1.6);
+    const ly = [y, y + shift, y - shift].find((yy) => !overlaps(placed, [x - tw / 2 - 2, yy - fs / 2 - 1, x + tw / 2 + 2, yy + fs / 2 + 1]));
+    if (ly === undefined) continue;
+    placed.push([x - tw / 2 - 2, ly - fs / 2 - 1, x + tw / 2 + 2, ly + fs / 2 + 1]);
+    ctx.fillStyle = REGION_COLOR[r.kind];
+    ctx.globalAlpha = r.kind === 'crater' || r.kind === 'mons' ? 0.8 : 0.92;
+    textWithHalo(ctx, r.title, x, ly);
+    ctx.globalAlpha = 1;
+  }
+}
+
 function textWithHalo(ctx: CanvasRenderingContext2D, text: string, x: number, y: number) {
   ctx.lineWidth = 3;
   ctx.strokeStyle = COLORS.halo;
@@ -449,12 +503,12 @@ function drawSun(ctx: CanvasRenderingContext2D, v: View, sub: { lat: number; lon
   ctx.restore();
 }
 
-function drawCities(ctx: CanvasRenderingContext2D, v: View, cities: City[], hover: City | null) {
+type Rect = [number, number, number, number];
+const overlaps = (placed: Rect[], r: Rect) => placed.some((q) => r[0] < q[2] && r[2] > q[0] && r[1] < q[3] && r[3] > q[1]);
+
+function drawCities(ctx: CanvasRenderingContext2D, v: View, cities: City[], hover: City | null, placed: Rect[]) {
   const showCapitalLabels = v.k >= 1.8;
-  // Подписи без наложений: российские города — первыми, затем столицы по порядку списка
-  const placed: [number, number, number, number][] = [];
-  const overlaps = (r: [number, number, number, number]) =>
-    placed.some((q) => r[0] < q[2] && r[2] > q[0] && r[1] < q[3] && r[3] > q[1]);
+  // Подписи без наложений: выделенные места — первыми, затем остальные по порядку списка
   for (const c of cities) {
     const [x, y] = toScreen(v, c.lon, c.lat);
     if (x < -20 || y < -20 || x > v.w + 20 || y > v.h + 20) continue;
@@ -481,8 +535,8 @@ function drawCities(ctx: CanvasRenderingContext2D, v: View, cities: City[], hove
       ctx.textAlign = left ? 'right' : 'left';
       const lx = x + (left ? -1 : 1) * (ru ? 10 : 6);
       const tw = ctx.measureText(c.name).width;
-      const rect: [number, number, number, number] = [left ? lx - tw : lx, y - 7, left ? lx : lx + tw, y + 7];
-      if (!ru && hover !== c && overlaps(rect)) continue;
+      const rect: Rect = [left ? lx - tw : lx, y - 7, left ? lx : lx + tw, y + 7];
+      if (!ru && hover !== c && overlaps(placed, rect)) continue;
       placed.push(rect);
       textWithHalo(ctx, c.name, lx, y);
     }

@@ -32,6 +32,8 @@ export interface Layers {
   clouds: boolean;
   /** Эталонная модель SGP4 — трасса и положение для сравнения */
   reference: boolean;
+  /** Регионы Луны и Марса (названия IAU, справочник USGS) */
+  regions: boolean;
 }
 
 export const SPEEDS = [1, 10, 60, 300, 1000, 5000] as const;
@@ -123,6 +125,7 @@ export const useAppStore = create<AppState>()(
     helpers: true,
     clouds: true,
     reference: true,
+    regions: true,
   },
   revsBack: 1,
   revsForward: 2,

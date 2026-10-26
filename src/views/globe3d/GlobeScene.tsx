@@ -12,7 +12,11 @@ import {
   BackSide,
   CanvasTexture,
   Color,
+  BufferGeometry,
   DataTexture,
+  Float32BufferAttribute,
+  LineBasicMaterial,
+  LineSegments,
   Matrix4,
   Quaternion,
   RGBAFormat,
@@ -23,6 +27,7 @@ import {
 import { LineMaterial } from 'three/examples/jsm/lines/LineMaterial.js';
 import type { OrbitControls as OrbitControlsImpl } from 'three-stdlib';
 import { PLACES } from '../../data/landmarks';
+import { REGION_COLOR, REGIONS } from '../../data/regions';
 import type { BodyId, CentralBody } from '../../physics/bodies';
 import { BODIES } from '../../physics/bodies';
 import { visibilityAngle } from '../../physics/groundTrack';
@@ -244,6 +249,47 @@ export function GlobeScene({ overlay, onReady }: { overlay: React.RefObject<HTML
     [],
   );
 
+  // Регионы Луны и Марса: контуры — сферические круги диаметра объекта на поверхности (в системе тела)
+  const regionsOn = layers.regions && bodyId !== 'earth';
+  const regionOutlines = useMemo(() => {
+    const list = REGIONS[bodyId].filter((r) => r.outline);
+    if (!list.length) return null;
+    const pos: number[] = [];
+    const col: number[] = [];
+    const c = new Vector3();
+    const e1 = new Vector3();
+    const e2 = new Vector3();
+    const p = new Vector3();
+    const prev = new Vector3();
+    const N = 72;
+    for (const r of list) {
+      const beta = r.diameterKm / 2 / BODIES[bodyId].radius; // угловой радиус, рад
+      geoToLocal(r.lat, r.lon, 1, c);
+      e1.set(0, 1, 0).cross(c);
+      if (e1.lengthSq() < 1e-8) e1.set(1, 0, 0);
+      e1.normalize();
+      e2.crossVectors(c, e1).normalize();
+      const color = new Color(REGION_COLOR[r.kind]);
+      for (let k = 0; k <= N; k++) {
+        const a = (k / N) * Math.PI * 2;
+        p.copy(c).multiplyScalar(Math.cos(beta))
+          .addScaledVector(e1, Math.sin(beta) * Math.cos(a))
+          .addScaledVector(e2, Math.sin(beta) * Math.sin(a))
+          .multiplyScalar(1.0015);
+        if (k > 0) {
+          pos.push(prev.x, prev.y, prev.z, p.x, p.y, p.z);
+          col.push(color.r, color.g, color.b, color.r, color.g, color.b);
+        }
+        prev.copy(p);
+      }
+    }
+    const g = new BufferGeometry();
+    g.setAttribute('position', new Float32BufferAttribute(pos, 3));
+    g.setAttribute('color', new Float32BufferAttribute(col, 3));
+    return new LineSegments(g, new LineBasicMaterial({ vertexColors: true, transparent: true, opacity: 0.45, depthWrite: false }));
+  }, [bodyId]);
+  useEffect(() => () => regionOutlines?.geometry.dispose(), [regionOutlines]);
+
   useEffect(() => {
     const specs: LabelSpec[] = [];
     const fixed = (v: Vector3) => (out: Vector3) => out.copy(v);
@@ -276,6 +322,12 @@ export function GlobeScene({ overlay, onReady }: { overlay: React.RefObject<HTML
         specs.push({ id: `city-${c.name}`, text: c.name, className: `globe-label ru${c.labelSide === 'left' ? ' left' : ''}`, anchor: onEarth(geoToLocal(c.lat, c.lon, 1.001)) });
       }
     }
+    if (regionsOn) {
+      const minKm = bodyId === 'moon' ? 400 : 1200;
+      for (const r of REGIONS[bodyId].filter((x) => x.diameterKm >= minKm)) {
+        specs.push({ id: `region-${r.name}`, text: r.title, className: `globe-label region region-${r.kind}`, anchor: onEarth(geoToLocal(r.lat, r.lon, 1.002)) });
+      }
+    }
     if (layers.helpers && geometry && orbit) {
       specs.push({ id: 'aries', text: bodyId === 'earth' ? '♈ ось x' : 'ось x — узел экватора', className: 'globe-label helper', anchor: fixed(new Vector3(1.95, 0, 0)) });
       specs.push({ id: 'pole', text: 'ось z', className: 'globe-label helper', anchor: fixed(new Vector3(0, 1.5, 0)) });
@@ -288,7 +340,7 @@ export function GlobeScene({ overlay, onReady }: { overlay: React.RefObject<HTML
     }
     labelSpecs.current = specs;
     labelLayer.current?.setSpecs(specs);
-  }, [orbit, record, geometry, layers.cities, layers.helpers, revsBack, revsForward, refOn, bodyId]);
+  }, [orbit, record, geometry, layers.cities, layers.helpers, revsBack, revsForward, refOn, bodyId, regionsOn]);
 
   // Плавная перестановка камеры при выборе нового спутника
   const camAnim = useRef<{ from: Vector3; to: Vector3; start: number } | null>(null);
@@ -488,6 +540,7 @@ export function GlobeScene({ overlay, onReady }: { overlay: React.RefObject<HTML
 
       {/* Земля: ГСК, повёрнута на звёздное время S */}
       <group ref={earthGroup}>
+        {regionsOn && regionOutlines && <primitive object={regionOutlines} />}
         <mesh material={mats.earth}>
           <sphereGeometry args={[1, 256, 256]} />
         </mesh>

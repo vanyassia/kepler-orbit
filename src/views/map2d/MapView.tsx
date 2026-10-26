@@ -6,6 +6,7 @@ import { zoom, zoomIdentity } from 'd3-zoom';
 import { useEffect, useRef, useState } from 'react';
 import type { City } from '../../data/cities';
 import { PLACES } from '../../data/landmarks';
+import { REGIONS } from '../../data/regions';
 import { BODIES } from '../../physics/bodies';
 import { greenwichToGeo } from '../../physics/frames';
 import { RAD } from '../../physics/constants';
@@ -193,6 +194,8 @@ export function MapView() {
         nodePoints,
         reference,
         cities: PLACES[st.body],
+        regions: st.layers.regions ? REGIONS[st.body] : [],
+        bodyRadius: b.radius,
         hoverCity: hoverRef.current,
       });
     };
@@ -267,7 +270,7 @@ export function MapView() {
         role="img"
       />
       <div className={styles.toolbar}>
-        <LayersMenu keys={body === 'earth' ? ['reference', 'imagery', 'night', 'borders', 'grid', 'cities', 'visibility'] : ['imagery', 'night', 'grid', 'cities', 'visibility']}>
+        <LayersMenu keys={body === 'earth' ? ['reference', 'imagery', 'night', 'borders', 'grid', 'cities', 'visibility'] : ['regions', 'imagery', 'night', 'grid', 'cities', 'visibility']}>
           <RevsControl />
         </LayersMenu>
         <div className={styles.zoom}>

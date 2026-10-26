@@ -14,7 +14,8 @@
     "fetch:textures": "node scripts/fetch-textures.mjs",
     "update:fallback": "node scripts/update-fallback.mjs",
     "deploy": "sh scripts/deploy.sh",
-    "update:orbiters": "node scripts/update-orbiters.mjs"
+    "update:orbiters": "node scripts/update-orbiters.mjs",
+    "update:regions": "node scripts/update-regions.mjs"
   },
   "dependencies": {
     "@fontsource/ibm-plex-mono": "^5.3.0",

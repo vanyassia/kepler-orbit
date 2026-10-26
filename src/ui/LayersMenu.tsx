@@ -15,6 +15,7 @@ const LABELS: Record<keyof Layers, string> = {
   helpers: 'Экватор, узлы, апсиды',
   clouds: 'Облака',
   reference: 'Эталон SGP4',
+  regions: 'Регионы (названия IAU)',
 };
 
 /** Выпадающее меню слоёв вида + дополнительные настройки (children). */

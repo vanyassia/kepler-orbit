@@ -207,6 +207,33 @@
   color: #e6eef8;
 }
 
+:global(.globe-label.region) {
+  background: transparent;
+  translate: -50% -50%;
+  font-family: var(--font-display);
+  font-size: 12px;
+  font-weight: 500;
+  text-shadow: 0 0 4px #04060a, 0 0 2px #04060a;
+}
+
+:global(.globe-label.region-mare),
+:global(.globe-label.region-plain) {
+  color: #a9c8ea;
+}
+
+:global(.globe-label.region-land),
+:global(.globe-label.region-linear) {
+  color: #ecd1a8;
+}
+
+:global(.globe-label.region-mons) {
+  color: #d9e6b0;
+}
+
+:global(.globe-label.region-crater) {
+  color: #dcdfe6;
+}
+
 :global(.globe-label.ref) {
   border: 1px solid rgb(255 111 181 / 0.6);
   color: #ff6fb5;
