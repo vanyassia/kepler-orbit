@@ -55,8 +55,7 @@
     position: fixed;
     inset: 0;
     z-index: 55;
-    background: rgb(4 9 18 / 0.55);
-    backdrop-filter: blur(2px);
+    background: var(--surface-scrim);
   }
 }
 

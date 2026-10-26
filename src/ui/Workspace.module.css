@@ -47,8 +47,7 @@
   padding: 3px;
   border: 1px solid var(--line-strong);
   border-radius: var(--r-chip);
-  background: rgb(12 24 41 / 0.82);
-  backdrop-filter: blur(10px);
+  background: var(--surface-overlay);
 }
 
 .tab {
@@ -87,8 +86,7 @@
   display: grid;
   place-items: center;
   padding: var(--sp-4);
-  background: rgb(8 17 32 / 0.6);
-  backdrop-filter: blur(4px);
+  background: var(--surface-scrim);
 }
 
 .emptyCard {

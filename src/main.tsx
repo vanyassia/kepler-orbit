@@ -6,7 +6,6 @@ import '@fontsource/tektur/600.css';
 import '@fontsource/ibm-plex-mono/400.css';
 import '@fontsource/ibm-plex-mono/500.css';
 import '@fontsource/ibm-plex-mono/600.css';
-import 'katex/dist/katex.min.css';
 import './styles/global.css';
 
 import { App } from './App';

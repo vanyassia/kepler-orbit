@@ -23,12 +23,26 @@ export const TEXTURES = {
   mars8k: `${base}textures/mars_8k.jpg`,
 } as const;
 
-/** Снимок поверхности тела: сначала лёгкий, затем подробный. */
-export const SURFACE: Record<BodyId, readonly string[]> = {
-  earth: [TEXTURES.day2k, TEXTURES.day8k],
-  moon: [TEXTURES.moon2k, TEXTURES.moon6k],
-  mars: [TEXTURES.mars2k, TEXTURES.mars8k],
-};
+/**
+ * Лёгкий режим: устройство с сенсорным экраном или с памятью ≤ 4 ГБ. Там грузятся только версии 2K:
+ * текстура 8K весит 7–8 МБ и занимает в видеопамяти около 170 МБ — на телефоне это лишний трафик
+ * и риск потери WebGL-контекста.
+ */
+export const LIGHT_DEVICE =
+  typeof window !== 'undefined' &&
+  (window.matchMedia('(pointer: coarse)').matches || ((navigator as { deviceMemory?: number }).deviceMemory ?? 8) <= 4);
+
+/** Снимок поверхности тела: сначала лёгкий, затем подробный (в лёгком режиме — только лёгкий). */
+export const SURFACE: Record<BodyId, readonly string[]> = LIGHT_DEVICE
+  ? { earth: [TEXTURES.day2k], moon: [TEXTURES.moon2k], mars: [TEXTURES.mars2k] }
+  : {
+      earth: [TEXTURES.day2k, TEXTURES.day8k],
+      moon: [TEXTURES.moon2k, TEXTURES.moon6k],
+      mars: [TEXTURES.mars2k, TEXTURES.mars8k],
+    };
+
+/** Ночные огни Земли. */
+export const NIGHT_LIGHTS: readonly string[] = LIGHT_DEVICE ? [TEXTURES.night2k] : [TEXTURES.night2k, TEXTURES.night8k];
 
 /** Подпись об источниках снимков. */
 export const SURFACE_CREDIT: Record<BodyId, string> = {

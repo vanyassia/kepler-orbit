@@ -10,8 +10,7 @@
   padding: 0 var(--sp-3);
   border: 1px solid var(--line-strong);
   border-radius: var(--r-control);
-  background: rgb(12 24 41 / 0.82);
-  backdrop-filter: blur(10px);
+  background: var(--surface-overlay);
   color: var(--text-0);
   font-size: var(--fs-caption);
 }

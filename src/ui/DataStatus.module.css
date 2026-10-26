@@ -8,16 +8,6 @@
   white-space: nowrap;
 }
 
-.text {
-  display: flex;
-  flex-direction: column;
-}
-
-.detail {
-  color: var(--text-2);
-  font-size: var(--fs-micro);
-}
-
 .dot {
   width: 8px;
   height: 8px;

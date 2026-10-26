@@ -1,9 +1,9 @@
 import { describe, expect, it } from 'vitest';
-import { DEG, MU, R_EARTH, RAD } from '../constants';
+import { DEG, MU, RAD } from '../constants';
 import { cross, norm } from '../math';
 import type { OrbitalElements } from '../propagate';
 import { ascendingNodeTimes, orbitEllipse, prepareOrbit, propagate } from '../propagate';
-import { groundTrack, splitAtAntimeridian, visibilityAngle } from '../groundTrack';
+import { groundTrack, splitAtAntimeridian } from '../groundTrack';
 
 /** МКС, CelesTrak, эпоха 2026-10-21T01:08:59.469792 */
 const ISS: OrbitalElements = {
@@ -145,7 +145,7 @@ describe('Эллипс орбиты', () => {
   });
 });
 
-describe('Трасса и зона радиовидимости — формула (16)', () => {
+describe('Трасса: разрыв на линии перемены дат', () => {
   it('разрыв на ±180°: каждый участок непрерывен, края доходят до ±180°', () => {
     const orbit = prepareOrbit(ISS);
     const pts = groundTrack(orbit, ISS.epochMs, ISS.epochMs + 3 * orbit.T * 1000);
@@ -168,15 +168,5 @@ describe('Трасса и зона радиовидимости — формул
     expect(segs).toHaveLength(2);
     expect(segs[0][1]).toMatchObject({ lon: 180, lat: 11, timeMs: 1 });
     expect(segs[1][0]).toMatchObject({ lon: -180, lat: 11 });
-  });
-
-  it('β = arccos(R/(R+h)): для МКС (h = 420 км) = 20,26°, для ГСО ≈ 81,3°', () => {
-    // arccos(6371 / 6791) = 20,256°
-    expect(visibilityAngle(420) * RAD).toBeCloseTo(20.256, 2);
-    expect(visibilityAngle(42164 - R_EARTH) * RAD).toBeCloseTo(81.3, 1);
-  });
-
-  it('с ростом минимального угла места зона сужается', () => {
-    expect(visibilityAngle(420, 10 * DEG)).toBeLessThan(visibilityAngle(420));
   });
 });

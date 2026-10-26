@@ -11,7 +11,6 @@ const LABELS: Record<keyof Layers, string> = {
   borders: 'Границы государств',
   grid: 'Координатная сетка',
   cities: 'Города',
-  visibility: 'Зона радиовидимости',
   helpers: 'Экватор, узлы, апсиды',
   clouds: 'Облака',
   regions: 'Регионы (названия IAU)',

@@ -31,10 +31,9 @@ import { PLACES } from '../../data/landmarks';
 import { REGION_COLOR, REGIONS } from '../../data/regions';
 import type { BodyId, CentralBody } from '../../physics/bodies';
 import { BODIES } from '../../physics/bodies';
-import { visibilityAngle } from '../../physics/groundTrack';
 import { orbitEllipse, positionAtTrueAnomaly, propagate } from '../../physics/propagate';
 import { useAppStore } from '../../state/store';
-import { fmt, fmtDuration } from '../../ui/format';
+import { fmt } from '../../ui/format';
 import { satelliteTitle } from '../../ui/satelliteTitle';
 import type { TrackWindow } from '../trackCache';
 import { orbitSource, Revolutions, revolutionColor, TrackCache } from '../trackCache';
@@ -184,7 +183,6 @@ export function GlobeScene({ overlay, onReady }: { overlay: React.RefObject<HTML
     () => ({
       past: new DynamicLine(6000, lineMaterial(ORBIT_COLOR, 1.6, 0.95)),
       future: new DynamicLine(6000, lineMaterial(ORBIT_COLOR, 1.8, 0.95, true)),
-      visibility: new DynamicLine(130, lineMaterial(SAT_COLOR, 1.3, 0.85)),
       radius: new DynamicLine(2, lineMaterial(SAT_COLOR, 1, 0.45)),
     }),
     [],
@@ -314,11 +312,7 @@ export function GlobeScene({ overlay, onReady }: { overlay: React.RefObject<HTML
       });
     }
     if (orbit) {
-      // Концы окна трассы (положения маркеров и время обновляются каждый кадр)
-      if (revsBack > 0) {
-        specs.push({ id: 'track-start', text: '', className: 'globe-label helper', anchor: (out) => out.setFromMatrixPosition(startMarker.current.matrixWorld), priority: 2 });
-      }
-      specs.push({ id: 'track-end', text: '', className: 'globe-label helper', anchor: (out) => out.setFromMatrixPosition(endMarker.current.matrixWorld), priority: 2 });
+      // Длительность окна трассы подписана на карте; на глобусе концы отмечены только точками
       // Начала следующих витков
       for (let k = 1; k <= revsForward; k++) {
         specs.push({
@@ -423,7 +417,6 @@ export function GlobeScene({ overlay, onReady }: { overlay: React.RefObject<HTML
       future: new Float32Array(6000 * 3),
       pastRgb: new Float32Array(6000 * 3),
       futureRgb: new Float32Array(6000 * 3),
-      ring: new Float32Array(130 * 3),
     }),
     [],
   );
@@ -526,24 +519,8 @@ export function GlobeScene({ overlay, onReady }: { overlay: React.RefObject<HTML
         nodeLocal.current[revs.offsetAt(n)] = geoToLocal(p.lat, p.lon, TRACK_R);
       }
 
-      // Подспутниковая точка и окружность зоны радиовидимости радиуса β
-      const c = geoToLocal(w.current.lat, w.current.lon, 1, new Vector3());
-      subMarker.current.position.copy(c).multiplyScalar(1.003);
-      const beta = visibilityAngle(w.current.h, 0, b.radius);
-      const e1 = new Vector3(0, 1, 0).cross(c);
-      if (e1.lengthSq() < 1e-8) e1.set(1, 0, 0);
-      e1.normalize();
-      const e2 = new Vector3().crossVectors(c, e1).normalize();
-      for (let k = 0; k <= 128; k++) {
-        const a = (k / 128) * Math.PI * 2;
-        const ca = Math.cos(a) * Math.sin(beta);
-        const sa = Math.sin(a) * Math.sin(beta);
-        const cb = Math.cos(beta);
-        buf.ring[k * 3] = (c.x * cb + e1.x * ca + e2.x * sa) * TRACK_R;
-        buf.ring[k * 3 + 1] = (c.y * cb + e1.y * ca + e2.y * sa) * TRACK_R;
-        buf.ring[k * 3 + 2] = (c.z * cb + e1.z * ca + e2.z * sa) * TRACK_R;
-      }
-      lines.visibility.setPoints(buf.ring, 129);
+      // Подспутниковая точка
+      subMarker.current.position.copy(geoToLocal(w.current.lat, w.current.lon, 1.003, tmp.w));
 
       // Подпись спутника (10 раз в секунду)
       const now = performance.now();
@@ -551,8 +528,6 @@ export function GlobeScene({ overlay, onReady }: { overlay: React.RefObject<HTML
         lastLabelUpdate.current = now;
         const title = st.record ? satelliteTitle(st.record.elements).title : '';
         labelLayer.current?.setText('sat', `${title}, ${fmt(s.h, 0)} км`);
-        labelLayer.current?.setText('track-start', `−${fmtDuration((t - first.timeMs) / 1000)}`);
-        labelLayer.current?.setText('track-end', `+${fmtDuration((last.timeMs - t) / 1000)}`);
       }
     }
 
@@ -595,7 +570,6 @@ export function GlobeScene({ overlay, onReady }: { overlay: React.RefObject<HTML
         )}
         <primitive object={lines.past} />
         <primitive object={lines.future} />
-        <primitive object={lines.visibility} visible={layers.visibility} />
         <mesh ref={startMarker}>
           <sphereGeometry args={[0.005, 12, 8]} />
           <meshBasicMaterial color={ORBIT_COLOR} toneMapped={false} transparent opacity={0.6} />

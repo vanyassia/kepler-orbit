@@ -29,7 +29,6 @@ export function TopBar() {
         <span className={styles.name} translate="no">
           Кеплер
         </span>
-        <span className={styles.tagline}>задача двух тел</span>
       </div>
       <BodySwitcher />
       <SatelliteSearch />

@@ -38,11 +38,15 @@ export interface BorderPaths {
   land: Path2D;
 }
 
-let bordersPromise: Promise<BorderPaths> | null = null;
+const bordersPromise: Partial<Record<'coarse' | 'fine', Promise<BorderPaths>>> = {};
 
-/** Natural Earth 1:50 млн (пакет world-atlas), загружается по требованию. */
-export function loadBorders(): Promise<BorderPaths> {
-  bordersPromise ??= import('world-atlas/countries-50m.json').then((mod) => {
+/**
+ * Natural Earth (пакет world-atlas), загружается по требованию: сначала 1:110 млн (108 КБ) —
+ * для обзора всей карты этого достаточно; 1:50 млн (756 КБ) — только когда карту приблизили.
+ */
+export function loadBorders(detail: 'coarse' | 'fine' = 'coarse'): Promise<BorderPaths> {
+  const load = detail === 'fine' ? () => import('world-atlas/countries-50m.json') : () => import('world-atlas/countries-110m.json');
+  bordersPromise[detail] ??= load().then((mod) => {
     const topo = (mod.default ?? mod) as unknown as Topology<{ countries: GeometryCollection; land: GeometryCollection }>;
     const countries = topo.objects.countries;
     return {
@@ -51,5 +55,5 @@ export function loadBorders(): Promise<BorderPaths> {
       land: toPath2D(feature(topo, topo.objects.land)),
     };
   });
-  return bordersPromise;
+  return bordersPromise[detail]!;
 }

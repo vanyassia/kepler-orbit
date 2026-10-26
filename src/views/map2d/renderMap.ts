@@ -1,13 +1,12 @@
 /**
  * Отрисовка 2D-карты на Canvas. Порядок слоёв (снизу вверх):
  * снимок (или схема) → ночь и огни городов → сетка → границы → терминатор →
- * зона видимости → трасса → подсолнечная точка → города → начала витков → спутник.
+ * трасса → подсолнечная точка → города → начала витков → спутник.
  */
 import { geoCircle } from 'd3-geo';
 import type { City } from '../../data/cities';
 import type { Region } from '../../data/regions';
 import { REGION_COLOR } from '../../data/regions';
-import { RAD } from '../../physics/constants';
 import type { TrackPoint } from '../../physics/groundTrack';
 import { splitAtAntimeridian } from '../../physics/groundTrack';
 import type { Layers } from '../../state/store';
@@ -68,8 +67,6 @@ export interface MapScene {
   /** Подсолнечная точка, градусы. */
   subsolar: { lat: number; lon: number };
   track: TrackWindow | null;
-  /** Центральный угол зоны радиовидимости, рад. */
-  visibilityBeta: number;
   satLabel: string;
   /** Витки нашей модели: цвет трассы и подписи начала витков. */
   revs: Revolutions | null;
@@ -173,21 +170,7 @@ export function renderMap(ctx: CanvasRenderingContext2D, sc: MapScene): void {
     ctx.setLineDash([]);
   }
 
-  // 6. Зона радиовидимости
-  if (layers.visibility && sc.track) {
-    const c = sc.track.current;
-    ctx.beginPath();
-    tracePath(ctx, geoCircle().center([c.lon, c.lat]).radius(sc.visibilityBeta * RAD).precision(1)());
-    ctx.fillStyle = 'rgba(255, 181, 71, 0.09)';
-    ctx.fill();
-    ctx.strokeStyle = 'rgba(255, 181, 71, 0.75)';
-    ctx.lineWidth = 1.2 * px;
-    ctx.setLineDash([5 * px, 3 * px]);
-    ctx.stroke();
-    ctx.setLineDash([]);
-  }
-
-  // 7. Трасса с цветом по виткам — во всю яркость по всему окну
+  // 6. Трасса с цветом по виткам — во всю яркость по всему окну
   if (sc.track) {
     const color = (tau: number) => revolutionColor(sc.revs ? sc.revs.offsetAt(tau) : 0);
     drawTrack(ctx, sc.track.past, px, false, color);

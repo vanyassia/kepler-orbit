@@ -9,8 +9,7 @@
 }
 
 .dialog::backdrop {
-  background: rgb(4 9 18 / 0.7);
-  backdrop-filter: blur(3px);
+  background: var(--surface-scrim);
 }
 
 .form {

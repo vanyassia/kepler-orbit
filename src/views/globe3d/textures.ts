@@ -7,7 +7,7 @@ import type { WebGLRenderer } from 'three';
 import { LinearMipmapLinearFilter, NoColorSpace, RepeatWrapping, SRGBColorSpace, Texture } from 'three';
 import type { Quality } from '../../state/store';
 import type { BodyId } from '../../physics/bodies';
-import { loadImage, SURFACE, TEXTURES } from '../assets';
+import { LIGHT_DEVICE, loadImage, NIGHT_LIGHTS, SURFACE, TEXTURES } from '../assets';
 
 function makeTexture(img: HTMLImageElement, color: boolean, anisotropy: number): Texture {
   const t = new Texture(img);
@@ -65,16 +65,18 @@ export function useEarthTextures(quality: Quality, gl: WebGLRenderer, body: Body
     () =>
       body !== 'earth'
         ? [...SURFACE[body]]
-        : quality === 'ultra' && ultraOk
+        : quality === 'ultra' && ultraOk && !LIGHT_DEVICE
           ? [TEXTURES.day2k, TEXTURES.day8k, TEXTURES.day16k]
-          : [TEXTURES.day2k, TEXTURES.day8k],
+          : [...SURFACE.earth],
     [quality, ultraOk, body],
   );
   const day = useTex(dayUrls, true, anisotropy);
-  const night = useTex([TEXTURES.night2k, TEXTURES.night8k], true, anisotropy);
-  const clouds = useTex([TEXTURES.clouds], false, anisotropy);
-  const normal = useTex([TEXTURES.normal], false, anisotropy);
-  const specular = useTex([TEXTURES.specular], false, 1);
+  // Огни, облака, рельеф и маска океанов есть только у Земли — для Луны и Марса не скачиваются
+  const earth = body === 'earth';
+  const night = useTex(earth ? [...NIGHT_LIGHTS] : [], true, anisotropy);
+  const clouds = useTex(earth ? [TEXTURES.clouds] : [], false, anisotropy);
+  const normal = useTex(earth ? [TEXTURES.normal] : [], false, anisotropy);
+  const specular = useTex(earth ? [TEXTURES.specular] : [], false, 1);
   const stars = useTex([TEXTURES.stars], true, 1);
   return { day, night, clouds, normal, specular, stars, dayWidth: (day?.image as HTMLImageElement | undefined)?.naturalWidth ?? 0 };
 }

@@ -24,7 +24,6 @@ export interface Layers {
   borders: boolean;
   grid: boolean;
   cities: boolean;
-  visibility: boolean;
   /** 3D: оси, экватор, линия узлов, апсиды */
   helpers: boolean;
   clouds: boolean;
@@ -114,8 +113,7 @@ export const useAppStore = create<AppState>()(
     borders: true,
     grid: true,
     cities: true,
-    visibility: true,
-    helpers: true,
+    helpers: false,
     clouds: true,
     regions: true,
   },
@@ -167,9 +165,13 @@ export const useAppStore = create<AppState>()(
     {
       // Настройки интерфейса запоминаются в браузере; данные спутника — нет (они в кэше CelesTrak)
       name: 'kepler:prefs',
-      version: 2,
+      version: 3,
       // v2: вид и последний спутник больше не запоминаются (по умолчанию — МКС на глобусе)
-      migrate: (persisted) => persisted as AppState,
+      // v3: новые слои по умолчанию (вспомогательная геометрия выключена) — сохранённые слои сбрасываются
+      migrate: (persisted, version) => {
+        const p = persisted as Partial<AppState>;
+        return (version < 3 ? { ...p, layers: undefined } : p) as AppState;
+      },
       storage: createJSONStorage(() => localStorage),
       partialize: (s) => ({
         camera: s.camera,
@@ -183,7 +185,8 @@ export const useAppStore = create<AppState>()(
         // Берём только существующие слои: у старых версий был слой эталона SGP4
         const saved = (p.layers ?? {}) as Partial<Layers>;
         const layers = { ...current.layers };
-        for (const k of Object.keys(layers) as (keyof Layers)[]) if (typeof saved[k] === 'boolean') layers[k] = saved[k];
+        // «День и ночь» при каждом запуске включены — сохранённое выключение не восстанавливается
+        for (const k of Object.keys(layers) as (keyof Layers)[]) if (k !== 'night' && typeof saved[k] === 'boolean') layers[k] = saved[k];
         return { ...current, ...p, layers };
       },
     },

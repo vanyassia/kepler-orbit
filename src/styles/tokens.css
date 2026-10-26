@@ -69,6 +69,15 @@
   --sidebar-w: 352px;
   --timeline-h: 72px;
 
+  /*
+   * Поверхности поверх глобуса и карты. Без backdrop-filter: размытие поверх холста, который
+   * перерисовывается каждый кадр, заставляет видеокарту заново размывать фон в каждом кадре.
+   * Цвет выводится из --bg-1, поэтому плашки сами принимают оттенок Луны и Марса.
+   */
+  --surface-overlay: color-mix(in srgb, var(--bg-1) 92%, transparent);
+  --surface-label: color-mix(in srgb, var(--bg-0) 80%, transparent);
+  --surface-scrim: color-mix(in srgb, var(--bg-0) 70%, transparent);
+
   /* Свечение космоса за глобусом */
   --space-glow: #0b1730;
 

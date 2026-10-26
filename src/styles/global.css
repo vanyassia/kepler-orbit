@@ -142,7 +142,7 @@ button:disabled {
   animation: var(--duration-enter) ease-out var(--duration-exit) both vt-fade;
 }
 
-/* Переключатель видов лежит поверх панелей: не двигается и не мигает (у него backdrop-filter) */
+/* Переключатель видов лежит поверх панелей: не двигается и не мигает */
 ::view-transition-group(view-switcher) {
   animation: none;
   z-index: 100;

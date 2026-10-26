@@ -32,7 +32,8 @@ export default function GlobeView() {
     <div className={styles.wrap}>
       <Canvas
         className={styles.canvas}
-        dpr={[1, 2]}
+        // Выше 1,5 разница на глаз почти не видна, а пикселей на ретина-экране на 78 % больше
+        dpr={[1, 1.5]}
         camera={{ fov: 38, near: 0.005, far: 3000, position: [0, 1.6, 4.2] }}
         gl={{ antialias: true, toneMapping: ACESFilmicToneMapping, toneMappingExposure: 1.05, powerPreference: 'high-performance' }}
         role="application"
@@ -69,7 +70,7 @@ export default function GlobeView() {
             </button>
           ))}
         </div>
-        <LayersMenu keys={body === 'earth' ? ['night', 'clouds', 'helpers', 'visibility', 'cities'] : ['regions', 'night', 'helpers', 'visibility', 'cities']}>
+        <LayersMenu keys={body === 'earth' ? ['night', 'clouds', 'helpers', 'cities'] : ['regions', 'night', 'helpers', 'cities']}>
           <RevsControl />
           <div className={styles.quality}>
             <span>Детализация снимка</span>
@@ -83,10 +84,6 @@ export default function GlobeView() {
             </div>
           </div>
         </LayersMenu>
-      </div>
-      <div className={styles.hint}>
-        <span className={styles.hintFine}>Вращение — мышь или стрелки, приближение — колесо или +/−</span>
-        <span className={styles.hintCoarse}>Вращение — пальцем, приближение — щипком</span>
       </div>
     </div>
   );

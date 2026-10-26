@@ -25,8 +25,7 @@
   padding: 2px;
   border: 1px solid var(--line-strong);
   border-radius: var(--r-control);
-  background: rgb(12 24 41 / 0.82);
-  backdrop-filter: blur(10px);
+  background: var(--surface-overlay);
 }
 
 .segmented button {
@@ -59,33 +58,6 @@
   gap: var(--sp-2);
   padding: var(--sp-2) var(--sp-2) 2px;
   font-size: var(--fs-caption);
-}
-
-.quality .segmented {
-  backdrop-filter: none;
-}
-
-.hint {
-  position: absolute;
-  left: var(--sp-3);
-  bottom: var(--sp-3);
-  color: var(--text-2);
-  font-size: var(--fs-micro);
-  pointer-events: none;
-}
-
-/* Подсказка по основному устройству ввода: мышь и клавиатура или палец */
-.hintCoarse {
-  display: none;
-}
-
-@media (pointer: coarse) {
-  .hintFine {
-    display: none;
-  }
-  .hintCoarse {
-    display: inline;
-  }
 }
 
 /* Загрузка текстур */
@@ -144,7 +116,7 @@
   /* сдвиг относительно точки привязки задаёт LabelLayer (раскладка без наложений) */
   padding: 2px 7px;
   border-radius: 6px;
-  background: rgb(8 17 32 / 0.78);
+  background: var(--surface-label);
   color: var(--text-0);
   font: 500 var(--fs-note)/1.4 var(--font-ui);
   white-space: nowrap;
@@ -269,9 +241,6 @@
 }
 
 @media (max-width: 720px) {
-  .hint {
-    display: none;
-  }
   .toolbar {
     flex-direction: column;
     align-items: flex-end;

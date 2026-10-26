@@ -35,14 +35,6 @@
   letter-spacing: -0.01em;
 }
 
-.tagline {
-  color: var(--text-2);
-  font-size: var(--fs-caption);
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-
 .right {
   margin-left: auto;
   display: flex;
@@ -104,9 +96,6 @@
   }
   .brand {
     width: auto;
-  }
-  .tagline {
-    display: none;
   }
 }
 

@@ -10,12 +10,11 @@ import { REGIONS } from '../../data/regions';
 import { BODIES } from '../../physics/bodies';
 import { greenwichToGeo } from '../../physics/frames';
 import { RAD } from '../../physics/constants';
-import { visibilityAngle } from '../../physics/groundTrack';
 import { useAppStore } from '../../state/store';
 import { LayersMenu, RevsControl } from '../../ui/LayersMenu';
 import { fmt, fmtLat, fmtLon } from '../../ui/format';
 import { satelliteTitle } from '../../ui/satelliteTitle';
-import { SURFACE, SURFACE_CREDIT, TEXTURES, useProgressiveImage } from '../assets';
+import { NIGHT_LIGHTS, SURFACE, SURFACE_CREDIT, useProgressiveImage } from '../assets';
 import { orbitSource, Revolutions, revolutionColor, TrackCache } from '../trackCache';
 import type { BorderPaths } from './geo';
 import { loadBorders } from './geo';
@@ -45,11 +44,14 @@ export function MapView() {
 
   const body = useAppStore((s) => s.body);
   const day = useProgressiveImage(SURFACE[body]);
-  const night = useProgressiveImage([TEXTURES.night2k, TEXTURES.night8k]);
+  // Ночные огни и границы государств — только у Земли
+  const night = useProgressiveImage(body === 'earth' ? NIGHT_LIGHTS : []);
+  const fineBordersRef = useRef(false);
 
   useEffect(() => {
-    loadBorders().then(setBorders, () => setBorders(null));
-  }, []);
+    if (body !== 'earth' || borders) return;
+    loadBorders('coarse').then(setBorders, () => setBorders(null));
+  }, [body, borders]);
 
   // Перерисовка при смене изображений/данных
   useEffect(() => {
@@ -72,6 +74,13 @@ export function MapView() {
       .on('zoom', (e: { transform: ZoomTransform }) => {
         transformRef.current = e.transform;
         dirtyRef.current = true;
+        // При приближении — подробные границы (1:50 млн), один раз
+        if (e.transform.k >= 2 && !fineBordersRef.current) {
+          fineBordersRef.current = true;
+          loadBorders('fine').then(setBorders, () => {
+            fineBordersRef.current = false;
+          });
+        }
       });
     zoomRef.current = z;
     const applyExtent = () => {
@@ -114,6 +123,7 @@ export function MapView() {
     let lastMaskAt = 0;
     let lightsKey = '';
     let lastTime = NaN;
+    let lastDraw = 0;
     let raf = 0;
 
     const frame = () => {
@@ -122,6 +132,10 @@ export function MapView() {
       const { w, h, dpr } = sizeRef.current;
       if (w === 0 || h === 0) return;
       if (st.simTime === lastTime && !dirtyRef.current) return;
+      // Ход времени перерисовываем не чаще 30 раз в секунду; масштаб, слои и наведение — сразу
+      const nowMs = performance.now();
+      if (!dirtyRef.current && nowMs - lastDraw < 33) return;
+      lastDraw = nowMs;
       lastTime = st.simTime;
       dirtyRef.current = false;
 
@@ -137,7 +151,6 @@ export function MapView() {
       const sub = { lat: subRad.lat * RAD, lon: subRad.lon * RAD };
       // (при быстрой перемотке — не чаще 20 раз в секунду)
       let masksChanged = false;
-      const nowMs = performance.now();
       const moved = !(Math.abs(sub.lat - lastSub.lat) < 0.05 && Math.abs(sub.lon - lastSub.lon) < 0.05);
       if (moved && (nowMs - lastMaskAt > 50 || Number.isNaN(lastSub.lat))) {
         updateNightMasks(masks, subRad);
@@ -185,7 +198,6 @@ export function MapView() {
         lightsLayer: earth && night ? lights : null,
         subsolar: sub,
         track,
-        visibilityBeta: track ? visibilityAngle(track.current.h, 0, b.radius) : 0,
         satLabel: track ? `${title}, ${fmt(track.current.h, 0)} км` : '',
         revs,
         nodePoints,
@@ -286,7 +298,7 @@ export function MapView() {
         onKeyDown={onKeyDown}
       />
       <div className={styles.toolbar}>
-        <LayersMenu keys={body === 'earth' ? ['imagery', 'night', 'borders', 'grid', 'cities', 'visibility'] : ['regions', 'imagery', 'night', 'grid', 'cities', 'visibility']}>
+        <LayersMenu keys={body === 'earth' ? ['imagery', 'night', 'borders', 'grid', 'cities'] : ['regions', 'imagery', 'night', 'grid', 'cities']}>
           <RevsControl />
         </LayersMenu>
         <div className={styles.zoom}>
@@ -344,12 +356,6 @@ function Legend() {
           {forward === 4 ? '+4' : `+4…+${forward}`}
         </li>
       )}
-      <li>
-        <svg width="14" height="14" aria-hidden="true">
-          <circle cx="7" cy="7" r="5.5" fill="rgb(255 181 71 / 0.15)" stroke="var(--sat)" strokeDasharray="3 2" />
-        </svg>
-        зона видимости
-      </li>
       <li>
         <svg width="14" height="14" aria-hidden="true">
           <circle cx="7" cy="7" r="3.5" fill="var(--sun)" />

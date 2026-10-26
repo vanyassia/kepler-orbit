@@ -86,7 +86,7 @@ export function Timeline() {
         <div className={styles.scale}>
           <span className="num">{fmtDateTime(start, 'MSK', false)}</span>
           <span className={styles.legend}>
-            <i className={styles.legendNode} /> восходящий узел (начало витка)
+            <i className={styles.legendNode} /> начало витка
           </span>
           <span className="num">{fmtDateTime(start + span, 'MSK', false)}</span>
         </div>

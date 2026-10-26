@@ -39,16 +39,14 @@ export function DataStatus() {
     <div
       className={styles.status}
       data-kind={loading ? 'loading' : record.source}
-      title={stale ? 'Элементам больше 3 суток: точность расчёта снижена' : undefined}
+      title={[detail, stale ? 'элементам больше 3 суток: точность расчёта снижена' : null].filter(Boolean).join('; ') || undefined}
     >
       <span className={styles.dot} />
-      <span className={styles.text}>
-        {/* Объявляется только смена источника и загрузка, а не ежеминутное «получено N мин назад» */}
-        <span role="status" aria-live="polite">
-          {loading ? 'Загрузка…' : LABELS[record.source]}
-        </span>
-        {detail && <span className={styles.detail}>{detail}</span>}
+      {/* Одна строка: источник; когда получены данные — во всплывающей подсказке и для читалки */}
+      <span className={styles.text} role="status" aria-live="polite">
+        {loading ? 'Загрузка…' : LABELS[record.source]}
       </span>
+      {detail && <span className="visually-hidden">, {detail}</span>}
       {stale && <span className={styles.warn}>эпоха {Math.round(epochAgeDays)}&nbsp;сут</span>}
     </div>
   );

@@ -1,8 +1,7 @@
 /**
- * Трасса полёта — геометрическое место подспутниковых точек — и зона радиовидимости.
- * Формула (16), docs/formulas.md.
+ * Трасса полёта — геометрическое место подспутниковых точек.
  */
-import { R_EARTH, RAD } from './constants';
+import { RAD } from './constants';
 import type { PreparedOrbit } from './propagate';
 import { propagate } from './propagate';
 
@@ -67,18 +66,4 @@ export function splitAtAntimeridian(points: TrackPoint[]): TrackPoint[][] {
     }
   }
   return segments;
-}
-
-/**
- * Формула (16). Центральный угол зоны радиовидимости КА на высоте h
- * при минимальном угле места ε (ε = 0 — видимость до горизонта):
- *
- *   β = arccos(R_З·cos ε / (R_З + h)) − ε.
- *
- * Зона видимости на поверхности — сферический круг радиуса β с центром в подспутниковой точке.
- *
- * @returns β, рад.
- */
-export function visibilityAngle(h: number, minElevation = 0, R = R_EARTH): number {
-  return Math.acos((R * Math.cos(minElevation)) / (R + h)) - minElevation;
 }
