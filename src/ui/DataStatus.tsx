@@ -8,7 +8,7 @@ const LABELS = {
   cache: 'CelesTrak, из кэша',
   fallback: 'Встроенный пример',
   manual: 'TLE введён вручную',
-  horizons: 'JPL Horizons, снимок',
+  horizons: 'JPL Horizons',
 } as const;
 
 /** Откуда взяты элементы и насколько они свежие. */
