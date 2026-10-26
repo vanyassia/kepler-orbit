@@ -11,12 +11,12 @@ import { Workspace } from './ui/Workspace';
 const DEFAULT_NORAD = 25544; // МКС
 const VIEWS: ViewMode[] = ['split', '3d', '2d'];
 
-/** Спутник и вид из адреса страницы (?sat=25544&view=3d) — ссылкой можно поделиться. */
+/** Спутник и вид из адреса страницы (?sat=25544&view=3d; для Луны и Марса — номер NAIF, ?sat=-85) — ссылкой можно поделиться. */
 function readUrl(): { sat: number | null; view: ViewMode | null } {
   const q = new URLSearchParams(location.search);
   const sat = Number(q.get('sat'));
   const view = q.get('view') as ViewMode | null;
-  return { sat: Number.isInteger(sat) && sat > 0 ? sat : null, view: view && VIEWS.includes(view) ? view : null };
+  return { sat: Number.isInteger(sat) && sat !== 0 ? sat : null, view: view && VIEWS.includes(view) ? view : null };
 }
 
 export function App() {
@@ -31,6 +31,12 @@ export function App() {
     useAppStore.getState().setView(view ?? '3d');
     void loadNorad(sat ?? DEFAULT_NORAD);
   }, [loadNorad]);
+
+  // Оттенок оформления под выбранное тело
+  const body = useAppStore((s) => s.body);
+  useEffect(() => {
+    document.documentElement.dataset.body = body;
+  }, [body]);
 
   // Адрес страницы следует за выбранным спутником и видом
   useEffect(

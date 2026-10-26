@@ -8,6 +8,7 @@ const LABELS = {
   cache: 'CelesTrak, из кэша',
   fallback: 'Встроенный пример',
   manual: 'TLE введён вручную',
+  horizons: 'JPL Horizons, снимок',
 } as const;
 
 /** Откуда взяты элементы и насколько они свежие. */
@@ -30,7 +31,7 @@ export function DataStatus() {
   const detail =
     record.source === 'manual'
       ? null
-      : record.source === 'fallback'
+      : record.source === 'fallback' || record.source === 'horizons'
         ? 'снимок сделан ' + fmtAge(now - record.fetchedAt)
         : 'получено ' + fmtAge(now - record.fetchedAt);
 

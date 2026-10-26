@@ -2,7 +2,9 @@ import { FileText, LoaderCircle, Search } from 'lucide-react';
 import { useEffect, useId, useRef, useState } from 'react';
 import type { SatelliteRecord } from '../data/celestrak';
 import { searchSatellites } from '../data/celestrak';
+import { ORBITERS } from '../data/orbiters';
 import { POPULAR_SATELLITES } from '../data/popular';
+import { BODIES } from '../physics/bodies';
 import { useAppStore } from '../state/store';
 import styles from './SatelliteSearch.module.css';
 import { TleDialog } from './TleDialog';
@@ -24,11 +26,14 @@ export function SatelliteSearch() {
 
   const loadNorad = useAppStore((s) => s.loadNorad);
   const setRecord = useAppStore((s) => s.setRecord);
+  const body = useAppStore((s) => s.body);
+  const earth = body === 'earth';
 
   // Поиск с задержкой 300 мс; предыдущий запрос отменяется
   useEffect(() => {
     const q = query.trim();
-    if (q.length < 2 && !/^\d+$/.test(q)) {
+    // Каталог CelesTrak — только для спутников Земли; на Луне и Марсе ищем по местному списку
+    if (!earth || (q.length < 2 && !/^\d+$/.test(q))) {
       setResults(null);
       setNotice(null);
       setBusy(false);
@@ -52,7 +57,7 @@ export function SatelliteSearch() {
       ctrl.abort();
       clearTimeout(timer);
     };
-  }, [query]);
+  }, [query, earth]);
 
   // Закрытие по клику вне
   useEffect(() => {
@@ -63,10 +68,13 @@ export function SatelliteSearch() {
     return () => document.removeEventListener('pointerdown', onDown);
   }, []);
 
-  const items: Item[] =
-    results === null
-      ? POPULAR_SATELLITES.map((p) => ({ kind: 'popular', ...p }))
-      : results.map((record) => ({ kind: 'result', record }));
+  const needle = query.trim().toLowerCase();
+  const local: Item[] = earth
+    ? POPULAR_SATELLITES.map((p) => ({ kind: 'popular', ...p }))
+    : ORBITERS.filter((o) => o.body === body)
+        .filter((o) => !needle || o.title.toLowerCase().includes(needle) || String(o.naifId).includes(needle))
+        .map((o) => ({ kind: 'popular', noradId: o.naifId, title: o.title, note: o.note }));
+  const items: Item[] = results === null ? local : results.map((record) => ({ kind: 'result', record }));
 
   const choose = (item: Item) => {
     if (item.kind === 'popular') void loadNorad(item.noradId);
@@ -104,7 +112,7 @@ export function SatelliteSearch() {
           name="satellite"
           enterKeyHint="search"
           value={query}
-          placeholder="ISS, HST, 25544…"
+          placeholder={earth ? 'ISS, HST, 25544…' : body === 'moon' ? 'LRO, Danuri…' : 'MRO, TGO, Hope…'}
           onChange={(e) => {
             setQuery(e.target.value);
             setOpen(true);
@@ -123,7 +131,7 @@ export function SatelliteSearch() {
 
       {open && (
         <div className={styles.dropdown}>
-          <div className={styles.heading}>{results === null ? 'Популярные спутники' : `Найдено: ${results.length}`}</div>
+          <div className={styles.heading}>{results === null ? (earth ? 'Популярные спутники' : `Аппараты: ${BODIES[body].name}, данные JPL Horizons`) : `Найдено: ${results.length}`}</div>
           {notice && <div className={styles.notice}>{notice}</div>}
           {results !== null && results.length === 0 && !busy && (
             <div className={styles.empty}>
@@ -152,7 +160,7 @@ export function SatelliteSearch() {
               );
             })}
           </ul>
-          <button
+          {earth && <button
             type="button"
             className={styles.tleButton}
             onClick={() => {
@@ -161,7 +169,7 @@ export function SatelliteSearch() {
             }}
           >
             <FileText size={14} /> Ввести TLE вручную
-          </button>
+          </button>}
         </div>
       )}
       <TleDialog open={tleOpen} onClose={() => setTleOpen(false)} />

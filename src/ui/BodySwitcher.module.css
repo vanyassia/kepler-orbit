@@ -1,0 +1,90 @@
+.switcher {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  padding: 3px;
+  border: 1px solid var(--line);
+  border-radius: var(--r-chip);
+  background: var(--bg-0);
+  flex: none;
+}
+
+.item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  height: 34px;
+  padding: 0 12px 0 5px;
+  border: 0;
+  border-radius: var(--r-chip);
+  background: none;
+  color: var(--text-1);
+  font-family: var(--font-display);
+  font-size: var(--fs-caption);
+  font-weight: 500;
+  transition:
+    color var(--dur) var(--ease),
+    background var(--dur) var(--ease);
+}
+
+.item:hover {
+  color: var(--text-0);
+}
+
+.item[aria-checked='true'] {
+  background: var(--bg-3);
+  color: var(--text-0);
+}
+
+/* Диск планеты: снимок поверхности, сдвинутый так, чтобы был виден узнаваемый район,
+   и мягкая тень терминатора справа — как у шара, освещённого слева */
+.disc {
+  position: relative;
+  width: 24px;
+  height: 24px;
+  flex: none;
+  border-radius: 50%;
+  background-size: 260% 100%;
+  background-position: 46% 50%;
+  box-shadow:
+    inset -6px -3px 8px rgb(0 0 0 / 0.65),
+    inset 2px 1px 3px rgb(255 255 255 / 0.18);
+  filter: saturate(0.9);
+  transition: transform 220ms var(--ease);
+}
+
+.item[data-body='moon'] .disc {
+  background-position: 50% 50%;
+}
+
+.item[data-body='mars'] .disc {
+  background-position: 30% 50%;
+}
+
+/* Кольцо орбиты — только у выбранного тела */
+.ring {
+  position: absolute;
+  inset: -5px -7px;
+  border: 1.5px solid var(--orbit);
+  border-radius: 50%;
+  transform: rotate(-24deg) scaleY(0.42);
+  opacity: 0;
+  transition: opacity var(--dur) var(--ease);
+}
+
+.item[aria-checked='true'] .ring {
+  opacity: 0.9;
+}
+
+.item[aria-checked='true'] .disc {
+  transform: scale(1.06);
+}
+
+@media (max-width: 900px) {
+  .label {
+    display: none;
+  }
+  .item {
+    padding: 0 6px;
+  }
+}

@@ -6,7 +6,8 @@ import { useEffect, useMemo, useState } from 'react';
 import type { WebGLRenderer } from 'three';
 import { LinearMipmapLinearFilter, NoColorSpace, RepeatWrapping, SRGBColorSpace, Texture } from 'three';
 import type { Quality } from '../../state/store';
-import { loadImage, TEXTURES } from '../assets';
+import type { BodyId } from '../../physics/bodies';
+import { loadImage, SURFACE, TEXTURES } from '../assets';
 
 function makeTexture(img: HTMLImageElement, color: boolean, anisotropy: number): Texture {
   const t = new Texture(img);
@@ -57,12 +58,17 @@ function useTex(urls: string[], color: boolean, anisotropy: number): Texture | n
   return tex;
 }
 
-export function useEarthTextures(quality: Quality, gl: WebGLRenderer): EarthTextures {
+export function useEarthTextures(quality: Quality, gl: WebGLRenderer, body: BodyId = 'earth'): EarthTextures {
   const anisotropy = Math.min(8, gl.capabilities.getMaxAnisotropy());
   const ultraOk = gl.capabilities.maxTextureSize >= 16384;
   const dayUrls = useMemo(
-    () => (quality === 'ultra' && ultraOk ? [TEXTURES.day2k, TEXTURES.day8k, TEXTURES.day16k] : [TEXTURES.day2k, TEXTURES.day8k]),
-    [quality, ultraOk],
+    () =>
+      body !== 'earth'
+        ? [...SURFACE[body]]
+        : quality === 'ultra' && ultraOk
+          ? [TEXTURES.day2k, TEXTURES.day8k, TEXTURES.day16k]
+          : [TEXTURES.day2k, TEXTURES.day8k],
+    [quality, ultraOk, body],
   );
   const day = useTex(dayUrls, true, anisotropy);
   const night = useTex([TEXTURES.night2k, TEXTURES.night8k], true, anisotropy);

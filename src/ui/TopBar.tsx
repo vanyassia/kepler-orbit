@@ -1,6 +1,7 @@
 import { PanelLeft } from 'lucide-react';
 import { useWallClock } from '../hooks/useSimClock';
 import { useAppStore } from '../state/store';
+import { BodySwitcher } from './BodySwitcher';
 import { DataStatus } from './DataStatus';
 import { SatelliteSearch } from './SatelliteSearch';
 import styles from './TopBar.module.css';
@@ -30,6 +31,7 @@ export function TopBar() {
         </span>
         <span className={styles.tagline}>задача двух тел</span>
       </div>
+      <BodySwitcher />
       <SatelliteSearch />
       <div className={styles.right}>
         <DataStatus />

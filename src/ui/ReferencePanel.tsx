@@ -52,7 +52,7 @@ export function ReferencePanel() {
     return out;
   }, [orbit, satrec, r0, r1]);
 
-  if (!orbit) return null;
+  if (!orbit || orbit.body.id !== 'earth') return null;
   if (!satrec) {
     return (
       <section className={styles.section}>

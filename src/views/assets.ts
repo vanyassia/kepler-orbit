@@ -3,6 +3,7 @@
  * и 2D-картой, и 3D-глобусом — файл скачивается один раз.
  */
 import { useEffect, useState } from 'react';
+import type { BodyId } from '../physics/bodies';
 
 const base = import.meta.env.BASE_URL;
 
@@ -16,7 +17,25 @@ export const TEXTURES = {
   normal: `${base}textures/earth_normal_4k.jpg`,
   specular: `${base}textures/earth_specular_2k.jpg`,
   stars: `${base}textures/stars_4k.jpg`,
+  moon2k: `${base}textures/moon_2k.jpg`,
+  moon6k: `${base}textures/moon_6k.jpg`,
+  mars2k: `${base}textures/mars_2k.jpg`,
+  mars8k: `${base}textures/mars_8k.jpg`,
 } as const;
+
+/** Снимок поверхности тела: сначала лёгкий, затем подробный. */
+export const SURFACE: Record<BodyId, readonly string[]> = {
+  earth: [TEXTURES.day2k, TEXTURES.day8k],
+  moon: [TEXTURES.moon2k, TEXTURES.moon6k],
+  mars: [TEXTURES.mars2k, TEXTURES.mars8k],
+};
+
+/** Подпись об источниках снимков. */
+export const SURFACE_CREDIT: Record<BodyId, string> = {
+  earth: 'NASA Blue Marble, Black Marble; Natural Earth',
+  moon: 'Solar System Scope (CC BY 4.0) по данным NASA LRO',
+  mars: 'Solar System Scope (CC BY 4.0) по данным NASA',
+};
 
 const cache = new Map<string, Promise<HTMLImageElement>>();
 

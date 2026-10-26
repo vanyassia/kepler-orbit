@@ -8,6 +8,7 @@
     'side time';
   height: 100dvh;
   background: var(--bg-0);
+  transition: background-color 400ms var(--ease);
 }
 
 .main {

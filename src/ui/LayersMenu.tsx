@@ -2,6 +2,7 @@ import { Layers as LayersIcon } from 'lucide-react';
 import { useEffect, useId, useRef, useState } from 'react';
 import type { Layers } from '../state/store';
 import { useAppStore } from '../state/store';
+import { PLACES_LABEL } from '../data/landmarks';
 import styles from './LayersMenu.module.css';
 
 const LABELS: Record<keyof Layers, string> = {
@@ -20,6 +21,7 @@ const LABELS: Record<keyof Layers, string> = {
 export function LayersMenu({ keys, children }: { keys: (keyof Layers)[]; children?: React.ReactNode }) {
   const [open, setOpen] = useState(false);
   const layers = useAppStore((s) => s.layers);
+  const body = useAppStore((s) => s.body);
   const toggle = useAppStore((s) => s.toggleLayer);
   const ref = useRef<HTMLDivElement>(null);
   const id = useId();
@@ -57,7 +59,7 @@ export function LayersMenu({ keys, children }: { keys: (keyof Layers)[]; childre
             <label key={k} className={styles.item}>
               <input type="checkbox" checked={layers[k]} onChange={() => toggle(k)} />
               <span className={styles.box} aria-hidden="true" />
-              {LABELS[k]}
+              {k === 'cities' ? PLACES_LABEL[body] : LABELS[k]}
             </label>
           ))}
           {children && <div className={styles.extra}>{children}</div>}

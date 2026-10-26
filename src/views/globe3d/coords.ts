@@ -13,10 +13,13 @@ import { Vector3 } from 'three';
 import { DEG, R_EARTH } from '../../physics/constants';
 import type { Vec3 } from '../../physics/math';
 
-/** Вектор АГЭСК/ГСК (км) → сцена (в радиусах Земли). */
-export function toScene(v: Vec3, out = new Vector3()): Vector3 {
-  return out.set(v.x / R_EARTH, v.z / R_EARTH, -v.y / R_EARTH);
+/** Вектор инерциальной или вращающейся системы (км) → сцена (в радиусах центрального тела R). */
+export function toScene(v: Vec3, out = new Vector3(), R = R_EARTH): Vector3 {
+  return out.set(v.x / R, v.z / R, -v.y / R);
 }
+
+/** Вектор физической системы → оси сцены (без масштаба). */
+export const axisToScene = (v: Vec3, out = new Vector3()): Vector3 => out.set(v.x, v.z, -v.y);
 
 /** Географическая точка (градусы) → координаты внутри группы Земли (в радиусах Земли). */
 export function geoToLocal(latDeg: number, lonDeg: number, r = 1, out = new Vector3()): Vector3 {

@@ -1,7 +1,8 @@
 .wrap {
   position: absolute;
   inset: 0;
-  background: radial-gradient(ellipse at 50% 40%, #0b1730 0%, #04080f 70%);
+  background: radial-gradient(ellipse at 50% 40%, var(--space-glow) 0%, #04060a 70%);
+  transition: background 400ms var(--ease);
 }
 
 .canvas {

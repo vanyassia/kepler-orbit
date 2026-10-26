@@ -9,6 +9,8 @@ import { create } from 'zustand';
 import { createJSONStorage, persist } from 'zustand/middleware';
 import type { SatelliteRecord } from '../data/celestrak';
 import { loadByNorad } from '../data/celestrak';
+import { DEFAULT_SATELLITE, loadOrbiter } from '../data/orbiters';
+import type { BodyId } from '../physics/bodies';
 import type { PreparedOrbit } from '../physics/propagate';
 import { prepareOrbit } from '../physics/propagate';
 import type { SatRec } from 'satellite.js';
@@ -35,6 +37,8 @@ export interface Layers {
 export const SPEEDS = [1, 10, 60, 300, 1000, 5000] as const;
 
 interface AppState {
+  /** Центральное тело: Земля, Луна или Марс. */
+  body: BodyId;
   record: SatelliteRecord | null;
   orbit: PreparedOrbit | null;
   /** Эталон SGP4 для выбранного спутника (null — нет исходных данных каталога). */
@@ -65,7 +69,10 @@ interface AppState {
   revsBack: number;
   revsForward: number;
 
+  /** Загрузка спутника: положительный номер — NORAD (Земля, CelesTrak), отрицательный — NAIF (Луна, Марс, Horizons). */
   loadNorad: (id: number) => Promise<void>;
+  /** Переход к другому телу — с его спутником по умолчанию. */
+  selectBody: (body: BodyId) => void;
   setRecord: (rec: SatelliteRecord) => void;
   setSimTime: (t: number) => void;
   /** Пересчёт времени симуляции по реальным часам (вызывается каждый кадр). */
@@ -87,6 +94,7 @@ let loadSeq = 0;
 export const useAppStore = create<AppState>()(
   persist(
     (set, get) => ({
+  body: 'earth',
   record: null,
   orbit: null,
   reference: null,
@@ -123,9 +131,9 @@ export const useAppStore = create<AppState>()(
     const seq = ++loadSeq;
     set({ loading: true, error: null, pendingNorad: id, lastNorad: id });
     try {
-      const rec = await loadByNorad(id);
+      const rec = id < 0 ? await loadOrbiter(id) : await loadByNorad(id);
       if (seq !== loadSeq) return; // пользователь уже выбрал другой спутник
-      set({ record: rec, orbit: prepareOrbit(rec.elements), reference: createReference(rec), loading: false, pendingNorad: null });
+      set({ record: rec, body: rec.elements.body ?? 'earth', orbit: prepareOrbit(rec.elements), reference: createReference(rec), loading: false, pendingNorad: null });
     } catch (e) {
       if (seq !== loadSeq) return;
       set({ loading: false, pendingNorad: null, error: e instanceof Error ? e.message : String(e) });
@@ -133,7 +141,7 @@ export const useAppStore = create<AppState>()(
   },
   setRecord: (rec) => {
     loadSeq++;
-    set({ record: rec, orbit: prepareOrbit(rec.elements), reference: createReference(rec), loading: false, error: null, pendingNorad: null, lastNorad: rec.elements.noradId });
+    set({ record: rec, body: rec.elements.body ?? 'earth', orbit: prepareOrbit(rec.elements), reference: createReference(rec), loading: false, error: null, pendingNorad: null, lastNorad: rec.elements.noradId });
   },
 
   setSimTime: (t) => set({ simTime: t, anchorSim: t, anchorReal: performance.now() }),
@@ -151,6 +159,11 @@ export const useAppStore = create<AppState>()(
   toggleLayer: (k) => set((s) => ({ layers: { ...s.layers, [k]: !s.layers[k] } })),
   setRevs: (back, forward) => set({ revsBack: back, revsForward: forward }),
   setSidebarOpen: (open) => set({ sidebarOpen: open }),
+  selectBody: (body) => {
+    if (get().body === body && get().record) return;
+    set({ body });
+    void get().loadNorad(DEFAULT_SATELLITE[body]);
+  },
   stepTime: (deltaMs) => {
     const t = get().simTime + deltaMs;
     set({ simTime: t, anchorSim: t, anchorReal: performance.now() });

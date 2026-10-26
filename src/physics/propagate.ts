@@ -22,9 +22,9 @@ import {
   trueAnomalyFromEccentric,
 } from './kepler';
 import { argumentOfLatitude, inertialPosition, inertialVelocity, velocityComponents } from './orbit';
-import { greenwichToGeo, inertialToGreenwich } from './frames';
-import { greenwichSiderealTime } from './time';
-import { R_EARTH } from './constants';
+import { greenwichToGeo } from './frames';
+import type { BodyId, CentralBody } from './bodies';
+import { BODIES } from './bodies';
 
 /**
  * Начальные элементы орбиты на эпоху t₀ — ровно то, что берётся из каталога CelesTrak.
@@ -49,11 +49,18 @@ export interface OrbitalElements {
   argPerigeeDeg: number;
   /** Средняя аномалия на эпоху M₀, °. */
   meanAnomalyDeg: number;
+  /**
+   * Центральное тело (по умолчанию Земля). Для Луны и Марса элементы заданы в системе
+   * «экватор тела и узел» (так их выдаёт JPL Horizons).
+   */
+  body?: BodyId;
 }
 
 /** Элементы, приведённые к радианам, и производные постоянные орбиты. */
 export interface PreparedOrbit {
   elements: OrbitalElements;
+  /** Центральное тело: μ, радиус, вращение. */
+  body: CentralBody;
   epochMs: number;
   /** Среднее движение n, рад/с. */
   n: number;
@@ -81,25 +88,27 @@ export interface PreparedOrbit {
 }
 
 export function prepareOrbit(el: OrbitalElements): PreparedOrbit {
+  const body = BODIES[el.body ?? 'earth'];
   const n = meanMotionFromRevPerDay(el.meanMotion);
-  const a = semiMajorAxis(n);
+  const a = semiMajorAxis(n, body.mu);
   const e = el.eccentricity;
   return {
     elements: el,
+    body,
     epochMs: el.epochMs,
     n,
     a,
     e,
     p: focalParameter(a, e),
-    T: orbitalPeriod(a),
+    T: orbitalPeriod(a, body.mu),
     i: el.inclinationDeg * DEG,
     raan: el.raanDeg * DEG,
     omega: el.argPerigeeDeg * DEG,
     M0: el.meanAnomalyDeg * DEG,
     rPerigee: a * (1 - e),
     rApogee: a * (1 + e),
-    hPerigee: a * (1 - e) - R_EARTH,
-    hApogee: a * (1 + e) - R_EARTH,
+    hPerigee: a * (1 - e) - body.radius,
+    hApogee: a * (1 + e) - body.radius,
   };
 }
 
@@ -142,11 +151,11 @@ export function propagate(orbit: PreparedOrbit, timeMs: number): SatelliteState 
   const r = radiusFromEccentric(orbit.a, orbit.e, E); // (7)
   const u = argumentOfLatitude(orbit.omega, theta); // (8)
   const eci = inertialPosition(r, u, orbit.raan, orbit.i); // (9)
-  const { Vr, Vn, V } = velocityComponents(orbit.p, orbit.e, theta); // (10)
+  const { Vr, Vn, V } = velocityComponents(orbit.p, orbit.e, theta, orbit.body.mu); // (10)
   const vEci = inertialVelocity(Vr, Vn, u, orbit.raan, orbit.i);
-  const S = greenwichSiderealTime(timeMs); // (11)
-  const ecef = inertialToGreenwich(eci, S); // (12)
-  const { lat, lon, h } = greenwichToGeo(ecef); // (13)–(14)
+  const S = orbit.body.rotationAngle(timeMs); // (11): звёздное время S (Земля) или угол W (Луна, Марс)
+  const ecef = orbit.body.toFixed(eci, timeMs); // (12), для Марса — (20)
+  const { lat, lon, h } = greenwichToGeo(ecef, orbit.body.radius); // (13)–(14)
   return { timeMs, dt, revolution, M, E, keplerIterations: iterations, theta, r, u, eci, vEci, Vr, Vn, V, S, ecef, lat, lon, h };
 }
 

@@ -30,6 +30,10 @@ export const earthShader = {
     uniform float cloudsOn;
     uniform float nightOn;
     uniform float normalStrength;
+    uniform vec3 hazeColor;
+    uniform float hazeStrength;
+    uniform float duskStrength;
+    uniform float nightAmbient;
     varying vec2 vUv;
     varying vec3 vWorldNormal;
     varying vec3 vWorldPos;
@@ -62,17 +66,18 @@ export const earthShader = {
       // Огни городов: подавляем тусклую подсветку суши, усиливаем яркие огни
       vec3 lights = texture2D(nightMap, vUv).rgb;
       lights = pow(lights, vec3(1.7)) * 2.6 * (1.0 - 0.7 * cloud);
-      vec3 nightColor = mix(vec3(0.004, 0.008, 0.018), lights, nightOn);
+      // Ночная сторона: у Земли — огни городов, у Луны и Марса — слабая подсветка («пепельный свет»)
+      vec3 nightColor = mix(vec3(0.004, 0.008, 0.018), lights, nightOn) + day * nightAmbient;
 
       vec3 color = mix(nightColor, dayColor, nightOn > 0.5 ? dayMix : 1.0);
 
       // Тёплая полоса сумерек у терминатора
       float dusk = exp(-pow(cosSun / 0.09, 2.0));
-      color += vec3(0.9, 0.38, 0.12) * dusk * 0.06 * nightOn;
+      color += vec3(0.9, 0.38, 0.12) * dusk * 0.06 * nightOn * duskStrength;
 
       // Атмосферная дымка у края диска на дневной стороне
       float fres = pow(1.0 - max(dot(V, N), 0.0), 2.6);
-      color = mix(color, vec3(0.42, 0.66, 1.0), fres * 0.65 * smoothstep(-0.25, 0.45, cosSun));
+      color = mix(color, hazeColor, fres * hazeStrength * smoothstep(-0.25, 0.45, cosSun));
 
       gl_FragColor = vec4(color, 1.0);
       #include <tonemapping_fragment>
@@ -117,12 +122,13 @@ export const atmosphereShader = {
   `,
   fragmentShader: /* glsl */ `
     uniform vec3 sunDir;
+    uniform vec3 atmoColor;
     varying vec3 vNormalView;
     varying vec3 vWorldNormal;
     void main() {
       float rim = pow(max(0.0, 0.62 - dot(vNormalView, vec3(0.0, 0.0, 1.0))), 4.0);
       float sunSide = smoothstep(-0.45, 0.4, dot(normalize(vWorldNormal), sunDir));
-      vec3 col = vec3(0.30, 0.58, 1.0) * rim * (0.08 + 1.5 * sunSide);
+      vec3 col = atmoColor * rim * (0.08 + 1.5 * sunSide);
       gl_FragColor = vec4(col, 1.0);
       #include <tonemapping_fragment>
       #include <colorspace_fragment>

@@ -13,6 +13,7 @@ import {
   CanvasTexture,
   Color,
   DataTexture,
+  Matrix4,
   Quaternion,
   RGBAFormat,
   ShaderMaterial,
@@ -21,18 +22,18 @@ import {
 } from 'three';
 import { LineMaterial } from 'three/examples/jsm/lines/LineMaterial.js';
 import type { OrbitControls as OrbitControlsImpl } from 'three-stdlib';
-import { CITIES } from '../../data/cities';
+import { PLACES } from '../../data/landmarks';
+import type { BodyId, CentralBody } from '../../physics/bodies';
+import { BODIES } from '../../physics/bodies';
 import { visibilityAngle } from '../../physics/groundTrack';
 import { orbitEllipse, positionAtTrueAnomaly, propagate } from '../../physics/propagate';
-import { sunDirectionInertial } from '../../physics/sun';
-import { greenwichSiderealTime } from '../../physics/time';
 import { useAppStore } from '../../state/store';
 import { fmt, fmtDuration } from '../../ui/format';
 import { satelliteTitle } from '../../ui/satelliteTitle';
 import type { TrackWindow } from '../trackCache';
 import { orbitSource, referenceSource, REFERENCE_COLOR, Revolutions, revolutionColor, TrackCache } from '../trackCache';
 import { referenceState } from '../../reference/sgp4';
-import { geoToLocal, toScene } from './coords';
+import { axisToScene, geoToLocal, toScene } from './coords';
 import { DynamicLine } from './DynamicLine';
 import type { LabelSpec } from './LabelLayer';
 import { LabelLayer } from './LabelLayer';
@@ -67,6 +68,30 @@ function glowTexture(inner: string, outer: string) {
   return t;
 }
 
+/** Внешний вид тела на глобусе: дымка у края, сумерки, свечение атмосферы. */
+const LOOK: Record<BodyId, { haze: [number, number, number]; hazeStrength: number; dusk: number; nightAmbient: number; atmo: [number, number, number] | null }> = {
+  earth: { haze: [0.42, 0.66, 1.0], hazeStrength: 0.65, dusk: 1, nightAmbient: 0, atmo: [0.3, 0.58, 1.0] },
+  moon: { haze: [0, 0, 0], hazeStrength: 0, dusk: 0, nightAmbient: 0.07, atmo: null },
+  mars: { haze: [0.95, 0.62, 0.42], hazeStrength: 0.28, dusk: 0.5, nightAmbient: 0.06, atmo: [0.62, 0.36, 0.22] },
+};
+
+const _m = new Matrix4();
+const _ex = new Vector3();
+const _ey = new Vector3();
+const _ez = new Vector3();
+
+/**
+ * Ориентация шара тела в сцене: столбцы матрицы — оси вращающейся системы тела,
+ * выраженные в инерциальной системе (формулы (12) и (20)). Для Земли и Луны это
+ * поворот на S или W вокруг полюса, для Марса — ещё и поправка между полюсами IAU 2015/2009.
+ */
+function orientationOf(body: CentralBody, t: number, out: Quaternion): Quaternion {
+  axisToScene(body.toInertial({ x: 1, y: 0, z: 0 }, t), _ex);
+  axisToScene(body.toInertial({ x: 0, y: 0, z: 1 }, t), _ey);
+  axisToScene(body.toInertial({ x: 0, y: -1, z: 0 }, t), _ez);
+  return out.setFromRotationMatrix(_m.makeBasis(_ex, _ey, _ez));
+}
+
 function lineMaterial(color: string, width: number, opacity: number, dashed = false) {
   const m = new LineMaterial({ color: new Color(color).getHex(), linewidth: width, transparent: opacity < 1, opacity, dashed });
   if (dashed) {
@@ -88,7 +113,8 @@ export function GlobeScene({ overlay, onReady }: { overlay: React.RefObject<HTML
   const quality = useAppStore((s) => s.quality);
   const revsBack = useAppStore((s) => s.revsBack);
   const revsForward = useAppStore((s) => s.revsForward);
-  const tex = useEarthTextures(quality, gl);
+  const bodyId = useAppStore((s) => s.body);
+  const tex = useEarthTextures(quality, gl, bodyId);
 
   const earthGroup = useRef<Group>(null!);
   const satGroup = useRef<Group>(null!);
@@ -117,12 +143,16 @@ export function GlobeScene({ overlay, onReady }: { overlay: React.RefObject<HTML
           cloudsOn: { value: 1 },
           nightOn: { value: 1 },
           normalStrength: { value: 0.9 },
+          hazeColor: { value: new Vector3(0.42, 0.66, 1.0) },
+          hazeStrength: { value: 0.65 },
+          duskStrength: { value: 1 },
+          nightAmbient: { value: 0 },
         },
       }),
       clouds: new ShaderMaterial({ ...cloudsShader, uniforms: { cloudsMap, sunDir, cloudShift }, transparent: true, depthWrite: false }),
       atmosphere: new ShaderMaterial({
         ...atmosphereShader,
-        uniforms: { sunDir },
+        uniforms: { sunDir, atmoColor: { value: new Vector3(0.3, 0.58, 1.0) } },
         side: BackSide,
         blending: AdditiveBlending,
         transparent: true,
@@ -157,15 +187,23 @@ export function GlobeScene({ overlay, onReady }: { overlay: React.RefObject<HTML
   /** Начала следующих витков (в ГСК) — для подписей «+k»; null — узла нет в окне. */
   const nodeLocal = useRef<(Vector3 | null)[]>([]);
 
-  // Подстановка загруженных текстур
+  // Подстановка загруженных текстур; огни городов, океаны, рельеф и облака — только у Земли
+  const blank = useMemo(() => ({ black: solid(0, 0, 0), flat: solid(128, 128, 255) }), []);
   useEffect(() => {
     const u = mats.earth.uniforms;
+    const earth = bodyId === 'earth';
     if (tex.day) u.dayMap.value = tex.day;
-    if (tex.night) u.nightMap.value = tex.night;
-    if (tex.normal) u.normalMap.value = tex.normal;
-    if (tex.specular) u.specMap.value = tex.specular;
+    u.nightMap.value = earth && tex.night ? tex.night : blank.black;
+    u.normalMap.value = earth && tex.normal ? tex.normal : blank.flat;
+    u.specMap.value = earth && tex.specular ? tex.specular : blank.black;
     if (tex.clouds) u.cloudsMap.value = tex.clouds;
-  }, [tex.day, tex.night, tex.normal, tex.specular, tex.clouds, mats]);
+    const look = LOOK[bodyId];
+    u.hazeColor.value.set(...look.haze);
+    u.hazeStrength.value = look.hazeStrength;
+    u.duskStrength.value = look.dusk;
+    u.nightAmbient.value = look.nightAmbient;
+    if (look.atmo) mats.atmosphere.uniforms.atmoColor.value.set(...look.atmo);
+  }, [tex.day, tex.night, tex.normal, tex.specular, tex.clouds, mats, bodyId, blank]);
 
   // Глобус готов, когда загружен хотя бы первый (лёгкий) дневной снимок
   useEffect(() => {
@@ -173,15 +211,16 @@ export function GlobeScene({ overlay, onReady }: { overlay: React.RefObject<HTML
   }, [tex.day, onReady]);
 
   useEffect(() => {
-    mats.earth.uniforms.cloudsOn.value = layers.clouds ? 1 : 0;
+    mats.earth.uniforms.cloudsOn.value = layers.clouds && bodyId === 'earth' ? 1 : 0;
     mats.earth.uniforms.nightOn.value = layers.night ? 1 : 0;
-  }, [layers.clouds, layers.night, mats]);
+  }, [layers.clouds, layers.night, mats, bodyId]);
 
   // Статичные элементы орбиты (в АГЭСК эллипс неподвижен)
   const geometry = useMemo(() => {
     if (!orbit) return null;
-    const pts = orbitEllipse(orbit, 360).map((p) => toScene(p));
-    const at = (theta: number) => toScene(positionAtTrueAnomaly(orbit, theta));
+    const R = orbit.body.radius;
+    const pts = orbitEllipse(orbit, 360).map((p) => toScene(p, new Vector3(), R));
+    const at = (theta: number) => toScene(positionAtTrueAnomaly(orbit, theta), new Vector3(), R);
     return {
       ellipse: pts,
       ascNode: at(-orbit.omega),
@@ -233,12 +272,12 @@ export function GlobeScene({ overlay, onReady }: { overlay: React.RefObject<HTML
       if (refOn) specs.push({ id: 'ref', text: 'SGP4', className: 'globe-label ref', anchor: (out) => (refGroup.current?.visible ? out.copy(refGroup.current.position) : null) });
     }
     if (layers.cities) {
-      for (const c of CITIES.filter((x) => x.highlight)) {
+      for (const c of PLACES[bodyId].filter((x) => x.highlight)) {
         specs.push({ id: `city-${c.name}`, text: c.name, className: `globe-label ru${c.labelSide === 'left' ? ' left' : ''}`, anchor: onEarth(geoToLocal(c.lat, c.lon, 1.001)) });
       }
     }
     if (layers.helpers && geometry && orbit) {
-      specs.push({ id: 'aries', text: '♈ ось x', className: 'globe-label helper', anchor: fixed(new Vector3(1.95, 0, 0)) });
+      specs.push({ id: 'aries', text: bodyId === 'earth' ? '♈ ось x' : 'ось x — узел экватора', className: 'globe-label helper', anchor: fixed(new Vector3(1.95, 0, 0)) });
       specs.push({ id: 'pole', text: 'ось z', className: 'globe-label helper', anchor: fixed(new Vector3(0, 1.5, 0)) });
       specs.push({ id: 'asc', text: '☊ восходящий узел', className: 'globe-label helper', anchor: fixed(geometry.ascNode) });
       specs.push({ id: 'desc', text: '☋', className: 'globe-label helper', anchor: fixed(geometry.descNode) });
@@ -249,22 +288,22 @@ export function GlobeScene({ overlay, onReady }: { overlay: React.RefObject<HTML
     }
     labelSpecs.current = specs;
     labelLayer.current?.setSpecs(specs);
-  }, [orbit, record, geometry, layers.cities, layers.helpers, revsBack, revsForward, refOn]);
+  }, [orbit, record, geometry, layers.cities, layers.helpers, revsBack, revsForward, refOn, bodyId]);
 
   // Плавная перестановка камеры при выборе нового спутника
   const camAnim = useRef<{ from: Vector3; to: Vector3; start: number } | null>(null);
   useEffect(() => {
     if (!orbit || !geometry) return;
     const s = propagate(orbit, useAppStore.getState().simTime);
-    const satDir = toScene(s.eci).normalize();
-    const dist = Math.min(26, Math.max(3.4, (orbit.rApogee / 6371) * 2.3 + 0.8));
+    const satDir = toScene(s.eci, new Vector3(), orbit.body.radius).normalize();
+    const dist = Math.min(26, Math.max(3.4, (orbit.rApogee / orbit.body.radius) * 2.3 + 0.8));
     // Камера сбоку от спутника, чуть выше плоскости экватора — видны и Земля, и плоскость орбиты
     const dir = satDir.clone().add(new Vector3(0, 0.35, 0)).normalize();
     camAnim.current = { from: camera.position.clone(), to: dir.multiplyScalar(dist), start: performance.now() };
   }, [orbit, geometry, camera]);
 
   const prevSatDir = useRef(new Vector3());
-  const prevS = useRef<number | null>(null);
+  const prevQ = useRef<Quaternion | null>(null);
   const lastLabelUpdate = useRef(0);
   const buf = useMemo(
     () => ({
@@ -288,15 +327,17 @@ export function GlobeScene({ overlay, onReady }: { overlay: React.RefObject<HTML
       return c;
     };
   }, []);
-  const tmp = useMemo(() => ({ v: new Vector3(), w: new Vector3(), q: new Quaternion(), axisY: new Vector3(0, 1, 0) }), []);
+  const tmp = useMemo(() => ({ v: new Vector3(), w: new Vector3(), q: new Quaternion(), q2: new Quaternion() }), []);
 
   useFrame(() => {
     const st = useAppStore.getState();
     const t = st.simTime;
-    const S = greenwichSiderealTime(t);
-    earthGroup.current.rotation.y = S;
+    const b = BODIES[st.body];
+    // Шар тела повёрнут из инерциальной системы во вращающуюся (S или W, для Марса — с поправкой полюса)
+    const orient = orientationOf(b, t, tmp.q2);
+    earthGroup.current.quaternion.copy(orient);
 
-    const sd = sunDirectionInertial(t);
+    const sd = b.sunDirection(t);
     mats.earth.uniforms.sunDir.value.set(sd.x, sd.z, -sd.y);
     mats.earth.uniforms.cloudShift.value = -((t / 86_400_000) * 0.02) % 1;
     sunSprite.current.position.set(sd.x * 420, sd.z * 420, -sd.y * 420);
@@ -317,7 +358,7 @@ export function GlobeScene({ overlay, onReady }: { overlay: React.RefObject<HTML
     const o = st.orbit;
     if (o) {
       const s = propagate(o, t);
-      const satPos = toScene(s.eci, tmp.v);
+      const satPos = toScene(s.eci, tmp.v, b.radius);
       satGroup.current.position.copy(satPos);
       const dir = tmp.w.copy(satPos).normalize();
 
@@ -326,14 +367,15 @@ export function GlobeScene({ overlay, onReady }: { overlay: React.RefObject<HTML
         if (st.camera === 'follow' && prevSatDir.current.lengthSq() > 0) {
           tmp.q.setFromUnitVectors(prevSatDir.current, dir);
           camera.position.applyQuaternion(tmp.q);
-        } else if (st.camera === 'earth' && prevS.current !== null) {
-          tmp.q.setFromAxisAngle(tmp.axisY, S - prevS.current);
+        } else if (st.camera === 'earth' && prevQ.current) {
+          // Поворот тела за кадр: q_тек · q_пред⁻¹
+          tmp.q.copy(orient).multiply(prevQ.current.clone().invert());
           camera.position.applyQuaternion(tmp.q);
         }
         if (st.camera !== 'free') controls?.update();
       }
       prevSatDir.current.copy(dir);
-      prevS.current = S;
+      prevQ.current = (prevQ.current ?? new Quaternion()).copy(orient);
 
       // Радиус-вектор r: от центра Земли к спутнику
       lines.radius.setPoints([0, 0, 0, satPos.x, satPos.y, satPos.z], 2);
@@ -383,7 +425,7 @@ export function GlobeScene({ overlay, onReady }: { overlay: React.RefObject<HTML
       if (rw && rs) {
         lines.refPast.setPoints(buf.refPast, fill(rw.past, buf.refPast));
         lines.refFuture.setPoints(buf.refFuture, fill(rw.future, buf.refFuture));
-        const rp = toScene(rs.eci, tmp.w);
+        const rp = toScene(rs.eci, tmp.w, b.radius);
         refGroup.current.position.copy(rp);
         lines.refLink.setPoints([satPos.x, satPos.y, satPos.z, rp.x, rp.y, rp.z], 2);
       }
@@ -391,7 +433,7 @@ export function GlobeScene({ overlay, onReady }: { overlay: React.RefObject<HTML
       // Подспутниковая точка и окружность зоны радиовидимости радиуса β
       const c = geoToLocal(w.current.lat, w.current.lon, 1, new Vector3());
       subMarker.current.position.copy(c).multiplyScalar(1.003);
-      const beta = visibilityAngle(w.current.h);
+      const beta = visibilityAngle(w.current.h, 0, b.radius);
       const e1 = new Vector3(0, 1, 0).cross(c);
       if (e1.lengthSq() < 1e-8) e1.set(1, 0, 0);
       e1.normalize();
@@ -425,8 +467,8 @@ export function GlobeScene({ overlay, onReady }: { overlay: React.RefObject<HTML
     labelLayer.current?.update(camera, size.width, size.height);
   });
 
-  const ruCities = CITIES.filter((c) => c.highlight);
-  const capitals = CITIES.filter((c) => !c.highlight);
+  const ruCities = PLACES[bodyId].filter((c) => c.highlight);
+  const capitals = PLACES[bodyId].filter((c) => !c.highlight);
 
   return (
     <>
@@ -449,7 +491,7 @@ export function GlobeScene({ overlay, onReady }: { overlay: React.RefObject<HTML
         <mesh material={mats.earth}>
           <sphereGeometry args={[1, 256, 256]} />
         </mesh>
-        {layers.clouds && (
+        {layers.clouds && bodyId === 'earth' && (
           <mesh material={mats.clouds} renderOrder={2}>
             <sphereGeometry args={[1.006, 192, 96]} />
           </mesh>
@@ -494,7 +536,7 @@ export function GlobeScene({ overlay, onReady }: { overlay: React.RefObject<HTML
       </group>
 
       {/* Атмосфера (в АГЭСК — сфера, поворот не важен) */}
-      <mesh material={mats.atmosphere}>
+      <mesh material={mats.atmosphere} visible={!!LOOK[bodyId].atmo}>
         <sphereGeometry args={[1.035, 96, 48]} />
       </mesh>
 

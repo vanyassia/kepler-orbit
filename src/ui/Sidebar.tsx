@@ -1,6 +1,8 @@
 import { X } from 'lucide-react';
 import { useEffect, useMemo } from 'react';
+import { ORBITERS } from '../data/orbiters';
 import { POPULAR_SATELLITES } from '../data/popular';
+import { BODIES } from '../physics/bodies';
 import { useThrottledSimTime } from '../hooks/useSimClock';
 import { RAD } from '../physics/constants';
 import { propagate } from '../physics/propagate';
@@ -68,9 +70,15 @@ function SatelliteCard() {
       )}
       <dl className={styles.ids}>
         <div>
-          <dt>NORAD</dt>
+          <dt>{el.noradId < 0 ? 'NAIF' : 'NORAD'}</dt>
           <dd className="num">{el.noradId}</dd>
         </div>
+        {el.body && el.body !== 'earth' && (
+          <div>
+            <dt>Центральное тело</dt>
+            <dd>{BODIES[el.body].name}</dd>
+          </div>
+        )}
         {el.cosparId && (
           <div>
             <dt>COSPAR</dt>
@@ -95,10 +103,16 @@ function QuickPicks() {
   const current = useAppStore((s) => s.record?.elements.noradId);
   const pending = useAppStore((s) => s.pendingNorad);
   const loadNorad = useAppStore((s) => s.loadNorad);
+  const body = useAppStore((s) => s.body);
+  // Земля — популярные спутники из CelesTrak, Луна и Марс — аппараты из снимка JPL Horizons
+  const picks =
+    body === 'earth'
+      ? POPULAR_SATELLITES
+      : ORBITERS.filter((o) => o.body === body).map((o) => ({ noradId: o.naifId, title: o.title, note: o.note }));
   return (
     <section className={styles.section} aria-label="Быстрый выбор">
       <div className={styles.chips}>
-        {POPULAR_SATELLITES.map((p) => (
+        {picks.map((p) => (
           <button
             key={p.noradId}
             type="button"

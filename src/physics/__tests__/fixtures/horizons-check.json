@@ -1,0 +1,183 @@
+{
+  "note": "Долготы Horizons: Луна — восточные, Марс — западные (планетографические)",
+  "elements": [
+    {
+      "naifId": -85,
+      "body": "moon",
+      "name": "LRO (spacecraft) (-85)",
+      "epoch": "2026-10-26T15:58:50.816Z",
+      "eccentricity": 0.01265375357344452,
+      "inclinationDeg": 83.91074764604295,
+      "raanDeg": 17.84398461078757,
+      "argPerigeeDeg": 160.8886373996814,
+      "meanAnomalyDeg": 43.72648369275024,
+      "meanMotionDegPerSec": 0.05134190621090616,
+      "semiMajorAxisKm": 1827.743121783284
+    },
+    {
+      "naifId": -152,
+      "body": "moon",
+      "name": "",
+      "epoch": "2026-10-26T15:58:50.816Z",
+      "eccentricity": 0.01251407247257972,
+      "inclinationDeg": 91.28686220068721,
+      "raanDeg": 284.7820809471751,
+      "argPerigeeDeg": 326.8396950733776,
+      "meanAnomalyDeg": 315.7788982531887,
+      "meanMotionDegPerSec": 0.05086215174750235,
+      "semiMajorAxisKm": 1839.218519978291
+    },
+    {
+      "naifId": -155,
+      "body": "moon",
+      "name": "Danuri (spacecraft) (-155)",
+      "epoch": "2026-10-26T15:58:50.816Z",
+      "eccentricity": 0.04297884288594678,
+      "inclinationDeg": 89.61386739274607,
+      "raanDeg": 306.0005958559543,
+      "argPerigeeDeg": 272.7655664468411,
+      "meanAnomalyDeg": 114.2004255801531,
+      "meanMotionDegPerSec": 0.04968081640262648,
+      "semiMajorAxisKm": 1868.26008347824
+    },
+    {
+      "naifId": -74,
+      "body": "mars",
+      "name": "",
+      "epoch": "2026-10-26T15:58:50.816Z",
+      "eccentricity": 0.01198174064822737,
+      "inclinationDeg": 92.46245830563771,
+      "raanDeg": 274.3467041766115,
+      "argPerigeeDeg": 265.4562215552725,
+      "meanAnomalyDeg": 172.8315491735941,
+      "meanMotionDegPerSec": 0.05378370977098593,
+      "semiMajorAxisKm": 3649.430664199965
+    },
+    {
+      "naifId": -143,
+      "body": "mars",
+      "name": "",
+      "epoch": "2026-10-26T15:58:50.816Z",
+      "eccentricity": 0.00794569490696131,
+      "inclinationDeg": 77.3345577293051,
+      "raanDeg": 343.3034868115112,
+      "argPerigeeDeg": 267.5980348487604,
+      "meanAnomalyDeg": 61.13023977620487,
+      "meanMotionDegPerSec": 0.05089347862872617,
+      "semiMajorAxisKm": 3786.321862034114
+    },
+    {
+      "naifId": -53,
+      "body": "mars",
+      "name": "",
+      "epoch": "2026-10-26T15:58:50.816Z",
+      "eccentricity": 0.007201728236631599,
+      "inclinationDeg": 91.94448123418657,
+      "raanDeg": 138.4497248159246,
+      "argPerigeeDeg": 272.9956272036623,
+      "meanAnomalyDeg": 245.9571601972503,
+      "meanMotionDegPerSec": 0.0505918387923299,
+      "semiMajorAxisKm": 3801.356877121474
+    },
+    {
+      "naifId": -41,
+      "body": "mars",
+      "name": "",
+      "epoch": "2026-10-26T15:58:50.816Z",
+      "eccentricity": 0.5681323446303855,
+      "inclinationDeg": 88.44455143715837,
+      "raanDeg": 45.19000807958046,
+      "argPerigeeDeg": 75.504754441371,
+      "meanAnomalyDeg": 51.48406060501456,
+      "meanMotionDegPerSec": 0.01431249132887849,
+      "semiMajorAxisKm": 8820.952070313544
+    },
+    {
+      "naifId": -62,
+      "body": "mars",
+      "name": "EMM (spacecraft) (-62)",
+      "epoch": "2026-10-26T15:58:50.816Z",
+      "eccentricity": 0.3378056843690542,
+      "inclinationDeg": 23.36768820325028,
+      "raanDeg": 112.3234115660645,
+      "argPerigeeDeg": 197.3916839022498,
+      "meanAnomalyDeg": 67.10179756066421,
+      "meanMotionDegPerSec": 0.001800368016375346,
+      "semiMajorAxisKm": 35135.92790345179
+    }
+  ],
+  "checks": [
+    {
+      "naifId": -85,
+      "body": "moon",
+      "timeUtc": "2026-10-26T16:10:00.000Z",
+      "subLon": 347.42361,
+      "subLat": -59.830357,
+      "sunLon": 349.865655,
+      "sunLat": -1.406078
+    },
+    {
+      "naifId": -152,
+      "body": "moon",
+      "timeUtc": "2026-10-26T16:10:00.000Z",
+      "subLon": 65.019722,
+      "subLat": -43.59347,
+      "sunLon": 349.865655,
+      "sunLat": -1.406078
+    },
+    {
+      "naifId": -155,
+      "body": "moon",
+      "timeUtc": "2026-10-26T16:10:00.000Z",
+      "subLon": 85.76203,
+      "subLat": 62.747066,
+      "sunLon": 349.865655,
+      "sunLat": -1.406078
+    },
+    {
+      "naifId": -74,
+      "body": "mars",
+      "timeUtc": "2026-10-26T16:10:00.000Z",
+      "subLon": 205.209424,
+      "subLat": 64.963908,
+      "sunLon": 69.885305,
+      "sunLat": 5.51103
+    },
+    {
+      "naifId": -143,
+      "body": "mars",
+      "timeUtc": "2026-10-26T16:10:00.000Z",
+      "subLon": 320.9162,
+      "subLat": 4.329599,
+      "sunLon": 69.885303,
+      "sunLat": 5.51103
+    },
+    {
+      "naifId": -53,
+      "body": "mars",
+      "timeUtc": "2026-10-26T16:10:00.000Z",
+      "subLon": 347.290437,
+      "subLat": -10.907716,
+      "sunLon": 69.885303,
+      "sunLat": 5.51103
+    },
+    {
+      "naifId": -41,
+      "body": "mars",
+      "timeUtc": "2026-10-26T16:10:00.000Z",
+      "subLon": 78.766616,
+      "subLat": -22.283489,
+      "sunLon": 69.885231,
+      "sunLat": 5.51103
+    },
+    {
+      "naifId": -62,
+      "body": "mars",
+      "timeUtc": "2026-10-26T16:10:00.000Z",
+      "subLon": 245.923923,
+      "subLat": -20.408675,
+      "sunLon": 69.884886,
+      "sunLat": 5.51103
+    }
+  ]
+}

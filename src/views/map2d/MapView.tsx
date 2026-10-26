@@ -5,15 +5,16 @@ import type { ZoomBehavior, ZoomTransform } from 'd3-zoom';
 import { zoom, zoomIdentity } from 'd3-zoom';
 import { useEffect, useRef, useState } from 'react';
 import type { City } from '../../data/cities';
-import { CITIES } from '../../data/cities';
+import { PLACES } from '../../data/landmarks';
+import { BODIES } from '../../physics/bodies';
+import { greenwichToGeo } from '../../physics/frames';
 import { RAD } from '../../physics/constants';
 import { visibilityAngle } from '../../physics/groundTrack';
-import { subsolarPoint } from '../../physics/sun';
 import { useAppStore } from '../../state/store';
 import { LayersMenu, RevsControl } from '../../ui/LayersMenu';
 import { fmt, fmtLat, fmtLon } from '../../ui/format';
 import { satelliteTitle } from '../../ui/satelliteTitle';
-import { TEXTURES, useProgressiveImage } from '../assets';
+import { SURFACE, SURFACE_CREDIT, TEXTURES, useProgressiveImage } from '../assets';
 import { orbitSource, referenceSource, REFERENCE_COLOR, Revolutions, revolutionColor, TrackCache } from '../trackCache';
 import type { BorderPaths } from './geo';
 import { loadBorders } from './geo';
@@ -41,7 +42,8 @@ export function MapView() {
   const dirtyRef = useRef(true);
   const [borders, setBorders] = useState<BorderPaths | null>(null);
 
-  const day = useProgressiveImage([TEXTURES.day2k, TEXTURES.day8k]);
+  const body = useAppStore((s) => s.body);
+  const day = useProgressiveImage(SURFACE[body]);
   const night = useProgressiveImage([TEXTURES.night2k, TEXTURES.night8k]);
 
   useEffect(() => {
@@ -55,7 +57,7 @@ export function MapView() {
   useEffect(
     () =>
       useAppStore.subscribe((s, p) => {
-        if (s.layers !== p.layers || s.orbit !== p.orbit || s.reference !== p.reference || s.revsBack !== p.revsBack || s.revsForward !== p.revsForward) dirtyRef.current = true;
+        if (s.body !== p.body || s.layers !== p.layers || s.orbit !== p.orbit || s.reference !== p.reference || s.revsBack !== p.revsBack || s.revsForward !== p.revsForward) dirtyRef.current = true;
       }),
     [],
   );
@@ -128,7 +130,10 @@ export function MapView() {
       const view: View = { s: s0 * t.k, ox: t.x + t.k * ox0, oy: t.y + t.k * oy0, w, h, dpr, k: t.k };
 
       // Маски ночи пересчитываются, когда Солнце сместилось больше чем на 0,05°
-      const subRad = subsolarPoint(st.simTime);
+      // Подсолнечная точка на текущем теле: направление на Солнце → вращающаяся система тела
+      const b = BODIES[st.body];
+      const sunGeo = greenwichToGeo(b.toFixed(b.sunDirection(st.simTime), st.simTime), 0);
+      const subRad = { lat: sunGeo.lat, lon: sunGeo.lon };
       const sub = { lat: subRad.lat * RAD, lon: subRad.lon * RAD };
       // (при быстрой перемотке — не чаще 20 раз в секунду)
       let masksChanged = false;
@@ -143,7 +148,8 @@ export function MapView() {
 
       // Слой огней городов = ночной снимок × маска; пересобирается при изменении вида или маски
       const key = `${canvas.width}x${canvas.height}|${view.s}|${view.ox}|${view.oy}|${night?.src}`;
-      if (night && st.layers.night && (masksChanged || key !== lightsKey)) {
+      const earth = st.body === 'earth';
+      if (earth && night && st.layers.night && (masksChanged || key !== lightsKey)) {
         lightsKey = key;
         lights.width = canvas.width;
         lights.height = canvas.height;
@@ -175,17 +181,18 @@ export function MapView() {
         layers: st.layers,
         day,
         night,
-        borders,
+        // Границы, ночные огни — только у Земли
+        borders: earth ? borders : null,
         masks,
-        lightsLayer: night ? lights : null,
+        lightsLayer: earth && night ? lights : null,
         subsolar: sub,
         track,
-        visibilityBeta: track ? visibilityAngle(track.current.h) : 0,
+        visibilityBeta: track ? visibilityAngle(track.current.h, 0, b.radius) : 0,
         satLabel: track ? `${title}, ${fmt(track.current.h, 0)} км` : '',
         revs,
         nodePoints,
         reference,
-        cities: CITIES,
+        cities: PLACES[st.body],
         hoverCity: hoverRef.current,
       });
     };
@@ -208,7 +215,7 @@ export function MapView() {
     }
     let best: City | null = null;
     let bestD = 10;
-    for (const c of CITIES) {
+    for (const c of PLACES[useAppStore.getState().body]) {
       const [cx, cy] = toScreen(view, c.lon, c.lat);
       const d = Math.hypot(cx - sx, cy - sy);
       if (d < bestD) {
@@ -260,7 +267,7 @@ export function MapView() {
         role="img"
       />
       <div className={styles.toolbar}>
-        <LayersMenu keys={['reference', 'imagery', 'night', 'borders', 'grid', 'cities', 'visibility']}>
+        <LayersMenu keys={body === 'earth' ? ['reference', 'imagery', 'night', 'borders', 'grid', 'cities', 'visibility'] : ['imagery', 'night', 'grid', 'cities', 'visibility']}>
           <RevsControl />
         </LayersMenu>
         <div className={styles.zoom}>
@@ -281,7 +288,7 @@ export function MapView() {
       <Legend />
       <div className={styles.footer}>
         <span ref={coordsRef} className={`${styles.coords} num`} />
-        <span className={styles.credit}>NASA Blue Marble, Black Marble; Natural Earth</span>
+        <span className={styles.credit}>{SURFACE_CREDIT[body]}</span>
       </div>
     </div>
   );

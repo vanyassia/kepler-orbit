@@ -7,7 +7,7 @@
  *    21600×10800, общественное достояние.
  *  - NASA Earth Observatory, Black Marble 2016 (ночные огни), 13500×6750, общественное достояние.
  *  - NASA Visible Earth, облачный покров, 8192×4096, общественное достояние.
- *  - Solar System Scope: карта нормалей, маска бликов (океаны), звёздное небо, CC BY 4.0.
+ *  - Solar System Scope: карта нормалей, маска бликов (океаны), звёздное небо, карты Луны и Марса, CC BY 4.0.
  *
  * Пережатие выполняется встроенной в macOS утилитой `sips` (без сторонних зависимостей).
  * Запуск: npm run fetch:textures
@@ -32,6 +32,8 @@ const sources = {
   'sss_normal.tif': 'https://www.solarsystemscope.com/textures/download/8k_earth_normal_map.tif',
   'sss_specular.tif': 'https://www.solarsystemscope.com/textures/download/8k_earth_specular_map.tif',
   'sss_stars.jpg': 'https://www.solarsystemscope.com/textures/download/8k_stars_milky_way.jpg',
+  'sss_moon.jpg': 'https://www.solarsystemscope.com/textures/download/8k_moon.jpg',
+  'sss_mars.jpg': 'https://www.solarsystemscope.com/textures/download/8k_mars.jpg',
 };
 
 /** [исходник, выходной файл, ширина, качество JPEG] — высота всегда ширина/2 (равнопромежуточная проекция) */
@@ -45,6 +47,10 @@ const outputs = [
   ['sss_normal.tif', 'earth_normal_4k.jpg', 4096, 90],
   ['sss_specular.tif', 'earth_specular_2k.jpg', 2048, 85],
   ['sss_stars.jpg', 'stars_4k.jpg', 4096, 85],
+  ['sss_moon.jpg', 'moon_6k.jpg', 6144, 72],
+  ['sss_moon.jpg', 'moon_2k.jpg', 2048, 82],
+  ['sss_mars.jpg', 'mars_8k.jpg', 8192, 70],
+  ['sss_mars.jpg', 'mars_2k.jpg', 2048, 82],
 ];
 
 mkdirSync(SRC, { recursive: true });

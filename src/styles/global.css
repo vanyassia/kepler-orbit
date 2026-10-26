@@ -21,6 +21,7 @@ html {
 
 body {
   background: var(--bg-0);
+  transition: background-color 400ms var(--ease);
   color: var(--text-0);
   font-family: var(--font-ui);
   font-size: var(--fs-body);

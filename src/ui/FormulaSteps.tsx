@@ -6,7 +6,7 @@ import katex from 'katex';
 import { ChevronDown } from 'lucide-react';
 import { useMemo, useState } from 'react';
 import { useThrottledSimTime } from '../hooks/useSimClock';
-import { MU, RAD } from '../physics/constants';
+import { RAD } from '../physics/constants';
 import { propagate } from '../physics/propagate';
 import { useAppStore } from '../state/store';
 import styles from './FormulaSteps.module.css';
@@ -38,6 +38,8 @@ export function FormulaSteps() {
     if (!orbit) return [];
     const s = propagate(orbit, t);
     const el = orbit.elements;
+    const earth = orbit.body.id === 'earth';
+    const sym = orbit.body.rotationSymbol;
     return [
       {
         no: '1–2',
@@ -86,18 +88,18 @@ export function FormulaSteps() {
       },
       {
         no: '11',
-        title: 'Гринвичское звёздное время',
-        tex: `S=${n(s.S * RAD, 4)}^\\circ`,
+        title: earth ? 'Гринвичское звёздное время' : `Угол поворота тела W (IAU), ${orbit.body.name}`,
+        tex: `${sym}=${n(s.S * RAD, 4)}^\\circ`,
       },
       {
         no: '12',
-        title: 'Поворот в гринвичскую систему (ГСК), км',
-        tex: `\\begin{aligned}x_{\\text{г}}&=x\\cos S+y\\sin S=${n(s.ecef.x, 1)}\\\\y_{\\text{г}}&=-x\\sin S+y\\cos S=${n(s.ecef.y, 1)}\\\\z_{\\text{г}}&=z=${n(s.ecef.z, 1)}\\end{aligned}`,
+        title: earth ? 'Поворот в гринвичскую систему (ГСК), км' : 'Поворот во вращающуюся систему тела, км',
+        tex: `\\begin{aligned}x_{\\text{г}}&=x\\cos ${sym}+y\\sin ${sym}=${n(s.ecef.x, 1)}\\\\y_{\\text{г}}&=-x\\sin ${sym}+y\\cos ${sym}=${n(s.ecef.y, 1)}\\\\z_{\\text{г}}&=z=${n(s.ecef.z, 1)}\\end{aligned}`,
       },
       {
         no: '13–14',
         title: 'Подспутниковая точка и высота',
-        tex: `\\begin{aligned}\\varphi&=\\arcsin(z_{\\text{г}}/r)=${n(s.lat * RAD, 4)}^\\circ\\\\\\lambda&=\\operatorname{arctg}(y_{\\text{г}}/x_{\\text{г}})=${n(s.lon * RAD, 4)}^\\circ\\\\h&=r-R_{\\text{З}}=${n(s.h, 1)}\\ \\text{км}\\end{aligned}`,
+        tex: `\\begin{aligned}\\varphi&=\\arcsin(z_{\\text{г}}/r)=${n(s.lat * RAD, 4)}^\\circ\\\\\\lambda&=\\operatorname{arctg}(y_{\\text{г}}/x_{\\text{г}})=${n(s.lon * RAD, 4)}^\\circ\\\\h&=r-R=${n(s.h, 1)}\\ \\text{км}\\end{aligned}`,
       },
     ];
   }, [orbit, t]);
@@ -113,7 +115,8 @@ export function FormulaSteps() {
       {open && (
         <>
           <p className={styles.note}>
-            Задача двух тел, μ = <span className="num">{fmt(MU, 4)}</span> км³/с². Числа соответствуют текущему моменту; чтобы
+            Задача двух тел: {orbit.body.name}, μ = <span className="num">{fmt(orbit.body.mu, 4)}</span> км³/с², R ={' '}
+            <span className="num">{fmt(orbit.body.radius, 1)}</span> км.{orbit.body.id === 'mars' ? ' Для Марса в повороте учтена разница полюсов IAU 2015 и 2009 (формула 20).' : ''} Числа соответствуют текущему моменту; чтобы
             рассмотреть их, остановите время (пробел).
           </p>
           <ol className={styles.list}>

@@ -11,7 +11,7 @@ import styles from './GlobeView.module.css';
 const CAMERA_MODES: { id: CameraMode; label: string; hint: string; icon: typeof Earth }[] = [
   { id: 'free', label: 'Свободно', hint: 'Камера неподвижна в инерциальной системе (АГЭСК)', icon: Move3d },
   { id: 'follow', label: 'За спутником', hint: 'Камера поворачивается вслед за спутником', icon: Satellite },
-  { id: 'earth', label: 'С Землёй', hint: 'Камера вращается вместе с Землёй (ГСК)', icon: Earth },
+  { id: 'earth', label: 'С телом', hint: 'Камера вращается вместе с телом', icon: Earth },
 ];
 
 /** 3D-вид: глобус, орбита, трасса. Загружается отдельным чанком (three.js). */
@@ -20,6 +20,8 @@ export default function GlobeView() {
   const setCamera = useAppStore((s) => s.setCamera);
   const quality = useAppStore((s) => s.quality);
   const setQuality = useAppStore((s) => s.setQuality);
+  const body = useAppStore((s) => s.body);
+  const withBody = { earth: 'С Землёй', moon: 'С Луной', mars: 'С Марсом' }[body];
   const overlay = useRef<HTMLDivElement>(null);
   const [ready, setReady] = useState(false);
 
@@ -30,7 +32,7 @@ export default function GlobeView() {
         dpr={[1, 2]}
         camera={{ fov: 38, near: 0.005, far: 3000, position: [0, 1.6, 4.2] }}
         gl={{ antialias: true, toneMapping: ACESFilmicToneMapping, toneMappingExposure: 1.05, powerPreference: 'high-performance' }}
-        aria-label="Трёхмерный вид: Земля, орбита и трасса спутника"
+        aria-label="Трёхмерный вид: центральное тело, орбита и трасса спутника"
       >
         <Suspense fallback={null}>
           <GlobeScene overlay={overlay} onReady={() => setReady(true)} />
@@ -45,13 +47,21 @@ export default function GlobeView() {
       <div className={styles.toolbar}>
         <div className={styles.segmented} role="radiogroup" aria-label="Камера">
           {CAMERA_MODES.map((m) => (
-            <button key={m.id} type="button" role="radio" aria-checked={camera === m.id} title={m.hint} aria-label={m.label} onClick={() => setCamera(m.id)}>
+            <button
+              key={m.id}
+              type="button"
+              role="radio"
+              aria-checked={camera === m.id}
+              title={m.id === 'earth' ? `Камера вращается вместе с телом (${withBody.toLowerCase()})` : m.hint}
+              aria-label={m.id === 'earth' ? withBody : m.label}
+              onClick={() => setCamera(m.id)}
+            >
               <m.icon size={14} className={styles.camIcon} />
-              <span className={styles.camLabel}>{m.label}</span>
+              <span className={styles.camLabel}>{m.id === 'earth' ? withBody : m.label}</span>
             </button>
           ))}
         </div>
-        <LayersMenu keys={['night', 'clouds', 'helpers', 'visibility', 'cities']}>
+        <LayersMenu keys={body === 'earth' ? ['reference', 'night', 'clouds', 'helpers', 'visibility', 'cities'] : ['night', 'helpers', 'visibility', 'cities']}>
           <RevsControl />
           <div className={styles.quality}>
             <span>Детализация снимка</span>
