@@ -24,12 +24,12 @@ export function revsLabel(n: number): string {
 
 /** Широта: 55,756° с. ш. */
 export function fmtLat(deg: number, digits = 3): string {
-  return `${fmt(Math.abs(deg), digits)}° ${deg >= 0 ? 'с. ш.' : 'ю. ш.'}`;
+  return `${fmt(Math.abs(deg), digits)}° ${deg >= 0 ? 'с. ш.' : 'ю. ш.'}`;
 }
 
 /** Долгота: 37,617° в. д. */
 export function fmtLon(deg: number, digits = 3): string {
-  return `${fmt(Math.abs(deg), digits)}° ${deg >= 0 ? 'в. д.' : 'з. д.'}`;
+  return `${fmt(Math.abs(deg), digits)}° ${deg >= 0 ? 'в. д.' : 'з. д.'}`;
 }
 
 /** Часовые пояса интерфейса: всемирное время и московское. */
@@ -67,17 +67,17 @@ export function fmtTime(ms: number, zone: Zone = 'UTC'): string {
 /** Длительность: «1 ч 32 мин», «2 сут 4 ч», «45 с». */
 export function fmtDuration(seconds: number): string {
   const s = Math.abs(seconds);
-  if (s < 60) return `${Math.round(s)} с`;
-  if (s < 3600) return `${Math.floor(s / 60)} мин ${Math.round(s % 60)} с`;
-  if (s < 86400) return `${Math.floor(s / 3600)} ч ${Math.round((s % 3600) / 60)} мин`;
-  return `${Math.floor(s / 86400)} сут ${Math.round((s % 86400) / 3600)} ч`;
+  if (s < 60) return `${Math.round(s)} с`;
+  if (s < 3600) return `${Math.floor(s / 60)} мин ${Math.round(s % 60)} с`;
+  if (s < 86400) return `${Math.floor(s / 3600)} ч ${Math.round((s % 3600) / 60)} мин`;
+  return `${Math.floor(s / 86400)} сут ${Math.round((s % 86400) / 3600)} ч`;
 }
 
 /** Возраст данных: «5 мин назад», «3 ч назад», «2 сут назад». */
 export function fmtAge(ms: number): string {
   const s = ms / 1000;
   if (s < 90) return 'только что';
-  if (s < 5400) return `${Math.round(s / 60)} мин назад`;
-  if (s < 172800) return `${Math.round(s / 3600)} ч назад`;
-  return `${Math.round(s / 86400)} сут назад`;
+  if (s < 5400) return `${Math.round(s / 60)} мин назад`;
+  if (s < 172800) return `${Math.round(s / 3600)} ч назад`;
+  return `${Math.round(s / 86400)} сут назад`;
 }

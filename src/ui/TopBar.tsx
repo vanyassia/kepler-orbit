@@ -35,7 +35,7 @@ export function TopBar() {
       <SatelliteSearch />
       <div className={styles.right}>
         <DataStatus />
-        <div className={styles.clocks} aria-label="Текущее время">
+        <div className={styles.clocks} role="group" aria-label="Текущее время">
           <span>
             <span className={styles.zone}>UTC</span> <span className="num">{fmtTime(now)}</span>
           </span>

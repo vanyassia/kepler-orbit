@@ -1,5 +1,5 @@
 import { X } from 'lucide-react';
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useId, useRef, useState } from 'react';
 import { extractTleLines, parseTle } from '../data/tle';
 import { useAppStore } from '../state/store';
 import styles from './TleDialog.module.css';
@@ -14,6 +14,8 @@ export function TleDialog({ open, onClose }: { open: boolean; onClose: () => voi
   const [text, setText] = useState('');
   const [error, setError] = useState<string | null>(null);
   const setRecord = useAppStore((s) => s.setRecord);
+  const areaRef = useRef<HTMLTextAreaElement>(null);
+  const errorId = useId();
 
   useEffect(() => {
     const d = ref.current;
@@ -31,7 +33,8 @@ export function TleDialog({ open, onClose }: { open: boolean; onClose: () => voi
       setText('');
       onClose();
     } catch (err) {
-      setError(err instanceof Error ? err.message : String(err));
+      setError(text.trim() ? (err instanceof Error ? err.message : String(err)) : 'Вставьте две строки TLE или нажмите «Подставить пример».');
+      areaRef.current?.focus();
     }
   };
 
@@ -48,6 +51,7 @@ export function TleDialog({ open, onClose }: { open: boolean; onClose: () => voi
           Две строки TLE, можно с названием в первой строке. Контрольные суммы проверяются.
         </p>
         <textarea
+          ref={areaRef}
           name="tle"
           aria-label="Строки TLE"
           autoComplete="off"
@@ -58,9 +62,10 @@ export function TleDialog({ open, onClose }: { open: boolean; onClose: () => voi
           rows={4}
           spellCheck={false}
           aria-invalid={!!error}
+          aria-describedby={error ? errorId : undefined}
         />
         {error && (
-          <p className={styles.error} role="alert">
+          <p id={errorId} className={styles.error} role="alert">
             {error}
           </p>
         )}
@@ -68,7 +73,7 @@ export function TleDialog({ open, onClose }: { open: boolean; onClose: () => voi
           <button type="button" className={styles.secondary} onClick={() => setText(EXAMPLE)}>
             Подставить пример (МКС)
           </button>
-          <button type="submit" className={styles.primary} disabled={!text.trim()}>
+          <button type="submit" className={styles.primary}>
             Показать орбиту
           </button>
         </div>

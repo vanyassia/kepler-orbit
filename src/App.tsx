@@ -36,6 +36,9 @@ export function App() {
   const body = useAppStore((s) => s.body);
   useEffect(() => {
     document.documentElement.dataset.body = body;
+    // Цвет строки состояния браузера (мобильные) — фон текущей темы
+    const bg = getComputedStyle(document.documentElement).getPropertyValue('--bg-0').trim();
+    if (bg) document.querySelector('meta[name="theme-color"]')?.setAttribute('content', bg);
   }, [body]);
 
   // Адрес страницы следует за выбранным спутником и видом

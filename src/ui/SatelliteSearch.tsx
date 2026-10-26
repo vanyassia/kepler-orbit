@@ -122,6 +122,7 @@ export function SatelliteSearch() {
           role="combobox"
           aria-expanded={open}
           aria-controls={listId}
+          aria-activedescendant={open && items[active] ? `${listId}-${active}` : undefined}
           aria-autocomplete="list"
           autoComplete="off"
           spellCheck={false}
@@ -147,6 +148,7 @@ export function SatelliteSearch() {
               return (
                 <li
                   key={key}
+                  id={`${listId}-${idx}`}
                   role="option"
                   aria-selected={idx === active}
                   className={styles.option}
@@ -174,6 +176,13 @@ export function SatelliteSearch() {
           </button>}
         </div>
       )}
+      {/* Объявление результатов поиска для экранных читалок */}
+      <div className="visually-hidden" role="status" aria-live="polite">
+        {busy
+          ? ''
+          : notice ??
+            (results === null ? '' : results.length === 0 ? 'Ничего не найдено' : `Найдено: ${results.length}`)}
+      </div>
       <TleDialog open={tleOpen} onClose={() => setTleOpen(false)} />
       <SlashShortcut onTrigger={() => inputRef.current?.focus()} />
     </div>

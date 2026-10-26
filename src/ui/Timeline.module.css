@@ -19,7 +19,13 @@
   border-radius: 50%;
   background: var(--sat);
   color: #1d1300;
-  transition: transform var(--dur) var(--ease);
+  transition:
+    transform var(--dur) var(--ease),
+    background-color var(--dur) var(--ease);
+}
+
+.play:hover {
+  background: color-mix(in srgb, var(--sat) 82%, white);
 }
 
 .play:active {

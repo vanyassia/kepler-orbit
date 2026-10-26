@@ -232,6 +232,23 @@ export function MapView() {
     const canvas = canvasRef.current!;
     if (zoomRef.current) select(canvas).transition().duration(250).call(zoomRef.current.scaleBy, factor);
   };
+  // Клавиатура (альтернатива перетаскиванию и колесу): стрелки сдвигают карту, «+» и «−» меняют масштаб
+  const onKeyDown = (e: React.KeyboardEvent<HTMLCanvasElement>) => {
+    const z = zoomRef.current;
+    if (!z || e.metaKey || e.ctrlKey || e.altKey) return;
+    const k = transformRef.current.k;
+    const STEP = 80; // px экрана за нажатие
+    const pan: Record<string, [number, number]> = { ArrowLeft: [STEP, 0], ArrowRight: [-STEP, 0], ArrowUp: [0, STEP], ArrowDown: [0, -STEP] };
+    if (pan[e.key]) {
+      const [dx, dy] = pan[e.key];
+      // Без анимации: при быстрых повторных нажатиях переходы d3 прерывали бы друг друга и сдвиг терялся
+      select(e.currentTarget).call(z.translateBy, dx / k, dy / k);
+    } else if (e.key === '+' || e.key === '=') zoomBy(1.6);
+    else if (e.key === '-' || e.key === '−') zoomBy(1 / 1.6);
+    else if (e.key === '0') resetZoom();
+    else return;
+    e.preventDefault();
+  };
   const resetZoom = () => {
     const canvas = canvasRef.current!;
     if (zoomRef.current) select(canvas).transition().duration(300).call(zoomRef.current.transform, zoomIdentity);
@@ -262,8 +279,11 @@ export function MapView() {
           dirtyRef.current = true;
           if (coordsRef.current) coordsRef.current.textContent = '';
         }}
-        aria-label="Карта мира с трассой спутника"
-        role="img"
+        role="application"
+        aria-roledescription="карта"
+        aria-label="Карта с трассой спутника. Стрелки — сдвиг, плюс и минус — масштаб, ноль — вся карта"
+        tabIndex={0}
+        onKeyDown={onKeyDown}
       />
       <div className={styles.toolbar}>
         <LayersMenu keys={body === 'earth' ? ['imagery', 'night', 'borders', 'grid', 'cities', 'visibility'] : ['regions', 'imagery', 'night', 'grid', 'cities', 'visibility']}>

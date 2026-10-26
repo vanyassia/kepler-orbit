@@ -21,6 +21,7 @@ import {
   Quaternion,
   RGBAFormat,
   ShaderMaterial,
+  Spherical,
   SRGBColorSpace,
   Vector3,
 } from 'three';
@@ -380,6 +381,33 @@ export function GlobeScene({ overlay, onReady }: { overlay: React.RefObject<HTML
     labelSpecs.current = specs;
     labelLayer.current?.setSpecs(specs);
   }, [orbit, record, geometry, layers.cities, layers.helpers, revsBack, revsForward, bodyId, regionsOn]);
+
+  // Клавиатура (альтернатива перетаскиванию): стрелки вращают камеру вокруг тела, «+» и «−» приближают.
+  // Работает, когда фокус на области глобуса (Tab до неё); событие помечается, чтобы стрелки не сдвигали время.
+  useEffect(() => {
+    const STEP = 0.12; // рад за нажатие
+    // Обработчик — на самом контейнере глобуса: он срабатывает раньше глобальных сочетаний на window
+    const host = gl.domElement.closest<HTMLElement>('[data-globe-keys]');
+    if (!host) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.metaKey || e.ctrlKey || e.altKey) return;
+      const sph = new Spherical().setFromVector3(camera.position);
+      if (e.key === 'ArrowLeft') sph.theta -= STEP;
+      else if (e.key === 'ArrowRight') sph.theta += STEP;
+      else if (e.key === 'ArrowUp') sph.phi = Math.max(0.05, sph.phi - STEP);
+      else if (e.key === 'ArrowDown') sph.phi = Math.min(Math.PI - 0.05, sph.phi + STEP);
+      else if (e.key === '+' || e.key === '=') sph.radius = Math.max(1.15, sph.radius * 0.85);
+      else if (e.key === '-' || e.key === '−') sph.radius = Math.min(60, sph.radius / 0.85);
+      else return;
+      e.preventDefault();
+      camAnim.current = null;
+      camera.position.setFromSpherical(sph);
+      camera.lookAt(0, 0, 0);
+      controls?.update();
+    };
+    host.addEventListener('keydown', onKey);
+    return () => host.removeEventListener('keydown', onKey);
+  }, [camera, controls, gl]);
 
   // Плавная перестановка камеры при выборе нового спутника
   const camAnim = useRef<{ from: Vector3; to: Vector3; start: number } | null>(null);

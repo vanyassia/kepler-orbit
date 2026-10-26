@@ -182,7 +182,7 @@ function Big({ label, value, unit }: { label: string; value: string; unit?: stri
       <div className={styles.bigLabel}>{label}</div>
       <div className={styles.bigValue}>
         <span className="num">{value}</span>
-        {unit && <span className={styles.unit}> {unit}</span>}
+        {unit && <span className={styles.unit}>{'\u00a0' + unit}</span>}
       </div>
     </div>
   );
@@ -194,7 +194,7 @@ function Row({ label, value, unit }: { label: string; value: string; unit?: stri
       <dt>{label}</dt>
       <dd>
         <span className="num">{value}</span>
-        {unit && <span className={styles.unit}>{unit === '°' ? unit : ` ${unit}`}</span>}
+        {unit && <span className={styles.unit}>{unit === '°' ? unit : '\u00a0' + unit}</span>}
       </dd>
     </div>
   );

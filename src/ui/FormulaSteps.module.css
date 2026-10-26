@@ -16,6 +16,12 @@
   font-size: var(--fs-title);
   line-height: 1.3;
   text-align: start;
+  cursor: pointer;
+  transition: color var(--dur) var(--ease);
+}
+
+.head:hover {
+  color: var(--orbit);
 }
 
 .chevron {

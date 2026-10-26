@@ -24,6 +24,7 @@ export function LayersMenu({ keys, children }: { keys: (keyof Layers)[]; childre
   const body = useAppStore((s) => s.body);
   const toggle = useAppStore((s) => s.toggleLayer);
   const ref = useRef<HTMLDivElement>(null);
+  const buttonRef = useRef<HTMLButtonElement>(null);
   const id = useId();
 
   useEffect(() => {
@@ -31,7 +32,12 @@ export function LayersMenu({ keys, children }: { keys: (keyof Layers)[]; childre
     const onDown = (e: PointerEvent) => {
       if (!ref.current?.contains(e.target as Node)) setOpen(false);
     };
-    const onKey = (e: KeyboardEvent) => e.key === 'Escape' && setOpen(false);
+    // Escape закрывает меню и возвращает фокус на кнопку «Слои»
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key !== 'Escape') return;
+      setOpen(false);
+      if (ref.current?.contains(document.activeElement)) buttonRef.current?.focus();
+    };
     document.addEventListener('pointerdown', onDown);
     document.addEventListener('keydown', onKey);
     return () => {
@@ -43,6 +49,7 @@ export function LayersMenu({ keys, children }: { keys: (keyof Layers)[]; childre
   return (
     <div className={styles.root} ref={ref}>
       <button
+        ref={buttonRef}
         type="button"
         className={styles.button}
         aria-expanded={open}
@@ -90,7 +97,9 @@ function Stepper({ label, value, min, max, onChange }: { label: string; value: n
         <button type="button" onClick={() => onChange(Math.max(min, value - 1))} disabled={value <= min} aria-label={`${label}: меньше`}>
           −
         </button>
-        <span className="num">{value}</span>
+        <output className="num" aria-live="polite" aria-label={`${label}: ${value}`}>
+          {value}
+        </output>
         <button type="button" onClick={() => onChange(Math.min(max, value + 1))} disabled={value >= max} aria-label={`${label}: больше`}>
           +
         </button>

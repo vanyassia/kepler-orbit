@@ -4,6 +4,7 @@ import type { ViewMode } from '../state/store';
 import { useAppStore } from '../state/store';
 import { MapView } from '../views/map2d/MapView';
 import styles from './Workspace.module.css';
+import { rovingKeyDown, rovingTabIndex } from './roving';
 
 const GlobeView = lazy(() => import('../views/globe3d/GlobeView'));
 
@@ -12,6 +13,7 @@ const VIEWS: { id: ViewMode; label: string; icon: typeof Map }[] = [
   { id: '3d', label: 'Глобус', icon: Globe2 },
   { id: '2d', label: 'Карта', icon: Map },
 ];
+const VIEW_IDS = VIEWS.map((v) => v.id);
 
 /**
  * Область визуализации: 3D-глобус и/или 2D-карта.
@@ -31,9 +33,23 @@ export function Workspace() {
 
   return (
     <div className={styles.workspace} data-view={shownView}>
-      <div className={styles.switcher} role="tablist" aria-label="Вид" style={{ viewTransitionName: 'view-switcher' }}>
+      <div
+        className={styles.switcher}
+        role="tablist"
+        aria-label="Вид"
+        style={{ viewTransitionName: 'view-switcher' }}
+        onKeyDown={(e) => rovingKeyDown(e, VIEW_IDS, view, setView)}
+      >
         {VIEWS.map(({ id, label, icon: Icon }) => (
-          <button key={id} type="button" role="tab" aria-selected={view === id} className={styles.tab} onClick={() => setView(id)}>
+          <button
+            key={id}
+            type="button"
+            role="tab"
+            aria-selected={view === id}
+            tabIndex={rovingTabIndex(view === id)}
+            className={styles.tab}
+            onClick={() => setView(id)}
+          >
             <Icon size={15} />
             <span>{label}</span>
           </button>

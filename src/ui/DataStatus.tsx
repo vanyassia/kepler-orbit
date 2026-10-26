@@ -38,17 +38,18 @@ export function DataStatus() {
   return (
     <div
       className={styles.status}
-      role="status"
-      aria-live="polite"
       data-kind={loading ? 'loading' : record.source}
       title={stale ? 'Элементам больше 3 суток: точность расчёта снижена' : undefined}
     >
       <span className={styles.dot} />
       <span className={styles.text}>
-        <span>{loading ? 'Загрузка…' : LABELS[record.source]}</span>
+        {/* Объявляется только смена источника и загрузка, а не ежеминутное «получено N мин назад» */}
+        <span role="status" aria-live="polite">
+          {loading ? 'Загрузка…' : LABELS[record.source]}
+        </span>
         {detail && <span className={styles.detail}>{detail}</span>}
       </span>
-      {stale && <span className={styles.warn}>эпоха {Math.round(epochAgeDays)} сут</span>}
+      {stale && <span className={styles.warn}>эпоха {Math.round(epochAgeDays)}&nbsp;сут</span>}
     </div>
   );
 }

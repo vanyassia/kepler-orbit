@@ -5,6 +5,7 @@ import { ACESFilmicToneMapping } from 'three';
 import type { CameraMode } from '../../state/store';
 import { useAppStore } from '../../state/store';
 import { LayersMenu, RevsControl } from '../../ui/LayersMenu';
+import { rovingKeyDown, rovingTabIndex } from '../../ui/roving';
 import { GlobeScene } from './GlobeScene';
 import styles from './GlobeView.module.css';
 
@@ -13,6 +14,8 @@ const CAMERA_MODES: { id: CameraMode; label: string; hint: string; icon: typeof 
   { id: 'follow', label: 'За спутником', hint: 'Камера поворачивается вслед за спутником', icon: Satellite },
   { id: 'earth', label: 'С телом', hint: 'Камера вращается вместе с телом', icon: Earth },
 ];
+const CAMERA_IDS = CAMERA_MODES.map((m) => m.id);
+const QUALITIES = ['standard', 'ultra'] as const;
 
 /** 3D-вид: глобус, орбита, трасса. Загружается отдельным чанком (three.js). */
 export default function GlobeView() {
@@ -32,26 +35,31 @@ export default function GlobeView() {
         dpr={[1, 2]}
         camera={{ fov: 38, near: 0.005, far: 3000, position: [0, 1.6, 4.2] }}
         gl={{ antialias: true, toneMapping: ACESFilmicToneMapping, toneMappingExposure: 1.05, powerPreference: 'high-performance' }}
-        aria-label="Трёхмерный вид: центральное тело, орбита и трасса спутника"
+        role="application"
+        aria-roledescription="трёхмерный глобус"
+        aria-label="Центральное тело, орбита и трасса спутника. Стрелки — вращение, плюс и минус — приближение"
+        tabIndex={0}
+        data-globe-keys=""
       >
         <Suspense fallback={null}>
           <GlobeScene overlay={overlay} onReady={() => setReady(true)} />
         </Suspense>
       </Canvas>
       <div ref={overlay} className={styles.labels} aria-hidden="true" />
-      <div className={styles.loader} data-done={ready} role="status">
+      <div className={styles.loader} data-done={ready} role={ready ? undefined : 'status'} aria-hidden={ready || undefined}>
         <span className={styles.spinner} aria-hidden="true" />
         Загрузка глобуса…
       </div>
 
       <div className={styles.toolbar}>
-        <div className={styles.segmented} role="radiogroup" aria-label="Камера">
+        <div className={styles.segmented} role="radiogroup" aria-label="Камера" onKeyDown={(e) => rovingKeyDown(e, CAMERA_IDS, camera, setCamera)}>
           {CAMERA_MODES.map((m) => (
             <button
               key={m.id}
               type="button"
               role="radio"
               aria-checked={camera === m.id}
+              tabIndex={rovingTabIndex(camera === m.id)}
               title={m.id === 'earth' ? `Камера вращается вместе с телом (${withBody.toLowerCase()})` : m.hint}
               aria-label={m.id === 'earth' ? withBody : m.label}
               onClick={() => setCamera(m.id)}
@@ -65,18 +73,21 @@ export default function GlobeView() {
           <RevsControl />
           <div className={styles.quality}>
             <span>Детализация снимка</span>
-            <div className={styles.segmented} role="radiogroup" aria-label="Детализация снимка">
-              <button type="button" role="radio" aria-checked={quality === 'standard'} onClick={() => setQuality('standard')}>
+            <div className={styles.segmented} role="radiogroup" aria-label="Детализация снимка" onKeyDown={(e) => rovingKeyDown(e, QUALITIES, quality, setQuality)}>
+              <button type="button" role="radio" aria-checked={quality === 'standard'} tabIndex={rovingTabIndex(quality === 'standard')} onClick={() => setQuality('standard')}>
                 8K
               </button>
-              <button type="button" role="radio" aria-checked={quality === 'ultra'} onClick={() => setQuality('ultra')}>
+              <button type="button" role="radio" aria-checked={quality === 'ultra'} tabIndex={rovingTabIndex(quality === 'ultra')} onClick={() => setQuality('ultra')}>
                 16K
               </button>
             </div>
           </div>
         </LayersMenu>
       </div>
-      <div className={styles.hint}>Вращение — мышь, приближение — колесо</div>
+      <div className={styles.hint}>
+        <span className={styles.hintFine}>Вращение — мышь или стрелки, приближение — колесо или +/−</span>
+        <span className={styles.hintCoarse}>Вращение — пальцем, приближение — щипком</span>
+      </div>
     </div>
   );
 }

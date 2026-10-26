@@ -4,7 +4,8 @@ import { useThrottledSimTime, useWallClock } from '../hooks/useSimClock';
 import { ascendingNodeTimes } from '../physics/propagate';
 import { SPEEDS, useAppStore } from '../state/store';
 import styles from './Timeline.module.css';
-import { fmtDateTime, fmtTime } from './format';
+import { fmt, fmtDateTime, fmtTime } from './format';
+import { rovingKeyDown, rovingTabIndex } from './roving';
 
 const HALF_WINDOW_MS = 24 * 3_600_000;
 
@@ -44,9 +45,17 @@ export function Timeline() {
         {playing ? <Pause size={18} /> : <Play size={18} />}
       </button>
 
-      <div className={styles.speeds} role="radiogroup" aria-label="Скорость симуляции">
+      <div className={styles.speeds} role="radiogroup" aria-label="Скорость симуляции" onKeyDown={(e) => rovingKeyDown(e, SPEEDS, speed as (typeof SPEEDS)[number], setSpeed)}>
         {SPEEDS.map((s) => (
-          <button key={s} type="button" role="radio" aria-checked={speed === s} className={styles.speed} onClick={() => setSpeed(s)}>
+          <button
+            key={s}
+            type="button"
+            role="radio"
+            aria-checked={speed === s}
+            tabIndex={rovingTabIndex(speed === s)}
+            className={styles.speed}
+            onClick={() => setSpeed(s)}
+          >
             ×{s}
           </button>
         ))}
@@ -91,7 +100,7 @@ export function Timeline() {
             <span className={styles.offset}>
               {' '}
               {offsetH > 0 ? '+' : '−'}
-              {Math.abs(offsetH) < 1 ? `${Math.round(Math.abs(offsetH) * 60)} мин` : `${Math.abs(offsetH).toFixed(1).replace('.', ',')} ч`}
+              {Math.abs(offsetH) < 1 ? `${Math.round(Math.abs(offsetH) * 60)}\u00a0мин` : `${fmt(Math.abs(offsetH), 1)}\u00a0ч`}
             </span>
           )}
         </div>
@@ -122,7 +131,8 @@ function KeyboardShortcuts() {
       const el = e.target as HTMLElement;
       const tag = el.tagName;
       const typing = ['INPUT', 'TEXTAREA', 'SELECT'].includes(tag) || el.isContentEditable;
-      if (typing || e.metaKey || e.ctrlKey || e.altKey) return;
+      // Стрелки уже обработаны группой переключателей, глобусом или картой — не сдвигаем время
+      if (typing || e.defaultPrevented || e.metaKey || e.ctrlKey || e.altKey) return;
       const s = useAppStore.getState();
       if (e.code === 'Space' && tag !== 'BUTTON') {
         e.preventDefault();

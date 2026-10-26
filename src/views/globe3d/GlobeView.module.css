@@ -74,6 +74,20 @@
   pointer-events: none;
 }
 
+/* Подсказка по основному устройству ввода: мышь и клавиатура или палец */
+.hintCoarse {
+  display: none;
+}
+
+@media (pointer: coarse) {
+  .hintFine {
+    display: none;
+  }
+  .hintCoarse {
+    display: inline;
+  }
+}
+
 /* Загрузка текстур */
 .loader {
   position: absolute;
@@ -90,6 +104,10 @@
 
 .loader[data-done='true'] {
   opacity: 0;
+  visibility: hidden;
+  transition:
+    opacity 400ms var(--ease),
+    visibility 0s linear 400ms;
 }
 
 .spinner {
