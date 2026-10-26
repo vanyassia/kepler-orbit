@@ -11,3 +11,4 @@ public/textures/earth_day_16k.jpg
 .agents
 .claude/skills
 skills-lock.json
+*.tif
