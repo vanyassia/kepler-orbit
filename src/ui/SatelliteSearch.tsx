@@ -153,7 +153,9 @@ export function SatelliteSearch() {
                   onPointerEnter={() => setActive(idx)}
                   onClick={() => choose(item)}
                 >
-                  <span className={styles.optTitle}>{title}</span>
+                  <span className={styles.optTitle} title={title}>
+                    {title}
+                  </span>
                   <span className={styles.optNote}>{note}</span>
                   <span className={`${styles.optId} num`}>{id}</span>
                 </li>

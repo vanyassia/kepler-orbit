@@ -116,3 +116,10 @@
 .secondary:hover {
   color: var(--text-0);
 }
+
+/* iOS Safari увеличивает страницу при фокусе на поле с текстом мельче 16px */
+@media (max-width: 720px) {
+  .area {
+    font-size: 16px;
+  }
+}

@@ -326,7 +326,7 @@ function strokePiece(
 
 /** Начала следующих витков (восходящие узлы на экваторе): «+1», «+2»… */
 function drawNodeLabels(ctx: CanvasRenderingContext2D, v: View, nodes: { offset: number; point: TrackPoint }[]) {
-  ctx.font = '600 10px "IBM Plex Mono", monospace';
+  ctx.font = '600 11px "IBM Plex Mono", monospace';
   ctx.textBaseline = 'middle';
   ctx.textAlign = 'left';
   for (const { offset, point } of nodes) {
@@ -354,7 +354,7 @@ function drawTrackEnds(ctx: CanvasRenderingContext2D, v: View, track: TrackWindo
     [track.past.length > 2 ? first : undefined, `−${fmtDuration((t - first.timeMs) / 1000)}`],
     [track.future.length > 2 ? last : undefined, `+${fmtDuration((last.timeMs - t) / 1000)}`],
   ];
-  ctx.font = '500 10px "IBM Plex Mono", monospace';
+  ctx.font = '500 11px "IBM Plex Mono", monospace';
   ctx.textBaseline = 'middle';
   ctx.textAlign = 'left';
   for (const [p, text] of ends) {
@@ -398,7 +398,7 @@ function drawReference(ctx: CanvasRenderingContext2D, v: View, ours: TrackPoint,
   ctx.strokeStyle = REFERENCE_COLOR;
   ctx.lineWidth = 1.8;
   ctx.stroke();
-  ctx.font = '600 10px "IBM Plex Mono", monospace';
+  ctx.font = '600 11px "IBM Plex Mono", monospace';
   ctx.textAlign = 'left';
   ctx.textBaseline = 'middle';
   ctx.fillStyle = REFERENCE_COLOR;
@@ -458,7 +458,7 @@ function textWithHalo(ctx: CanvasRenderingContext2D, text: string, x: number, y:
 }
 
 function drawGridLabels(ctx: CanvasRenderingContext2D, v: View) {
-  ctx.font = '400 10px "IBM Plex Mono", monospace';
+  ctx.font = '400 11px "IBM Plex Mono", monospace';
   ctx.fillStyle = 'rgba(200, 220, 245, 0.75)';
   const left = Math.max(v.ox, 0);
   const bottom = Math.min(v.oy + v.s * WORLD_H, v.h);

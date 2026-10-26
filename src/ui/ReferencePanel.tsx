@@ -101,7 +101,7 @@ function Row({ label, value }: { label: string; value: number }) {
   );
 }
 
-const W = 320;
+const W = 280;
 const H = 150;
 const M = { l: 40, r: 10, t: 10, b: 24 };
 

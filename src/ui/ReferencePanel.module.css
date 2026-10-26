@@ -98,7 +98,8 @@
 .tickX {
   fill: var(--text-2);
   font-family: var(--font-data);
-  font-size: 9px;
+  /* в единицах viewBox (ширина 280): на десктопе ≈ 12,6px, в узкой выдвижной панели ≈ 10px */
+  font-size: var(--fs-note);
   font-variant-numeric: tabular-nums;
 }
 

@@ -144,7 +144,7 @@
   justify-content: space-between;
   gap: var(--sp-3);
   color: var(--text-2);
-  font-size: 0.6875rem;
+  font-size: var(--fs-note);
   line-height: 1.2;
 }
 

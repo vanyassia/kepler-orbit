@@ -128,7 +128,7 @@
   border-radius: 6px;
   background: rgb(8 17 32 / 0.78);
   color: var(--text-0);
-  font: 500 11px/1.4 var(--font-ui);
+  font: 500 var(--fs-note)/1.4 var(--font-ui);
   white-space: nowrap;
   user-select: none;
   transition: opacity 120ms linear;
@@ -143,7 +143,7 @@
   border: 1px solid rgb(255 181 71 / 0.6);
   color: var(--sat);
   font-weight: 600;
-  font-size: 12px;
+  font-size: var(--fs-caption);
   translate: 14px -130%;
 }
 
@@ -161,7 +161,7 @@
   background: transparent;
   color: var(--text-1);
   font-family: var(--font-data);
-  font-size: 11px;
+  font-size: var(--fs-note);
   text-shadow: 0 0 4px #04080f, 0 0 2px #04080f;
 }
 
@@ -169,7 +169,7 @@
 :global(.globe-label.node) {
   background: transparent;
   font-family: var(--font-data);
-  font-size: 11px;
+  font-size: var(--fs-note);
   font-weight: 600;
   text-shadow: 0 0 4px #04080f, 0 0 2px #04080f;
   translate: 8px -110%;
@@ -211,7 +211,7 @@
   background: transparent;
   translate: -50% -50%;
   font-family: var(--font-display);
-  font-size: 12px;
+  font-size: var(--fs-caption);
   font-weight: 500;
   text-shadow: 0 0 4px #04060a, 0 0 2px #04060a;
 }
