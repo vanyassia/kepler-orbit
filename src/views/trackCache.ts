@@ -1,18 +1,15 @@
 /**
  * Скользящий кэш трассы: точки считаются с запасом в четверть витка с каждой стороны
  * и пересчитываются, только когда окно отображения выходит за пределы кэша.
- * Источник точек — любая модель движения (наша задача двух тел или эталон SGP4).
  */
-import type { SatRec } from 'satellite.js';
 import { RAD } from '../physics/constants';
 import type { TrackPoint } from '../physics/groundTrack';
 import { trackStepSeconds } from '../physics/groundTrack';
 import type { PreparedOrbit } from '../physics/propagate';
 import { ascendingNodeTimes, propagate } from '../physics/propagate';
-import { referenceState } from '../reference/sgp4';
 
 export interface TrackSource {
-  /** Объект, по смене которого кэш сбрасывается (орбита или модель SGP4). */
+  /** Объект, по смене которого кэш сбрасывается (орбита). */
   key: object;
   /** Период обращения, с — задаёт ширину окна в витках. */
   periodSec: number;
@@ -37,24 +34,6 @@ export function orbitSource(orbit: PreparedOrbit): TrackSource {
       },
     };
     sources.set(orbit, s);
-  }
-  return s;
-}
-
-/** Эталон SGP4 (окно и шаг — те же, что у нашей модели, для честного сравнения). */
-export function referenceSource(satrec: SatRec, orbit: PreparedOrbit): TrackSource {
-  let s = sources.get(satrec);
-  if (!s) {
-    s = {
-      key: satrec,
-      periodSec: orbit.T,
-      stepSec: trackStepSeconds(orbit),
-      at: (t) => {
-        const st = referenceState(satrec, t);
-        return st && { timeMs: t, lat: st.lat * RAD, lon: st.lon * RAD, h: st.h };
-      },
-    };
-    sources.set(satrec, s);
   }
   return s;
 }
@@ -137,17 +116,13 @@ export class Revolutions {
 /**
  * Цвета витков. Текущий и три следующих — свои оттенки, дальше — один общий
  * (цвета не повторяются по кругу). Проверено валидатором палитры (скил dataviz) на тёмном фоне:
- * различимость при обычном зрении ≥ 15 по всем парам; для протанопов пара «эталон — прошедшие»
- * в зоне предупреждения (ΔE 7,8), поэтому у них есть второй признак: эталон — точечный
- * пунктир с подписью SGP4, прошедшие витки — сплошная линия. Светлота выше «тёмной» полосы
+ * различимость при обычном зрении ≥ 15 по всем парам. Светлота выше «тёмной» полосы
  * намеренно: линии лежат поверх спутникового снимка, а не на однотонном фоне графика.
  */
 const FUTURE_REV_COLORS = ['#46d6ff', '#b38cff', '#6be07c', '#fff07a'];
 /** Витки +4 и дальше. */
 const FAR_REV_COLOR = '#e6eef8';
 const PAST_REV_COLOR = '#5f7a96';
-/** Эталон SGP4 — розовый, чтобы не путать ни с одним витком нашей модели. */
-export const REFERENCE_COLOR = '#ff6fb5';
 
 export function revolutionColor(offset: number): string {
   if (offset < 0) return PAST_REV_COLOR;

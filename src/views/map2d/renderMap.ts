@@ -1,8 +1,7 @@
 /**
  * Отрисовка 2D-карты на Canvas. Порядок слоёв (снизу вверх):
  * снимок (или схема) → ночь и огни городов → сетка → границы → терминатор →
- * зона видимости → трассы (эталон SGP4, наша модель) → подсолнечная точка → города →
- * начала витков → эталонный спутник → спутник.
+ * зона видимости → трасса → подсолнечная точка → города → начала витков → спутник.
  */
 import { geoCircle } from 'd3-geo';
 import type { City } from '../../data/cities';
@@ -16,7 +15,7 @@ import type { BorderPaths } from './geo';
 import { tracePath, WORLD_H, WORLD_W } from './geo';
 import type { NightMasks } from './nightMask';
 import type { Revolutions, TrackWindow } from '../trackCache';
-import { REFERENCE_COLOR, revolutionColor } from '../trackCache';
+import { revolutionColor } from '../trackCache';
 import { fmtDuration } from '../../ui/format';
 
 export const COLORS = {
@@ -76,8 +75,6 @@ export interface MapScene {
   revs: Revolutions | null;
   /** Моменты узлов (начал витков) с точными подспутниковыми точками — для подписей. */
   nodePoints: { offset: number; point: TrackPoint }[];
-  /** Трасса эталонной модели SGP4 (null — слой выключен или эталона нет). */
-  reference: TrackWindow | null;
   cities: City[];
   hoverCity: City | null;
   /** Регионы тела (пусто у Земли или при выключенном слое) и радиус тела, км. */
@@ -190,17 +187,11 @@ export function renderMap(ctx: CanvasRenderingContext2D, sc: MapScene): void {
     ctx.setLineDash([]);
   }
 
-  // 7. Трассы: сначала эталон SGP4 (под нашей), затем наша модель с цветом по виткам
-  if (sc.reference) {
-    const win = windowSpan(sc.reference);
-    drawTrack(ctx, sc.reference.past, px, false, win, () => REFERENCE_COLOR, 1.3);
-    drawTrack(ctx, sc.reference.future, px, true, win, () => REFERENCE_COLOR, 1.3, [2, 3]);
-  }
+  // 7. Трасса с цветом по виткам — во всю яркость по всему окну
   if (sc.track) {
-    const win = windowSpan(sc.track);
     const color = (tau: number) => revolutionColor(sc.revs ? sc.revs.offsetAt(tau) : 0);
-    drawTrack(ctx, sc.track.past, px, false, win, color);
-    drawTrack(ctx, sc.track.future, px, true, win, color);
+    drawTrack(ctx, sc.track.past, px, false, color);
+    drawTrack(ctx, sc.track.future, px, true, color);
   }
   ctx.restore();
 
@@ -213,32 +204,7 @@ export function renderMap(ctx: CanvasRenderingContext2D, sc: MapScene): void {
   if (sc.regions.length) drawRegionLabels(ctx, v, sc.regions, sc.bodyRadius, placed);
   if (sc.track) drawNodeLabels(ctx, v, sc.nodePoints);
   if (sc.track) drawTrackEnds(ctx, v, sc.track);
-  if (sc.track && sc.reference) drawReference(ctx, v, sc.track.current, sc.reference.current);
   if (sc.track) drawSatellite(ctx, v, sc.track.current, sc.satLabel);
-}
-
-/** Доля окна трассы на каждом конце, которая плавно гаснет: конец окна виден как «горизонт», а не обрыв. */
-const FADE_SHARE = 0.15;
-const FADE_LEVELS = 8;
-
-/** Временные границы окна трассы и есть ли у него «прошлое» (при 0 витков назад — нет). */
-interface Span {
-  t0: number;
-  t1: number;
-  fadeStart: boolean;
-}
-
-function windowSpan(w: TrackWindow): Span {
-  const t0 = w.past[0].timeMs;
-  const t1 = w.future[w.future.length - 1].timeMs;
-  return { t0, t1, fadeStart: w.past.length > 2 };
-}
-
-/** Непрозрачность точки окна: 1 в середине, плавно до 0 на концах (уровни квантуются). */
-function fadeAt(tau: number, sp: Span): number {
-  const f = FADE_SHARE * (sp.t1 - sp.t0);
-  const a = Math.min(sp.fadeStart ? (tau - sp.t0) / f : 1, (sp.t1 - tau) / f, 1);
-  return Math.max(0.5 / FADE_LEVELS, Math.ceil(Math.max(0, a) * FADE_LEVELS) / FADE_LEVELS);
 }
 
 function hexToRgb(hex: string): [number, number, number] {
@@ -248,15 +214,13 @@ function hexToRgb(hex: string): [number, number, number] {
 
 /**
  * Трасса: прошлое — сплошной линией, будущее — пунктиром. Участок рисуется кусками
- * одного цвета (виток) и одной непрозрачности (затухание к концам окна);
- * пунктир непрерывен между кусками благодаря смещению штрихов.
+ * одного цвета (виток); пунктир непрерывен между кусками благодаря смещению штрихов.
  */
 function drawTrack(
   ctx: CanvasRenderingContext2D,
   pts: TrackPoint[],
   px: number,
   future: boolean,
-  span: Span,
   colorAt: (tau: number) => string,
   widthPx = future ? 1.6 : 1.8,
   dash: [number, number] = [7, 5],
@@ -266,14 +230,13 @@ function drawTrack(
   let pieceStart = 0;
   const key = (i: number) => {
     const mid = (pts[i].timeMs + pts[Math.min(i + 1, pts.length - 1)].timeMs) / 2;
-    return `${colorAt(mid)}|${fadeAt(mid, span)}`;
+    return colorAt(mid);
   };
   let current = key(0);
   for (let i = 1; i <= pts.length - 1; i++) {
     const next = i < pts.length - 1 ? key(i) : null;
     if (next !== current) {
-      const [color, alpha] = current.split('|');
-      dashOffset += strokePiece(ctx, pts.slice(pieceStart, i + 1), px, future, color, Number(alpha), dashOffset, widthPx, dash);
+      dashOffset += strokePiece(ctx, pts.slice(pieceStart, i + 1), px, future, current, dashOffset, widthPx, dash);
       pieceStart = i;
       current = next ?? current;
     }
@@ -287,7 +250,6 @@ function strokePiece(
   px: number,
   future: boolean,
   color: string,
-  alpha: number,
   dashOffset: number,
   widthPx: number,
   dash: [number, number],
@@ -309,10 +271,10 @@ function strokePiece(
   ctx.lineJoin = 'round';
   ctx.lineCap = future ? 'butt' : 'round';
   // Подсветка под линией
-  ctx.strokeStyle = `rgba(${r}, ${g}, ${b}, ${(future ? 0.16 : 0.12) * alpha})`;
+  ctx.strokeStyle = `rgba(${r}, ${g}, ${b}, 0.16)`;
   ctx.lineWidth = 5 * px;
   ctx.stroke();
-  ctx.strokeStyle = `rgba(${r}, ${g}, ${b}, ${(future ? 0.95 : 0.6) * alpha})`;
+  ctx.strokeStyle = `rgba(${r}, ${g}, ${b}, 0.95)`;
   ctx.lineWidth = widthPx * px;
   if (future) {
     ctx.setLineDash([dash[0] * px, dash[1] * px]);
@@ -369,41 +331,6 @@ function drawTrackEnds(ctx: CanvasRenderingContext2D, v: View, track: TrackWindo
     ctx.fillStyle = 'rgba(200, 220, 245, 0.85)';
     textWithHalo(ctx, text, x + 7, y);
   }
-}
-
-/** Эталонный спутник (SGP4): ромб-контур и пунктирная связка с нашим спутником. */
-function drawReference(ctx: CanvasRenderingContext2D, v: View, ours: TrackPoint, ref: TrackPoint) {
-  const [x, y] = toScreen(v, ref.lon, ref.lat);
-  const [ox, oy] = toScreen(v, ours.lon, ours.lat);
-  ctx.save();
-  if (Math.abs(ref.lon - ours.lon) < 180) {
-    ctx.beginPath();
-    ctx.moveTo(ox, oy);
-    ctx.lineTo(x, y);
-    ctx.setLineDash([3, 3]);
-    ctx.strokeStyle = 'rgba(255, 111, 181, 0.8)';
-    ctx.lineWidth = 1.2;
-    ctx.stroke();
-    ctx.setLineDash([]);
-  }
-  ctx.translate(x, y);
-  ctx.beginPath();
-  ctx.moveTo(0, -6.5);
-  ctx.lineTo(6.5, 0);
-  ctx.lineTo(0, 6.5);
-  ctx.lineTo(-6.5, 0);
-  ctx.closePath();
-  ctx.fillStyle = 'rgba(255, 111, 181, 0.25)';
-  ctx.fill();
-  ctx.strokeStyle = REFERENCE_COLOR;
-  ctx.lineWidth = 1.8;
-  ctx.stroke();
-  ctx.font = '600 11px "IBM Plex Mono", monospace';
-  ctx.textAlign = 'left';
-  ctx.textBaseline = 'middle';
-  ctx.fillStyle = REFERENCE_COLOR;
-  textWithHalo(ctx, 'SGP4', 10, 12);
-  ctx.restore();
 }
 
 /** Угловой радиус региона, градусы: половина диаметра, делённая на радиус тела. */

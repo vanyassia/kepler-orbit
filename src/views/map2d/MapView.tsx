@@ -16,7 +16,7 @@ import { LayersMenu, RevsControl } from '../../ui/LayersMenu';
 import { fmt, fmtLat, fmtLon } from '../../ui/format';
 import { satelliteTitle } from '../../ui/satelliteTitle';
 import { SURFACE, SURFACE_CREDIT, TEXTURES, useProgressiveImage } from '../assets';
-import { orbitSource, referenceSource, REFERENCE_COLOR, Revolutions, revolutionColor, TrackCache } from '../trackCache';
+import { orbitSource, Revolutions, revolutionColor, TrackCache } from '../trackCache';
 import type { BorderPaths } from './geo';
 import { loadBorders } from './geo';
 import { createNightMasks, updateNightMasks } from './nightMask';
@@ -58,7 +58,7 @@ export function MapView() {
   useEffect(
     () =>
       useAppStore.subscribe((s, p) => {
-        if (s.body !== p.body || s.layers !== p.layers || s.orbit !== p.orbit || s.reference !== p.reference || s.revsBack !== p.revsBack || s.revsForward !== p.revsForward) dirtyRef.current = true;
+        if (s.body !== p.body || s.layers !== p.layers || s.orbit !== p.orbit || s.revsBack !== p.revsBack || s.revsForward !== p.revsForward) dirtyRef.current = true;
       }),
     [],
   );
@@ -110,7 +110,6 @@ export function MapView() {
     const masks = createNightMasks();
     const lights = document.createElement('canvas');
     const trackCache = new TrackCache();
-    const refCache = new TrackCache();
     let lastSub = { lat: NaN, lon: NaN };
     let lastMaskAt = 0;
     let lightsKey = '';
@@ -165,8 +164,6 @@ export function MapView() {
 
       const o = st.orbit;
       const track = o ? trackCache.get(orbitSource(o), st.simTime, st.revsBack, st.revsForward) : null;
-      const reference =
-        o && st.reference && st.layers.reference ? refCache.get(referenceSource(st.reference, o), st.simTime, st.revsBack, st.revsForward) : null;
       // Витки: границы — восходящие узлы; подписи ставятся в начале каждого следующего витка
       const revs = o ? new Revolutions(o, st.simTime, st.revsBack, st.revsForward) : null;
       const windowEnd = st.simTime + st.revsForward * (o?.T ?? 0) * 1000;
@@ -192,7 +189,6 @@ export function MapView() {
         satLabel: track ? `${title}, ${fmt(track.current.h, 0)} км` : '',
         revs,
         nodePoints,
-        reference,
         cities: PLACES[st.body],
         regions: st.layers.regions ? REGIONS[st.body] : [],
         bodyRadius: b.radius,
@@ -270,7 +266,7 @@ export function MapView() {
         role="img"
       />
       <div className={styles.toolbar}>
-        <LayersMenu keys={body === 'earth' ? ['reference', 'imagery', 'night', 'borders', 'grid', 'cities', 'visibility'] : ['regions', 'imagery', 'night', 'grid', 'cities', 'visibility']}>
+        <LayersMenu keys={body === 'earth' ? ['imagery', 'night', 'borders', 'grid', 'cities', 'visibility'] : ['regions', 'imagery', 'night', 'grid', 'cities', 'visibility']}>
           <RevsControl />
         </LayersMenu>
         <div className={styles.zoom}>
@@ -297,10 +293,9 @@ export function MapView() {
   );
 }
 
-/** Условные обозначения: цвета витков (сколько показано вперёд), эталон, прочие значки. */
+/** Условные обозначения: цвета витков (сколько показано вперёд), прочие значки. */
 function Legend() {
   const forward = useAppStore((s) => s.revsForward);
-  const showRef = useAppStore((s) => s.layers.reference && !!s.reference);
   const revs = Array.from({ length: Math.min(forward, 3) }, (_, k) => k + 1);
   const line = (color: string, dashed: boolean, opacity = 1) => (
     <svg width="22" height="8" aria-hidden="true">
@@ -310,7 +305,7 @@ function Legend() {
   return (
     <ul className={styles.legend} aria-label="Условные обозначения">
       <li>
-        {line(revolutionColor(-1), false, 0.8)}
+        {line(revolutionColor(-1), false)}
         прошедшие
       </li>
       <li>
@@ -327,14 +322,6 @@ function Legend() {
         <li>
           {line(revolutionColor(4), true)}
           {forward === 4 ? '+4' : `+4…+${forward}`}
-        </li>
-      )}
-      {showRef && (
-        <li>
-          <svg width="22" height="8" aria-hidden="true">
-            <line x1="1" y1="4" x2="21" y2="4" stroke={REFERENCE_COLOR} strokeWidth="2" strokeDasharray="2 2" />
-          </svg>
-          эталон SGP4
         </li>
       )}
       <li>

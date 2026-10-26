@@ -1,12 +1,14 @@
 /**
  * Фасад физического ядра: «начальные элементы + момент времени → полное состояние КА».
+ * Порядок расчёта — по листку «Трасса спутника» (docs/formulas.md):
  *
- * Последовательность вычислений (docs/formulas.md):
- *   N → n (1) → a (2) → T, p (3) → M (4) → E (5) → ϑ (6) → r (7) → u (8)
- *     → x, y, z в АГЭСК (9) → V_r, V_n, V (10) → S (11) → x_г, y_г, z_г (12) → φ, λ, h (13–14).
+ *   шаг 2:  T = 86400/N → n = 2π/T → a = ∛(μ/n²) → h_п, h_а;
+ *   шаг 4:  S на эпоху → λ_Ω = Ω − S;
+ *   шаг 5:  M = M₀ + n·t → E (уравнение Кеплера, метод Ньютона) → ν → u = ω + ν
+ *           → sin φ = sin u·sin i → ab = atan2(cos i·sin u, cos u) → λ = λ_Ω + ab − ω_З·t.
  *
- * Этот интерфейс оставлен общим: в дальнейшем рядом можно поставить
- * второй пропагатор (например, SGP4) для сравнения трасс.
+ * Для высоты и 3D-сцены дополнительно считаются r = a(1 − e·cos E), координаты x, y, z (9)
+ * и скорость (10) — в листке их нет, но трассу они не меняют.
  */
 import { DEG, TWO_PI } from './constants';
 import type { Vec3 } from './math';
@@ -15,14 +17,15 @@ import {
   focalParameter,
   meanAnomalyAt,
   meanMotionFromRevPerDay,
-  orbitalPeriod,
+  periodFromRevPerDay,
   radiusFromEccentric,
   semiMajorAxis,
   solveKepler,
   trueAnomalyFromEccentric,
 } from './kepler';
 import { argumentOfLatitude, inertialPosition, inertialVelocity, velocityComponents } from './orbit';
-import { greenwichToGeo } from './frames';
+import { geoToGreenwich, greenwichToInertial } from './frames';
+import { equatorPath, latitudeFromArgument, nodeLongitude, subSatelliteLongitude } from './subpoint';
 import type { BodyId, CentralBody } from './bodies';
 import { BODIES } from './bodies';
 
@@ -85,13 +88,30 @@ export interface PreparedOrbit {
   /** Высоты перигея и апогея над шаром, км. */
   hPerigee: number;
   hApogee: number;
+  /** Угол поворота тела на эпоху S(t₀), рад (шаг 4). */
+  S0: number;
+  /** Долгота восходящего узла на эпоху λ_Ω = Ω − S(t₀), рад (шаг 4). */
+  lambdaNode: number;
+  /**
+   * Наклонение, долгота узла и сдвиг отсчёта u относительно экватора, вокруг которого вращается тело.
+   * Для Земли и Луны совпадают с i, Ω и 0. У Марса элементы JPL Horizons заданы относительно
+   * полюса IAU 2015, а вращение — по IAU 2009 (формула (20)); разница ≈ 1,5° учтена здесь.
+   */
+  iEq: number;
+  raanEq: number;
+  uShift: number;
 }
 
 export function prepareOrbit(el: OrbitalElements): PreparedOrbit {
   const body = BODIES[el.body ?? 'earth'];
-  const n = meanMotionFromRevPerDay(el.meanMotion);
-  const a = semiMajorAxis(n, body.mu);
+  const T = periodFromRevPerDay(el.meanMotion); // шаг 2: T = 86400/N
+  const n = meanMotionFromRevPerDay(el.meanMotion); // n = 2π/T
+  const a = semiMajorAxis(n, body.mu); // a = ∛(μ/n²)
   const e = el.eccentricity;
+  const i = el.inclinationDeg * DEG;
+  const raan = el.raanDeg * DEG;
+  const S0 = body.rotationAngle(el.epochMs);
+  const eq = equatorElements(body, el.epochMs, i, raan, S0);
   return {
     elements: el,
     body,
@@ -100,16 +120,40 @@ export function prepareOrbit(el: OrbitalElements): PreparedOrbit {
     a,
     e,
     p: focalParameter(a, e),
-    T: orbitalPeriod(a, body.mu),
-    i: el.inclinationDeg * DEG,
-    raan: el.raanDeg * DEG,
+    T,
+    i,
+    raan,
     omega: el.argPerigeeDeg * DEG,
     M0: el.meanAnomalyDeg * DEG,
     rPerigee: a * (1 - e),
     rApogee: a * (1 + e),
     hPerigee: a * (1 - e) - body.radius,
     hApogee: a * (1 + e) - body.radius,
+    S0,
+    lambdaNode: nodeLongitude(eq.raan, S0), // шаг 4: λ_Ω = Ω − S
+    iEq: eq.i,
+    raanEq: eq.raan,
+    uShift: eq.uShift,
   };
+}
+
+/**
+ * Плоскость орбиты относительно экватора вращения тела: переводим нормаль к орбите
+ * и направление на узел в систему тела на эпоху и снимаем поворот на S(t₀).
+ * Для Земли и Луны это тождественное преобразование.
+ */
+function equatorElements(body: CentralBody, t0: number, i: number, raan: number, S0: number) {
+  const conv = (v: Vec3) => greenwichToInertial(body.toFixed(v, t0), S0);
+  const h = conv({ x: Math.sin(raan) * Math.sin(i), y: -Math.cos(raan) * Math.sin(i), z: Math.cos(i) });
+  const node = conv({ x: Math.cos(raan), y: Math.sin(raan), z: 0 });
+  const iEq = Math.acos(Math.max(-1, Math.min(1, h.z)));
+  const raanEq = Math.atan2(h.x, -h.y);
+  const nx = Math.cos(raanEq);
+  const ny = Math.sin(raanEq);
+  // Угол от нового узла до старого в плоскости орбиты (знак — по нормали h)
+  const cross = { x: ny * node.z, y: -nx * node.z, z: nx * node.y - ny * node.x };
+  const uShift = Math.atan2(h.x * cross.x + h.y * cross.y + h.z * cross.z, nx * node.x + ny * node.y);
+  return { i: iEq, raan: raanEq, uShift };
 }
 
 /** Полное состояние КА в момент t (все промежуточные величины — для пояснений в UI). */
@@ -132,8 +176,12 @@ export interface SatelliteState {
   Vr: number;
   Vn: number;
   V: number;
-  /** Гринвичское звёздное время S, рад. */
+  /** Угол поворота тела S (W) в момент t, рад. */
   S: number;
+  /** Путь по экватору от узла ab, рад (шаг 5.6). */
+  ab: number;
+  /** Поворот тела за время после эпохи ω_З·t, рад (шаг 5.7). */
+  turn: number;
   /** Положение в ГСК, км. */
   ecef: Vec3;
   /** Широта и долгота подспутниковой точки, рад; высота, км. */
@@ -153,10 +201,16 @@ export function propagate(orbit: PreparedOrbit, timeMs: number): SatelliteState 
   const eci = inertialPosition(r, u, orbit.raan, orbit.i); // (9)
   const { Vr, Vn, V } = velocityComponents(orbit.p, orbit.e, theta, orbit.body.mu); // (10)
   const vEci = inertialVelocity(Vr, Vn, u, orbit.raan, orbit.i);
-  const S = orbit.body.rotationAngle(timeMs); // (11): звёздное время S (Земля) или угол W (Луна, Марс)
-  const ecef = orbit.body.toFixed(eci, timeMs); // (12), для Марса — (20)
-  const { lat, lon, h } = greenwichToGeo(ecef, orbit.body.radius); // (13)–(14)
-  return { timeMs, dt, revolution, M, E, keplerIterations: iterations, theta, r, u, eci, vEci, Vr, Vn, V, S, ecef, lat, lon, h };
+  // Подспутниковая точка — сферический треугольник (шаги 5.5–5.8)
+  const uEq = u + orbit.uShift;
+  const lat = latitudeFromArgument(uEq, orbit.iEq); // sin φ = sin u · sin i
+  const ab = equatorPath(uEq, orbit.iEq); // ab = atan2(cos i · sin u, cos u)
+  const turn = orbit.body.turn(orbit.epochMs, timeMs); // ω_З · t
+  const lon = subSatelliteLongitude(orbit.lambdaNode, ab, turn); // λ = λ_Ω + ab − ω_З·t
+  const h = r - orbit.body.radius;
+  const S = orbit.body.rotationAngle(timeMs);
+  const ecef = geoToGreenwich(lat, lon, h, orbit.body.radius);
+  return { timeMs, dt, revolution, M, E, keplerIterations: iterations, theta, r, u, eci, vEci, Vr, Vn, V, S, ab, turn, ecef, lat, lon, h };
 }
 
 /**

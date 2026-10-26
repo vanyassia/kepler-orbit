@@ -61,7 +61,7 @@ export default function GlobeView() {
             </button>
           ))}
         </div>
-        <LayersMenu keys={body === 'earth' ? ['reference', 'night', 'clouds', 'helpers', 'visibility', 'cities'] : ['regions', 'night', 'helpers', 'visibility', 'cities']}>
+        <LayersMenu keys={body === 'earth' ? ['night', 'clouds', 'helpers', 'visibility', 'cities'] : ['regions', 'night', 'helpers', 'visibility', 'cities']}>
           <RevsControl />
           <div className={styles.quality}>
             <span>Детализация снимка</span>

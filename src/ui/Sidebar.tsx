@@ -8,7 +8,6 @@ import { RAD } from '../physics/constants';
 import { propagate } from '../physics/propagate';
 import { useAppStore } from '../state/store';
 import { FormulaSteps } from './FormulaSteps';
-import { ReferencePanel } from './ReferencePanel';
 import styles from './Sidebar.module.css';
 import { fmt, fmtDateTime, fmtDuration, fmtLat, fmtLon } from './format';
 import { satelliteTitle } from './satelliteTitle';
@@ -31,7 +30,6 @@ export function Sidebar() {
       <SatelliteCard />
       <QuickPicks />
       <Telemetry />
-      <ReferencePanel />
       <OrbitElements />
       <FormulaSteps />
     </aside>
@@ -146,7 +144,7 @@ function Telemetry() {
       </div>
       <dl className={styles.rows}>
         <Row label="Радиус-вектор r" value={fmt(s.r, 1)} unit="км" />
-        <Row label="Истинная аномалия ϑ" value={fmt(s.theta * RAD, 2)} unit="°" />
+        <Row label="Истинная аномалия ν" value={fmt(s.theta * RAD, 2)} unit="°" />
         <Row label="Аргумент широты u" value={fmt(s.u * RAD, 2)} unit="°" />
         <Row label="Радиальная скорость Vr" value={fmt(s.Vr, 4)} unit="км/с" />
         <Row label="Виток от эпохи" value={String(s.revolution)} />

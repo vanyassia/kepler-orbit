@@ -10,10 +10,10 @@
  *    нулевого меридиана, отсчитываемый от того же узла (рекомендации IAU 2009, PCK00010);
  *  - направление на Солнце (только для освещения).
  */
-import { DEG, JD_J2000, MU, R_EARTH } from './constants';
+import { DEG, JD_J2000, MU, OMEGA_EARTH, R_EARTH } from './constants';
 import { solveKepler } from './kepler';
 import type { Vec3 } from './math';
-import { wrap2Pi } from './math';
+import { wrap2Pi, wrapPi } from './math';
 import { sunDirectionInertial } from './sun';
 import { greenwichToInertial, inertialToGreenwich } from './frames';
 import { greenwichSiderealTime, julianDate } from './time';
@@ -31,6 +31,11 @@ export interface CentralBody {
   radius: number;
   /** Угол поворота тела (S для Земли, W для Луны и Марса), рад. */
   rotationAngle: (timeMs: number) => number;
+  /**
+   * Шаг 5.7 листка: поворот тела за время от эпохи t₀ до t, рад.
+   * Для Земли Δ = ω_З · t; для Луны и Марса — приращение угла W (у Луны есть малые колебания).
+   */
+  turn: (epochMs: number, timeMs: number) => number;
   /** Формула (12)/(20): инерциальная система тела → система, вращающаяся с телом. */
   toFixed: (v: Vec3, timeMs: number) => Vec3;
   /** Обратный переход: вращающаяся система → инерциальная. */
@@ -147,6 +152,15 @@ export function marsHeliocentric(timeMs: number): Vec3 {
   return { x: xe, y: ye * Math.cos(eps) - ze * Math.sin(eps), z: ye * Math.sin(eps) + ze * Math.cos(eps) };
 }
 
+/**
+ * Поворот тела от t₀ до t по углу W: основной член — равномерное вращение ẆΔd (с целыми оборотами),
+ * к нему добавляется малая неравномерная часть (у Луны — до нескольких градусов).
+ */
+function turnSince(W: (t: number) => number, rateDegPerDay: number, t0: number, t: number): number {
+  const linear = rateDegPerDay * DEG * ((t - t0) / 86_400_000);
+  return linear + wrapPi(W(t) - W(t0) - linear);
+}
+
 const normalize = (v: Vec3): Vec3 => {
   const r = Math.hypot(v.x, v.y, v.z);
   return { x: v.x / r, y: v.y / r, z: v.z / r };
@@ -159,6 +173,7 @@ export const EARTH: CentralBody = {
   mu: MU,
   radius: R_EARTH,
   rotationAngle: greenwichSiderealTime,
+  turn: (t0, t) => (OMEGA_EARTH * (t - t0)) / 1000,
   toFixed: (v, t) => inertialToGreenwich(v, greenwichSiderealTime(t)),
   toInertial: (v, t) => greenwichToInertial(v, greenwichSiderealTime(t)),
   sunDirection: sunDirectionInertial,
@@ -172,6 +187,7 @@ export const MOON: CentralBody = {
   mu: 4902.800066,
   radius: 1737.4,
   rotationAngle: (t) => moonOrientation(t).W,
+  turn: (t0, t) => turnSince((x) => moonOrientation(x).W, 13.17635815, t0, t),
   toFixed: (v, t) => inertialToGreenwich(v, moonOrientation(t).W),
   toInertial: (v, t) => greenwichToInertial(v, moonOrientation(t).W),
   // С Луны Солнце видно практически по тому же направлению, что и с Земли (параллакс < 0,15°)
@@ -189,6 +205,7 @@ export const MARS: CentralBody = {
   mu: 42828.37,
   radius: 3389.5,
   rotationAngle: (t) => marsOrientation(t).W,
+  turn: (t0, t) => turnSince((x) => marsOrientation(x).W, 350.89198226, t0, t),
   // Формула (20): система элементов (полюс IAU 2015) → ICRF → экватор IAU 2009 → поворот на W
   toFixed: (v, t) => {
     const p = marsPole2015(t);

@@ -13,8 +13,6 @@ import { DEFAULT_SATELLITE, loadOrbiter } from '../data/orbiters';
 import type { BodyId } from '../physics/bodies';
 import type { PreparedOrbit } from '../physics/propagate';
 import { prepareOrbit } from '../physics/propagate';
-import type { SatRec } from 'satellite.js';
-import { createReference } from '../reference/sgp4';
 
 export type ViewMode = 'split' | '2d' | '3d';
 export type CameraMode = 'free' | 'follow' | 'earth';
@@ -30,8 +28,6 @@ export interface Layers {
   /** 3D: оси, экватор, линия узлов, апсиды */
   helpers: boolean;
   clouds: boolean;
-  /** Эталонная модель SGP4 — трасса и положение для сравнения */
-  reference: boolean;
   /** Регионы Луны и Марса (названия IAU, справочник USGS) */
   regions: boolean;
 }
@@ -43,8 +39,6 @@ interface AppState {
   body: BodyId;
   record: SatelliteRecord | null;
   orbit: PreparedOrbit | null;
-  /** Эталон SGP4 для выбранного спутника (null — нет исходных данных каталога). */
-  reference: SatRec | null;
   loading: boolean;
   error: string | null;
   /** Номер NORAD, загрузка которого идёт сейчас (для подсветки кнопки). */
@@ -99,7 +93,6 @@ export const useAppStore = create<AppState>()(
   body: 'earth',
   record: null,
   orbit: null,
-  reference: null,
   loading: false,
   error: null,
   pendingNorad: null,
@@ -124,7 +117,6 @@ export const useAppStore = create<AppState>()(
     visibility: true,
     helpers: true,
     clouds: true,
-    reference: true,
     regions: true,
   },
   revsBack: 1,
@@ -136,7 +128,7 @@ export const useAppStore = create<AppState>()(
     try {
       const rec = id < 0 ? await loadOrbiter(id) : await loadByNorad(id);
       if (seq !== loadSeq) return; // пользователь уже выбрал другой спутник
-      set({ record: rec, body: rec.elements.body ?? 'earth', orbit: prepareOrbit(rec.elements), reference: createReference(rec), loading: false, pendingNorad: null });
+      set({ record: rec, body: rec.elements.body ?? 'earth', orbit: prepareOrbit(rec.elements), loading: false, pendingNorad: null });
     } catch (e) {
       if (seq !== loadSeq) return;
       set({ loading: false, pendingNorad: null, error: e instanceof Error ? e.message : String(e) });
@@ -144,7 +136,7 @@ export const useAppStore = create<AppState>()(
   },
   setRecord: (rec) => {
     loadSeq++;
-    set({ record: rec, body: rec.elements.body ?? 'earth', orbit: prepareOrbit(rec.elements), reference: createReference(rec), loading: false, error: null, pendingNorad: null, lastNorad: rec.elements.noradId });
+    set({ record: rec, body: rec.elements.body ?? 'earth', orbit: prepareOrbit(rec.elements), loading: false, error: null, pendingNorad: null, lastNorad: rec.elements.noradId });
   },
 
   setSimTime: (t) => set({ simTime: t, anchorSim: t, anchorReal: performance.now() }),
@@ -188,7 +180,11 @@ export const useAppStore = create<AppState>()(
       }),
       merge: (persisted, current) => {
         const p = (persisted ?? {}) as Partial<AppState>;
-        return { ...current, ...p, layers: { ...current.layers, ...(p.layers ?? {}) } };
+        // Берём только существующие слои: у старых версий был слой эталона SGP4
+        const saved = (p.layers ?? {}) as Partial<Layers>;
+        const layers = { ...current.layers };
+        for (const k of Object.keys(layers) as (keyof Layers)[]) if (typeof saved[k] === 'boolean') layers[k] = saved[k];
+        return { ...current, ...p, layers };
       },
     },
   ),

@@ -8,8 +8,8 @@ describe('Юлианская дата и звёздное время — фор�
     expect(julianDate(Date.UTC(2000, 0, 1, 12))).toBe(2451545.0);
   });
 
-  it('S(J2000.0) = 280,46061837°', () => {
-    expect(greenwichSiderealTime(Date.UTC(2000, 0, 1, 12)) / DEG).toBeCloseTo(280.46061837, 6);
+  it('S(J2000.0) = 280,46062° (свободный член формулы листка)', () => {
+    expect(greenwichSiderealTime(Date.UTC(2000, 0, 1, 12)) / DEG).toBeCloseTo(280.46062, 6);
   });
 
   it('контрольный пример Vallado (Example 3-5): 1992-08-20 12:14 UT1 → S = 152,578788°', () => {

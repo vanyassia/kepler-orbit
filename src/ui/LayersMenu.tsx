@@ -14,7 +14,6 @@ const LABELS: Record<keyof Layers, string> = {
   visibility: 'Зона радиовидимости',
   helpers: 'Экватор, узлы, апсиды',
   clouds: 'Облака',
-  reference: 'Эталон SGP4',
   regions: 'Регионы (названия IAU)',
 };
 

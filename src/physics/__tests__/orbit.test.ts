@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { DEG, MU } from '../constants';
+import { DEG } from '../constants';
 import { cross, dot, norm } from '../math';
 import { argumentOfLatitude, inertialPosition, inertialVelocity, velocityComponents } from '../orbit';
 import { geoToGreenwich, greenwichToGeo, greenwichToInertial, inertialToGreenwich } from '../frames';
@@ -16,7 +16,8 @@ describe('Положение и скорость в АГЭСК — формул�
   const r = p / (1 + e * Math.cos(theta));
   const u = argumentOfLatitude(omega, theta);
   const pos = inertialPosition(r, u, raan, i);
-  const { Vr, Vn, V } = velocityComponents(p, e, theta);
+  // В примере Vallado μ = 398 600,4418 км³/с² (в модели листка — 398 602)
+  const { Vr, Vn, V } = velocityComponents(p, e, theta, 398600.4418);
   const vel = inertialVelocity(Vr, Vn, u, raan, i);
 
   it('радиус-вектор совпадает с эталоном Vallado: (6525,368; 6861,532; 6449,119) км', () => {
@@ -37,11 +38,11 @@ describe('Положение и скорость в АГЭСК — формул�
 
   it('интеграл энергии (Вис-вива): V² = μ(2/r − 1/a)', () => {
     const a = p / (1 - e * e);
-    expect(V * V).toBeCloseTo(MU * (2 / r - 1 / a), 8);
+    expect(V * V).toBeCloseTo(398600.4418 * (2 / r - 1 / a), 8);
   });
 
   it('интеграл площадей: |r × V| = √(μp)', () => {
-    expect(norm(cross(pos, vel))).toBeCloseTo(Math.sqrt(MU * p), 6);
+    expect(norm(cross(pos, vel))).toBeCloseTo(Math.sqrt(398600.4418 * p), 6);
   });
 
   it('вектор площадей направлен по нормали к плоскости орбиты (задаётся Ω и i)', () => {

@@ -17,6 +17,19 @@ export function meanMotionFromRevPerDay(revPerDay: number): number {
 }
 
 /**
+ * Шаг 2 листка. Период по числу оборотов в сутки:
+ *
+ *   T = 86400 / N,
+ *
+ * затем средняя угловая скорость n = 2π / T (то же, что формула (1)).
+ *
+ * @returns T, с.
+ */
+export function periodFromRevPerDay(revPerDay: number): number {
+  return SECONDS_PER_DAY / revPerDay;
+}
+
+/**
  * Формула (2). Большая полуось из третьего закона Кеплера n²a³ = μ:
  *
  *   a = ∛(μ / n²).
