@@ -41,13 +41,32 @@ import { referenceState } from '../../reference/sgp4';
 import { axisToScene, geoToLocal, toScene } from './coords';
 import { DynamicLine } from './DynamicLine';
 import type { LabelSpec } from './LabelLayer';
-import { LabelLayer } from './LabelLayer';
+import { LabelLayer, OFFSET } from './LabelLayer';
 import { atmosphereShader, cloudsShader, earthShader } from './shaders';
 import { useEarthTextures } from './textures';
 
 const ORBIT_COLOR = '#46d6ff';
 const SAT_COLOR = '#ffb547';
 const TRACK_R = 1.0025;
+
+/** Позиции подписей (см. LabelLayer): спутник — над точкой, при наложении — в другие углы */
+const SAT_OFFSETS = [
+  [0, -1.3, 14, 0],
+  [-1, -1.3, -14, 0],
+  [0, 0.3, 14, 0],
+  [-1, 0.3, -14, 0],
+] as const;
+const NODE_OFFSETS = [
+  [0, -1.1, 8, 0],
+  [-1, -1.1, -8, 0],
+  [0, 0.1, 8, 0],
+] as const;
+const REF_OFFSETS = [
+  [0, 0.2, 12, 0],
+  [-1, 0.2, -12, 0],
+  [0, -1.2, 12, 0],
+] as const;
+const REGION_OFFSETS = [OFFSET.center, OFFSET.above, OFFSET.below] as const;
 
 /** Текстура 1×1 заданного цвета — заглушка до загрузки изображений. */
 function solid(r: number, g: number, b: number) {
@@ -295,14 +314,22 @@ export function GlobeScene({ overlay, onReady }: { overlay: React.RefObject<HTML
     const fixed = (v: Vector3) => (out: Vector3) => out.copy(v);
     const onEarth = (v: Vector3) => (out: Vector3) => earthGroup.current.localToWorld(out.copy(v));
     if (orbit) {
-      specs.push({ id: 'sat', text: record ? satelliteTitle(record.elements).title : '', className: 'globe-label sat', anchor: (out) => out.copy(satGroup.current.position) });
+      specs.push({
+        id: 'sat',
+        text: record ? satelliteTitle(record.elements).title : '',
+        className: 'globe-label sat',
+        anchor: (out) => out.copy(satGroup.current.position),
+        priority: 0,
+        always: true,
+        offsets: SAT_OFFSETS,
+      });
     }
     if (orbit) {
       // Концы окна трассы (положения маркеров и время обновляются каждый кадр)
       if (revsBack > 0) {
-        specs.push({ id: 'track-start', text: '', className: 'globe-label helper', anchor: (out) => out.setFromMatrixPosition(startMarker.current.matrixWorld) });
+        specs.push({ id: 'track-start', text: '', className: 'globe-label helper', anchor: (out) => out.setFromMatrixPosition(startMarker.current.matrixWorld), priority: 2 });
       }
-      specs.push({ id: 'track-end', text: '', className: 'globe-label helper', anchor: (out) => out.setFromMatrixPosition(endMarker.current.matrixWorld) });
+      specs.push({ id: 'track-end', text: '', className: 'globe-label helper', anchor: (out) => out.setFromMatrixPosition(endMarker.current.matrixWorld), priority: 2 });
       // Начала следующих витков
       for (let k = 1; k <= revsForward; k++) {
         specs.push({
@@ -313,29 +340,56 @@ export function GlobeScene({ overlay, onReady }: { overlay: React.RefObject<HTML
             const p = nodeLocal.current[k];
             return p ? earthGroup.current.localToWorld(out.copy(p)) : null;
           },
+          priority: 2,
+          offsets: NODE_OFFSETS,
         });
       }
-      if (refOn) specs.push({ id: 'ref', text: 'SGP4', className: 'globe-label ref', anchor: (out) => (refGroup.current?.visible ? out.copy(refGroup.current.position) : null) });
+      if (refOn) {
+        specs.push({
+          id: 'ref',
+          text: 'SGP4',
+          className: 'globe-label ref',
+          anchor: (out) => (refGroup.current?.visible ? out.copy(refGroup.current.position) : null),
+          priority: 1,
+          offsets: REF_OFFSETS,
+        });
+      }
     }
     if (layers.cities) {
       for (const c of PLACES[bodyId].filter((x) => x.highlight)) {
-        specs.push({ id: `city-${c.name}`, text: c.name, className: `globe-label ru${c.labelSide === 'left' ? ' left' : ''}`, anchor: onEarth(geoToLocal(c.lat, c.lon, 1.001)) });
+        specs.push({
+          id: `city-${c.name}`,
+          text: c.name,
+          className: 'globe-label ru',
+          anchor: onEarth(geoToLocal(c.lat, c.lon, 1.001)),
+          priority: 3,
+          offsets: c.labelSide === 'left' ? [OFFSET.left, OFFSET.right] : [OFFSET.right, OFFSET.left],
+        });
       }
     }
     if (regionsOn) {
       const minKm = bodyId === 'moon' ? 400 : 1200;
       for (const r of REGIONS[bodyId].filter((x) => x.diameterKm >= minKm)) {
-        specs.push({ id: `region-${r.name}`, text: r.title, className: `globe-label region region-${r.kind}`, anchor: onEarth(geoToLocal(r.lat, r.lon, 1.002)) });
+        specs.push({
+          id: `region-${r.name}`,
+          text: r.title,
+          className: `globe-label region region-${r.kind}`,
+          anchor: onEarth(geoToLocal(r.lat, r.lon, 1.002)),
+          priority: 5,
+          offsets: REGION_OFFSETS,
+          minFacing: 0.3,
+        });
       }
     }
     if (layers.helpers && geometry && orbit) {
-      specs.push({ id: 'aries', text: bodyId === 'earth' ? '♈ ось x' : 'ось x — узел экватора', className: 'globe-label helper', anchor: fixed(new Vector3(1.95, 0, 0)) });
-      specs.push({ id: 'pole', text: 'ось z', className: 'globe-label helper', anchor: fixed(new Vector3(0, 1.5, 0)) });
-      specs.push({ id: 'asc', text: '☊ восходящий узел', className: 'globe-label helper', anchor: fixed(geometry.ascNode) });
-      specs.push({ id: 'desc', text: '☋', className: 'globe-label helper', anchor: fixed(geometry.descNode) });
+      const helper = (id: string, text: string, at: Vector3) => specs.push({ id, text, className: 'globe-label helper', anchor: fixed(at), priority: 4 });
+      helper('aries', bodyId === 'earth' ? '♈ ось x' : 'ось x — узел экватора', new Vector3(1.95, 0, 0));
+      helper('pole', 'ось z', new Vector3(0, 1.5, 0));
+      helper('asc', '☊ восходящий узел', geometry.ascNode);
+      helper('desc', '☋', geometry.descNode);
       if (orbit.e > 0.01) {
-        specs.push({ id: 'peri', text: 'перигей', className: 'globe-label helper', anchor: fixed(geometry.perigee) });
-        specs.push({ id: 'apo', text: 'апогей', className: 'globe-label helper', anchor: fixed(geometry.apogee) });
+        helper('peri', 'перигей', geometry.perigee);
+        helper('apo', 'апогей', geometry.apogee);
       }
     }
     labelSpecs.current = specs;

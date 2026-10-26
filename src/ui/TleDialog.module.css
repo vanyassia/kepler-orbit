@@ -56,7 +56,7 @@
   width: 100%;
   resize: vertical;
   padding: var(--sp-3);
-  border: 1px solid var(--line);
+  border: 1px solid var(--field-edge);
   border-radius: var(--r-control);
   background: var(--bg-0);
   font-family: var(--font-data);

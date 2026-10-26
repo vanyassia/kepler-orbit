@@ -123,7 +123,7 @@
   position: absolute;
   left: 0;
   top: 0;
-  translate: 10px -50%;
+  /* сдвиг относительно точки привязки задаёт LabelLayer (раскладка без наложений) */
   padding: 2px 7px;
   border-radius: 6px;
   background: rgb(8 17 32 / 0.78);
@@ -144,17 +144,12 @@
   color: var(--sat);
   font-weight: 600;
   font-size: var(--fs-caption);
-  translate: 14px -130%;
 }
 
 :global(.globe-label.ru) {
   color: #ffd9d6;
   border: 1px solid rgb(255 93 93 / 0.5);
   font-weight: 600;
-}
-
-:global(.globe-label.ru.left) {
-  translate: calc(-100% - 10px) -50%;
 }
 
 :global(.globe-label.helper) {
@@ -172,7 +167,6 @@
   font-size: var(--fs-note);
   font-weight: 600;
   text-shadow: 0 0 4px #04080f, 0 0 2px #04080f;
-  translate: 8px -110%;
 }
 
 :global(.globe-label.node-1) {
@@ -209,7 +203,6 @@
 
 :global(.globe-label.region) {
   background: transparent;
-  translate: -50% -50%;
   font-family: var(--font-display);
   font-size: var(--fs-caption);
   font-weight: 500;
@@ -238,7 +231,6 @@
   border: 1px solid rgb(255 111 181 / 0.6);
   color: #ff6fb5;
   font-weight: 600;
-  translate: 12px 20%;
 }
 
 .camIcon {

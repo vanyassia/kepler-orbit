@@ -11,7 +11,7 @@
   gap: var(--sp-2);
   height: 38px;
   padding: 0 var(--sp-3);
-  border: 1px solid var(--line);
+  border: 1px solid var(--field-edge);
   border-radius: var(--r-control);
   background: var(--bg-2);
   color: var(--text-2);
@@ -124,6 +124,11 @@
 
 .option[aria-selected='true'] {
   background: var(--bg-3);
+}
+
+/* на фоне наведения --text-2 не держит 4,5:1 — пояснение светлеет на ступень */
+.option[aria-selected='true'] .optNote {
+  color: var(--text-1);
 }
 
 .optTitle {
