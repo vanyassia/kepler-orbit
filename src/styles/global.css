@@ -83,3 +83,84 @@ button:disabled {
     animation-duration: 0ms !important;
   }
 }
+
+/*
+ * Переходы между видами (View Transitions, <ViewTransition> в Workspace.tsx).
+ * Корень не анимируется и остаётся «живым»: часы, шкала времени и подписи продолжают
+ * обновляться, а двигаются только панели глобуса и карты.
+ */
+:root {
+  --duration-exit: 150ms;
+  --duration-enter: 210ms;
+  --duration-move: 320ms;
+}
+
+::view-transition {
+  pointer-events: none;
+}
+
+::view-transition-old(root) {
+  display: none;
+}
+
+::view-transition-new(root) {
+  animation: none;
+}
+
+@keyframes vt-fade {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+/* Панель остаётся на экране и меняет размер: «тот же вид, теперь крупнее/мельче» */
+::view-transition-group(.pane-move) {
+  animation-duration: var(--duration-move);
+  animation-timing-function: var(--ease);
+  overflow: clip;
+}
+
+/* Снимок холста не растягивается при смене пропорций, а обрезается по рамке */
+::view-transition-old(.pane-move),
+::view-transition-new(.pane-move) {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  animation-duration: var(--duration-move);
+}
+
+/* Убранная панель гаснет, добавленная проявляется после неё */
+::view-transition-old(.pane-out) {
+  animation: var(--duration-exit) ease-in both vt-fade reverse;
+}
+
+::view-transition-new(.pane-in),
+::view-transition-new(.fade-in) {
+  animation: var(--duration-enter) ease-out var(--duration-exit) both vt-fade;
+}
+
+/* Переключатель видов лежит поверх панелей: не двигается и не мигает (у него backdrop-filter) */
+::view-transition-group(view-switcher) {
+  animation: none;
+  z-index: 100;
+}
+
+::view-transition-old(view-switcher) {
+  display: none;
+}
+
+::view-transition-new(view-switcher) {
+  animation: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  ::view-transition-old(*),
+  ::view-transition-new(*),
+  ::view-transition-group(*) {
+    animation-duration: 0s !important;
+    animation-delay: 0s !important;
+  }
+}

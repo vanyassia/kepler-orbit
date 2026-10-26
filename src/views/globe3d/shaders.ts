@@ -34,6 +34,7 @@ export const earthShader = {
     uniform float hazeStrength;
     uniform float duskStrength;
     uniform float nightAmbient;
+    uniform float twilight;
     varying vec2 vUv;
     varying vec3 vWorldNormal;
     varying vec3 vWorldPos;
@@ -48,7 +49,8 @@ export const earthShader = {
 
       vec3 V = normalize(cameraPosition - vWorldPos);
       float cosSun = dot(N, sunDir);                  // косинус зенитного расстояния Солнца
-      float dayMix = smoothstep(-0.10, 0.16, cosSun); // плавный терминатор (сумерки)
+      // Терминатор: у Земли широкие сумерки (атмосфера рассеивает свет), у Луны без атмосферы — резкий
+      float dayMix = smoothstep(-0.10 * twilight, 0.16 * twilight, cosSun);
       // Слой «день и ночь» выключен — Земля освещена равномерно
       float diffuse = mix(0.9, max(dot(Np, sunDir), 0.0), nightOn);
 

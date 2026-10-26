@@ -86,11 +86,16 @@ function glowTexture(inner: string, outer: string) {
   return t;
 }
 
-/** Внешний вид тела на глобусе: дымка у края, сумерки, свечение атмосферы. */
-const LOOK: Record<BodyId, { haze: [number, number, number]; hazeStrength: number; dusk: number; nightAmbient: number; atmo: [number, number, number] | null }> = {
-  earth: { haze: [0.42, 0.66, 1.0], hazeStrength: 0.65, dusk: 1, nightAmbient: 0, atmo: [0.3, 0.58, 1.0] },
-  moon: { haze: [0, 0, 0], hazeStrength: 0, dusk: 0, nightAmbient: 0.07, atmo: null },
-  mars: { haze: [0.95, 0.62, 0.42], hazeStrength: 0.28, dusk: 0.5, nightAmbient: 0.06, atmo: [0.62, 0.36, 0.22] },
+/**
+ * Внешний вид тела на глобусе: дымка у края, сумерки, свечение атмосферы.
+ * twilight — ширина полосы сумерек у терминатора (1 — земная атмосфера);
+ * nightAmbient — подсветка ночной стороны: у Луны слабый «пепельный свет», чтобы ночь читалась тенью,
+ * но рельеф угадывался.
+ */
+const LOOK: Record<BodyId, { haze: [number, number, number]; hazeStrength: number; dusk: number; nightAmbient: number; twilight: number; atmo: [number, number, number] | null }> = {
+  earth: { haze: [0.42, 0.66, 1.0], hazeStrength: 0.65, dusk: 1, nightAmbient: 0, twilight: 1, atmo: [0.3, 0.58, 1.0] },
+  moon: { haze: [0, 0, 0], hazeStrength: 0, dusk: 0, nightAmbient: 0.018, twilight: 0.2, atmo: null },
+  mars: { haze: [0.95, 0.62, 0.42], hazeStrength: 0.28, dusk: 0.5, nightAmbient: 0.06, twilight: 0.6, atmo: [0.62, 0.36, 0.22] },
 };
 
 const _m = new Matrix4();
@@ -165,6 +170,7 @@ export function GlobeScene({ overlay, onReady }: { overlay: React.RefObject<HTML
           hazeStrength: { value: 0.65 },
           duskStrength: { value: 1 },
           nightAmbient: { value: 0 },
+          twilight: { value: 1 },
         },
       }),
       clouds: new ShaderMaterial({ ...cloudsShader, uniforms: { cloudsMap, sunDir, cloudShift }, transparent: true, depthWrite: false }),
@@ -213,6 +219,7 @@ export function GlobeScene({ overlay, onReady }: { overlay: React.RefObject<HTML
     u.hazeColor.value.set(...look.haze);
     u.hazeStrength.value = look.hazeStrength;
     u.duskStrength.value = look.dusk;
+    u.twilight.value = look.twilight;
     u.nightAmbient.value = look.nightAmbient;
     if (look.atmo) mats.atmosphere.uniforms.atmoColor.value.set(...look.atmo);
   }, [tex.day, tex.night, tex.normal, tex.specular, tex.clouds, mats, bodyId, blank]);
