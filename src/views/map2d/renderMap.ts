@@ -156,8 +156,6 @@ export function renderMap(ctx: CanvasRenderingContext2D, sc: MapScene): void {
     }
   }
 
-  // 4а. Регионы Луны и Марса: контур — сферический круг диаметра объекта
-  if (sc.regions.length) drawRegionOutlines(ctx, sc.regions, sc.bodyRadius, px);
 
   // 5. Линия терминатора (h☉ = 0)
   if (layers.night) {
@@ -318,20 +316,6 @@ function drawTrackEnds(ctx: CanvasRenderingContext2D, v: View, track: TrackWindo
 
 /** Угловой радиус региона, градусы: половина диаметра, делённая на радиус тела. */
 const regionRadiusDeg = (r: Region, R: number) => ((r.diameterKm / 2 / R) * 180) / Math.PI;
-
-function drawRegionOutlines(ctx: CanvasRenderingContext2D, regions: Region[], R: number, px: number) {
-  ctx.save();
-  ctx.lineWidth = px;
-  ctx.setLineDash([3 * px, 3 * px]);
-  for (const r of regions) {
-    if (!r.outline) continue;
-    ctx.beginPath();
-    tracePath(ctx, geoCircle().center([r.lon, r.lat]).radius(regionRadiusDeg(r, R)).precision(2)());
-    ctx.strokeStyle = REGION_COLOR[r.kind] + '73'; // ~45 % непрозрачности
-    ctx.stroke();
-  }
-  ctx.restore();
-}
 
 /**
  * Подписи регионов: крупнее — для больших; подпись появляется, когда регион на экране
