@@ -14,7 +14,7 @@ import { useAppStore } from '../../state/store';
 import { LayersMenu, RevsControl } from '../../ui/LayersMenu';
 import { fmt, fmtLat, fmtLon } from '../../ui/format';
 import { satelliteTitle } from '../../ui/satelliteTitle';
-import { NIGHT_LIGHTS, SURFACE, SURFACE_CREDIT, useProgressiveImage } from '../assets';
+import { LIGHT_DEVICE, NIGHT_LIGHTS, SURFACE, SURFACE_CREDIT, useProgressiveImage } from '../assets';
 import { orbitSource, Revolutions, revolutionColor, TrackCache } from '../trackCache';
 import type { BorderPaths } from './geo';
 import { loadBorders } from './geo';
@@ -47,10 +47,28 @@ export function MapView() {
   // Ночные огни и границы государств — только у Земли
   const night = useProgressiveImage(body === 'earth' ? NIGHT_LIGHTS : []);
   const fineBordersRef = useRef(false);
+  const fineLoadedRef = useRef(false);
+  // Подробные границы; грубые не должны их перезаписать, если придут позже
+  const loadFineBorders = () => {
+    if (fineBordersRef.current) return;
+    fineBordersRef.current = true;
+    loadBorders('fine').then(
+      (b) => {
+        fineLoadedRef.current = true;
+        setBorders(b);
+      },
+      () => {
+        fineBordersRef.current = false;
+      },
+    );
+  };
 
   useEffect(() => {
     if (body !== 'earth' || borders) return;
-    loadBorders('coarse').then(setBorders, () => setBorders(null));
+    loadBorders('coarse').then((b) => !fineLoadedRef.current && setBorders(b), () => {});
+    // На компьютере сразу следом — подробные (1:50 млн); на телефоне — только при приближении
+    if (!LIGHT_DEVICE) loadFineBorders();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [body, borders]);
 
   // Перерисовка при смене изображений/данных
@@ -75,12 +93,7 @@ export function MapView() {
         transformRef.current = e.transform;
         dirtyRef.current = true;
         // При приближении — подробные границы (1:50 млн), один раз
-        if (e.transform.k >= 2 && !fineBordersRef.current) {
-          fineBordersRef.current = true;
-          loadBorders('fine').then(setBorders, () => {
-            fineBordersRef.current = false;
-          });
-        }
+        if (e.transform.k >= 2) loadFineBorders();
       });
     zoomRef.current = z;
     const applyExtent = () => {
