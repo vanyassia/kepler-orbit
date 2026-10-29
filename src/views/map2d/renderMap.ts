@@ -1,9 +1,8 @@
 /**
  * Отрисовка 2D-карты на Canvas. Порядок слоёв (снизу вверх):
- * снимок (или схема) → ночь и огни городов → сетка → границы → терминатор →
+ * снимок (или схема) → ночь и огни городов → сетка → границы →
  * трасса → подсолнечная точка → города → начала витков → спутник.
  */
-import { geoCircle } from 'd3-geo';
 import type { City } from '../../data/cities';
 import type { Region } from '../../data/regions';
 import { REGION_COLOR } from '../../data/regions';
@@ -11,7 +10,7 @@ import type { TrackPoint } from '../../physics/groundTrack';
 import { splitAtAntimeridian } from '../../physics/groundTrack';
 import type { Layers } from '../../state/store';
 import type { BorderPaths } from './geo';
-import { tracePath, WORLD_H, WORLD_W } from './geo';
+import { WORLD_H, WORLD_W } from './geo';
 import type { NightMasks } from './nightMask';
 import type { Revolutions, TrackWindow } from '../trackCache';
 import { revolutionColor } from '../trackCache';
@@ -156,19 +155,7 @@ export function renderMap(ctx: CanvasRenderingContext2D, sc: MapScene): void {
     }
   }
 
-
-  // 5. Линия терминатора (h☉ = 0)
-  if (layers.night) {
-    ctx.beginPath();
-    tracePath(ctx, geoCircle().center([sc.subsolar.lon + 180, -sc.subsolar.lat]).radius(90)());
-    ctx.setLineDash([4 * px, 4 * px]);
-    ctx.strokeStyle = 'rgba(255, 210, 122, 0.55)';
-    ctx.lineWidth = px;
-    ctx.stroke();
-    ctx.setLineDash([]);
-  }
-
-  // 6. Трасса с цветом по виткам — во всю яркость по всему окну
+  // 5. Трасса (граница дня и ночи видна по затенению — отдельной линией не рисуется) с цветом по виткам — во всю яркость по всему окну
   if (sc.track) {
     const color = (tau: number) => revolutionColor(sc.revs ? sc.revs.offsetAt(tau) : 0);
     drawTrack(ctx, sc.track.past, px, false, color);
