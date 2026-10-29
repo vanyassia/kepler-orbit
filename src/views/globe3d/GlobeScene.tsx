@@ -120,6 +120,17 @@ export function GlobeScene({ overlay, onReady }: { overlay: React.RefObject<HTML
   const camera = useThree((s) => s.camera);
   const controls = useThree((s) => s.controls) as unknown as OrbitControlsImpl | null;
   const size = useThree((s) => s.size);
+  const invalidate = useThree((s) => s.invalidate);
+
+  // Режим «по требованию»: новый кадр — при любом изменении состояния (ход времени, слои, спутник),
+  // после каждой перерисовки компонента (загрузились текстуры) и когда догрузились шрифты подписей
+  useEffect(() => useAppStore.subscribe(() => invalidate()), [invalidate]);
+  useEffect(() => {
+    invalidate();
+  });
+  useEffect(() => {
+    document.fonts?.ready.then(() => invalidate());
+  }, [invalidate]);
 
   const orbit = useAppStore((s) => s.orbit);
   const record = useAppStore((s) => s.record);
@@ -349,10 +360,11 @@ export function GlobeScene({ overlay, onReady }: { overlay: React.RefObject<HTML
       camera.position.setFromSpherical(sph);
       camera.lookAt(0, 0, 0);
       controls?.update();
+      invalidate();
     };
     host.addEventListener('keydown', onKey);
     return () => host.removeEventListener('keydown', onKey);
-  }, [camera, controls, gl]);
+  }, [camera, controls, gl, invalidate]);
 
   // Плавная перестановка камеры при выборе нового спутника
   const camAnim = useRef<{ from: Vector3; to: Vector3; start: number } | null>(null);
@@ -414,6 +426,7 @@ export function GlobeScene({ overlay, onReady }: { overlay: React.RefObject<HTML
       camera.position.copy(tmp.v.multiplyScalar(fromLen + (toLen - fromLen) * e));
       camera.lookAt(0, 0, 0);
       if (k >= 1) camAnim.current = null;
+      else invalidate(); // анимация идёт — нужен следующий кадр
     }
 
     const o = st.orbit;

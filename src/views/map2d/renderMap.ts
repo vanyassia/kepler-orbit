@@ -76,6 +76,10 @@ export interface MapScene {
   /** Регионы тела (пусто у Земли или при выключенном слое) и радиус тела, км. */
   regions: Region[];
   bodyRadius: number;
+  /** Фон подписи спутника — цвет панелей текущей темы (Земля, Луна, Марс). */
+  labelBg: string;
+  /** Высота, занятая снизу легендой и строкой источников, px: подписи долгот ставятся выше. */
+  bottomInset: number;
 }
 
 export function renderMap(ctx: CanvasRenderingContext2D, sc: MapScene): void {
@@ -165,14 +169,17 @@ export function renderMap(ctx: CanvasRenderingContext2D, sc: MapScene): void {
 
   // Далее — в экранных координатах (чёткие значки и подписи)
   setScreen(ctx, v);
-  if (layers.grid) drawGridLabels(ctx, v);
+  if (layers.grid) drawGridLabels(ctx, v, sc.bottomInset);
   drawSun(ctx, v, sc.subsolar);
+  // Подписи без наложений: место под меткой спутника занимается первым, остальные его обходят
   const placed: Rect[] = [];
+  const satBox = sc.track ? satelliteLabelBox(ctx, v, sc.track.current, sc.satLabel) : null;
+  if (satBox) placed.push([satBox.x - 14, satBox.y - 9, satBox.x + 14, satBox.y + 9], [satBox.lx - 3, satBox.ly - 3, satBox.lx + satBox.w + 3, satBox.ly + 25]);
   if (layers.cities) drawCities(ctx, v, sc.cities, sc.hoverCity, placed);
   if (sc.regions.length) drawRegionLabels(ctx, v, sc.regions, sc.bodyRadius, placed);
-  if (sc.track) drawNodeLabels(ctx, v, sc.nodePoints);
-  if (sc.track) drawTrackEnds(ctx, v, sc.track);
-  if (sc.track) drawSatellite(ctx, v, sc.track.current, sc.satLabel);
+  if (sc.track) drawNodeLabels(ctx, v, sc.nodePoints, placed);
+  if (sc.track) drawTrackEnds(ctx, v, sc.track, placed);
+  if (satBox) drawSatellite(ctx, satBox, sc.satLabel, sc.labelBg);
 }
 
 function hexToRgb(hex: string): [number, number, number] {
@@ -255,7 +262,7 @@ function strokePiece(
 }
 
 /** Начала следующих витков (восходящие узлы на экваторе): «+1», «+2»… */
-function drawNodeLabels(ctx: CanvasRenderingContext2D, v: View, nodes: { offset: number; point: TrackPoint }[]) {
+function drawNodeLabels(ctx: CanvasRenderingContext2D, v: View, nodes: { offset: number; point: TrackPoint }[], placed: Rect[]) {
   ctx.font = '600 11px "IBM Plex Mono", monospace';
   ctx.textBaseline = 'middle';
   ctx.textAlign = 'left';
@@ -270,13 +277,17 @@ function drawNodeLabels(ctx: CanvasRenderingContext2D, v: View, nodes: { offset:
     ctx.lineWidth = 2;
     ctx.stroke();
     ctx.fill();
+    const text = `+${offset}`;
+    const rect: Rect = [x + 5, y - 16, x + 7 + ctx.measureText(text).width, y - 2];
+    if (overlaps(placed, rect)) continue; // точка остаётся, подпись — нет
+    placed.push(rect);
     ctx.fillStyle = color;
-    textWithHalo(ctx, `+${offset}`, x + 6, y - 9);
+    textWithHalo(ctx, text, x + 6, y - 9);
   }
 }
 
 /** Концы окна трассы: сколько времени назад начинается и через сколько кончается показанная трасса. */
-function drawTrackEnds(ctx: CanvasRenderingContext2D, v: View, track: TrackWindow) {
+function drawTrackEnds(ctx: CanvasRenderingContext2D, v: View, track: TrackWindow, placed: Rect[]) {
   const t = track.current.timeMs;
   const first = track.past[0];
   const last = track.future[track.future.length - 1];
@@ -296,6 +307,9 @@ function drawTrackEnds(ctx: CanvasRenderingContext2D, v: View, track: TrackWindo
     ctx.strokeStyle = 'rgba(200, 220, 245, 0.7)';
     ctx.lineWidth = 1.2;
     ctx.stroke();
+    const rect: Rect = [x + 6, y - 8, x + 9 + ctx.measureText(text).width, y + 8];
+    if (overlaps(placed, rect)) continue;
+    placed.push(rect);
     ctx.fillStyle = 'rgba(200, 220, 245, 0.85)';
     textWithHalo(ctx, text, x + 7, y);
   }
@@ -306,14 +320,15 @@ const regionRadiusDeg = (r: Region, R: number) => ((r.diameterKm / 2 / R) * 180)
 
 /**
  * Подписи регионов: крупнее — для больших; подпись появляется, когда регион на экране
- * шире 46 пикселей, и не ставится поверх уже занятого места (города, места посадок).
+ * шире 64 пикселей (при обзоре — только крупные, мелкие появляются при приближении)
+ * и не ставится поверх уже занятого места (города, места посадок).
  */
 function drawRegionLabels(ctx: CanvasRenderingContext2D, v: View, regions: Region[], R: number, placed: Rect[]) {
   ctx.textAlign = 'center';
   ctx.textBaseline = 'middle';
   for (const r of regions) {
     const sizePx = 2 * regionRadiusDeg(r, R) * v.s;
-    if (sizePx < 46) continue;
+    if (sizePx < 64) continue;
     const [x, y] = toScreen(v, r.lon, r.lat);
     if (x < -100 || y < -20 || x > v.w + 100 || y > v.h + 20) continue;
     const fs = Math.round(Math.min(15, Math.max(10, 8 + sizePx / 60)));
@@ -338,11 +353,12 @@ function textWithHalo(ctx: CanvasRenderingContext2D, text: string, x: number, y:
   ctx.fillText(text, x, y);
 }
 
-function drawGridLabels(ctx: CanvasRenderingContext2D, v: View) {
+function drawGridLabels(ctx: CanvasRenderingContext2D, v: View, bottomInset: number) {
   ctx.font = '400 11px "IBM Plex Mono", monospace';
   ctx.fillStyle = 'rgba(200, 220, 245, 0.75)';
   const left = Math.max(v.ox, 0);
-  const bottom = Math.min(v.oy + v.s * WORLD_H, v.h);
+  // Над легендой и строкой источников, если снимок доходит до низа панели
+  const bottom = Math.min(v.oy + v.s * WORLD_H, v.h - bottomInset);
   // Шаг подписей: не теснее ~60 пикселей
   const step = v.s * 15 >= 60 ? 15 : v.s * 30 >= 60 ? 30 : 60;
   ctx.textBaseline = 'middle';
@@ -389,10 +405,13 @@ const overlaps = (placed: Rect[], r: Rect) => placed.some((q) => r[0] < q[2] && 
 
 function drawCities(ctx: CanvasRenderingContext2D, v: View, cities: City[], hover: City | null, placed: Rect[]) {
   const showCapitalLabels = v.k >= 1.8;
-  // Подписи без наложений: выделенные места — первыми, затем остальные по порядку списка
-  for (const c of cities) {
+  const visible = cities.filter((c) => {
     const [x, y] = toScreen(v, c.lon, c.lat);
-    if (x < -20 || y < -20 || x > v.w + 20 || y > v.h + 20) continue;
+    return !(x < -20 || y < -20 || x > v.w + 20 || y > v.h + 20);
+  });
+  // Сначала все точки, потом подписи — иначе точки соседних городов ложатся поверх текста
+  for (const c of visible) {
+    const [x, y] = toScreen(v, c.lon, c.lat);
     const ru = !!c.highlight;
     ctx.beginPath();
     ctx.arc(x, y, ru ? 4 : 2.4, 0, Math.PI * 2);
@@ -408,24 +427,47 @@ function drawCities(ctx: CanvasRenderingContext2D, v: View, cities: City[], hove
       ctx.lineWidth = 1;
       ctx.stroke();
     }
+  }
+  // Подписи без наложений: выделенные места — первыми, затем остальные по порядку списка
+  for (const c of visible) {
+    const [x, y] = toScreen(v, c.lon, c.lat);
+    const ru = !!c.highlight;
     if (ru || showCapitalLabels || hover === c) {
       ctx.font = ru ? '600 12px "IBM Plex Mono", monospace' : '500 11px "IBM Plex Mono", monospace';
       ctx.fillStyle = ru ? '#ffd9d6' : COLORS.text;
       ctx.textBaseline = 'middle';
       const left = c.labelSide === 'left';
       ctx.textAlign = left ? 'right' : 'left';
-      const lx = x + (left ? -1 : 1) * (ru ? 10 : 6);
       const tw = ctx.measureText(c.name).width;
-      const rect: Rect = [left ? lx - tw : lx, y - 7, left ? lx : lx + tw, y + 7];
-      if (!ru && hover !== c && overlaps(placed, rect)) continue;
-      placed.push(rect);
-      textWithHalo(ctx, c.name, lx, y);
+      const gap = ru ? 10 : 6;
+      const at = (onLeft: boolean) => {
+        const lx = x + (onLeft ? -gap : gap);
+        return { lx, rect: [onLeft ? lx - tw : lx, y - 7, onLeft ? lx : lx + tw, y + 7] as Rect };
+      };
+      let pos = at(left);
+      // Выделенные места при наложении пробуют другую сторону; если и там занято — без подписи
+      if (overlaps(placed, pos.rect) && hover !== c) {
+        if (!ru) continue;
+        pos = at(!left);
+        if (overlaps(placed, pos.rect)) continue;
+      }
+      ctx.textAlign = pos.lx < x ? 'right' : 'left';
+      placed.push(pos.rect);
+      textWithHalo(ctx, c.name, pos.lx, y);
     }
   }
 }
 
-function drawSatellite(ctx: CanvasRenderingContext2D, v: View, p: TrackPoint, label: string) {
+/** Место метки спутника: значок в точке (x, y) и подпись справа сверху, не выходя за край. */
+function satelliteLabelBox(ctx: CanvasRenderingContext2D, v: View, p: TrackPoint, label: string) {
   const [x, y] = toScreen(v, p.lon, p.lat);
+  ctx.font = '600 12px "IBM Plex Mono", monospace';
+  const w = ctx.measureText(label).width + 16;
+  return { x, y, w, lx: Math.min(Math.max(x + 14, 4), v.w - w - 4), ly: Math.max(y - 34, 4) };
+}
+
+function drawSatellite(ctx: CanvasRenderingContext2D, box: ReturnType<typeof satelliteLabelBox>, label: string, labelBg: string) {
+  const { x, y, w, lx, ly } = box;
   ctx.save();
   // Ореол
   const g = ctx.createRadialGradient(x, y, 0, x, y, 22);
@@ -456,10 +498,7 @@ function drawSatellite(ctx: CanvasRenderingContext2D, v: View, p: TrackPoint, la
 
   // Подпись
   ctx.font = '600 12px "IBM Plex Mono", monospace';
-  const w = ctx.measureText(label).width + 16;
-  const lx = Math.min(Math.max(x + 14, 4), v.w - w - 4);
-  const ly = Math.max(y - 34, 4);
-  ctx.fillStyle = 'rgba(12, 24, 41, 0.88)';
+  ctx.fillStyle = labelBg;
   ctx.strokeStyle = 'rgba(255, 181, 71, 0.6)';
   ctx.lineWidth = 1;
   ctx.beginPath();

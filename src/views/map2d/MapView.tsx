@@ -33,6 +33,10 @@ function baseFit(w: number, h: number) {
 
 export function MapView() {
   const wrapRef = useRef<HTMLDivElement>(null);
+  const legendRef = useRef<HTMLUListElement>(null);
+  const footerRef = useRef<HTMLDivElement>(null);
+  /** Высота легенды и строки источников снизу — подписи долгот ставятся над ними. */
+  const bottomInsetRef = useRef(0);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const coordsRef = useRef<HTMLSpanElement>(null);
   const zoomRef = useRef<ZoomBehavior<HTMLCanvasElement, unknown> | null>(null);
@@ -82,6 +86,23 @@ export function MapView() {
       }),
     [],
   );
+
+  // Высота легенды и строки источников (легенда скрыта на узких экранах — тогда 0)
+  useEffect(() => {
+    const measure = () => {
+      const h = Math.max(legendRef.current?.offsetHeight ?? 0, footerRef.current?.offsetHeight ?? 0);
+      const next = h > 0 ? h + 16 : 0;
+      if (next !== bottomInsetRef.current) {
+        bottomInsetRef.current = next;
+        dirtyRef.current = true;
+      }
+    };
+    measure();
+    const ro = new ResizeObserver(measure);
+    if (legendRef.current) ro.observe(legendRef.current);
+    if (footerRef.current) ro.observe(footerRef.current);
+    return () => ro.disconnect();
+  }, []);
 
   // Размер холста и масштабирование колесом/перетаскиванием (d3-zoom)
   useEffect(() => {
@@ -137,6 +158,9 @@ export function MapView() {
     let lightsKey = '';
     let lastTime = NaN;
     let lastDraw = 0;
+    // Фон метки спутника — цвет панелей темы (--bg-1), перечитывается при смене тела
+    let labelBg = 'rgba(12, 24, 41, 0.9)';
+    let labelBgBody = '';
     let raf = 0;
 
     const frame = () => {
@@ -217,6 +241,18 @@ export function MapView() {
         cities: PLACES[st.body],
         regions: st.layers.regions ? REGIONS[st.body] : [],
         bodyRadius: b.radius,
+        labelBg: (() => {
+          if (labelBgBody !== st.body && document.documentElement.dataset.body === st.body) {
+            labelBgBody = st.body;
+            const hex = getComputedStyle(document.documentElement).getPropertyValue('--bg-1').trim();
+            if (/^#[0-9a-f]{6}$/i.test(hex)) {
+              const n = parseInt(hex.slice(1), 16);
+              labelBg = `rgba(${(n >> 16) & 255}, ${(n >> 8) & 255}, ${n & 255}, 0.9)`;
+            }
+          }
+          return labelBg;
+        })(),
+        bottomInset: bottomInsetRef.current,
         hoverCity: hoverRef.current,
       });
     };
@@ -329,8 +365,8 @@ export function MapView() {
           </button>
         </div>
       </div>
-      <Legend />
-      <div className={styles.footer}>
+      <Legend listRef={legendRef} />
+      <div className={styles.footer} ref={footerRef}>
         <span ref={coordsRef} className={`${styles.coords} num`} />
         <span className={styles.credit}>{SURFACE_CREDIT[body]}</span>
       </div>
@@ -339,7 +375,7 @@ export function MapView() {
 }
 
 /** Условные обозначения: цвета витков (сколько показано вперёд), прочие значки. */
-function Legend() {
+function Legend({ listRef }: { listRef: React.Ref<HTMLUListElement> }) {
   const forward = useAppStore((s) => s.revsForward);
   const revs = Array.from({ length: Math.min(forward, 3) }, (_, k) => k + 1);
   const line = (color: string, dashed: boolean, opacity = 1) => (
@@ -348,7 +384,7 @@ function Legend() {
     </svg>
   );
   return (
-    <ul className={styles.legend} aria-label="Условные обозначения">
+    <ul ref={listRef} className={styles.legend} aria-label="Условные обозначения">
       <li>
         {line(revolutionColor(-1), false)}
         прошедшие

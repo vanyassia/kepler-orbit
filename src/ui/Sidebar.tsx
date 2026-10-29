@@ -11,7 +11,7 @@ import { useAppStore } from '../state/store';
 import { CustomOrbitDialog } from './CustomOrbitDialog';
 import { FormulaSteps } from './FormulaSteps';
 import styles from './Sidebar.module.css';
-import { fmt, fmtDateTime, fmtDuration, fmtLat, fmtLon } from './format';
+import { fmt, fmtDateTime, fmtLat, fmtLon } from './format';
 import { satelliteTitle } from './satelliteTitle';
 
 export function Sidebar() {
@@ -197,7 +197,7 @@ function OrbitElements() {
         <Row label="Аргумент перицентра ω" value={fmt(el.argPerigeeDeg, 4)} unit="°" />
         <Row label="Средняя аномалия M₀" value={fmt(el.meanAnomalyDeg, 4)} unit="°" />
         <Row label="Среднее движение N" value={fmt(el.meanMotion, 5)} unit="об/сут" />
-        <Row label="Период T" value={fmtDuration(orbit.T)} />
+        <Row label="Период T" value={fmt(orbit.T / 60, 2)} unit="мин" />
         <Row label="Высота перигея" value={fmt(orbit.hPerigee, 1)} unit="км" />
         <Row label="Высота апогея" value={fmt(orbit.hApogee, 1)} unit="км" />
       </dl>

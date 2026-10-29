@@ -55,6 +55,10 @@ interface Item {
   dirty: boolean;
   /** Индекс позиции в прошлом кадре: пробуется первой, чтобы подписи не прыгали. */
   last: number;
+  /** Что записано в DOM в прошлый раз — чтобы не трогать стиль без нужды. */
+  x: number;
+  y: number;
+  hidden: boolean;
 }
 
 export class LabelLayer {
@@ -84,7 +88,8 @@ export class LabelLayer {
       if (!it) {
         const el = document.createElement('div');
         this.container.appendChild(el);
-        it = { spec: s, el, w: 0, h: 0, dirty: true, last: 0 };
+        it = { spec: s, el, w: 0, h: 0, dirty: true, last: 0, x: NaN, y: NaN, hidden: true };
+        el.dataset.hidden = 'true';
         this.items.set(s.id, it);
       }
       it.spec = s;
@@ -126,7 +131,7 @@ export class LabelLayer {
       const s = it.spec;
       const el = it.el;
       if (!s.anchor(this.p)) {
-        el.dataset.hidden = 'true';
+        this.hide(it);
         continue;
       }
       this.ndc.copy(this.p).project(camera);
@@ -137,7 +142,7 @@ export class LabelLayer {
         hidden = facing < s.minFacing;
       }
       if (hidden) {
-        el.dataset.hidden = 'true';
+        this.hide(it);
         continue;
       }
 
@@ -158,7 +163,7 @@ export class LabelLayer {
       }
       if (chosen < 0 && s.always) chosen = it.last < offsets.length ? it.last : 0;
       if (chosen < 0) {
-        el.dataset.hidden = 'true';
+        this.hide(it);
         continue;
       }
 
@@ -167,9 +172,23 @@ export class LabelLayer {
       const l = x + fx * it.w + px;
       const t = y + fy * it.h + py;
       placed.push(l - GAP, t - GAP, l + it.w + GAP, t + it.h + GAP);
-      el.dataset.hidden = 'false';
-      el.style.transform = `translate3d(${l.toFixed(1)}px, ${t.toFixed(1)}px, 0)`;
+      if (it.hidden) {
+        el.dataset.hidden = 'false';
+        it.hidden = false;
+      }
+      // Сдвиг меньше четверти пикселя не виден — стиль не переписываем (меньше пересчёта стилей)
+      if (!(Math.abs(l - it.x) < 0.25 && Math.abs(t - it.y) < 0.25)) {
+        it.x = l;
+        it.y = t;
+        el.style.transform = `translate3d(${l.toFixed(1)}px, ${t.toFixed(1)}px, 0)`;
+      }
     }
+  }
+
+  private hide(it: Item): void {
+    if (it.hidden) return;
+    it.el.dataset.hidden = 'true';
+    it.hidden = true;
   }
 
   private overlaps(l: number, t: number, w: number, h: number): boolean {
