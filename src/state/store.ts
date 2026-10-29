@@ -9,6 +9,8 @@ import { create } from 'zustand';
 import { createJSONStorage, persist } from 'zustand/middleware';
 import type { SatelliteRecord } from '../data/celestrak';
 import { loadByNorad } from '../data/celestrak';
+import type { CustomSatellite } from '../data/custom';
+import { CUSTOM_ID_BASE, customToRecord, isCustomId } from '../data/custom';
 import { DEFAULT_SATELLITE, loadOrbiter } from '../data/orbiters';
 import type { BodyId } from '../physics/bodies';
 import type { PreparedOrbit } from '../physics/propagate';
@@ -64,6 +66,11 @@ interface AppState {
   revsBack: number;
   revsForward: number;
 
+  /** Свои спутники (сохраняются в браузере). */
+  customSats: CustomSatellite[];
+  /** Создать свой спутник и сразу выбрать его. */
+  addCustom: (c: Omit<CustomSatellite, 'id' | 'epochMs'>) => void;
+  removeCustom: (id: number) => void;
   /** Загрузка спутника: положительный номер — NORAD (Земля, CelesTrak), отрицательный — NAIF (Луна, Марс, Horizons). */
   loadNorad: (id: number) => Promise<void>;
   /** Переход к другому телу — с его спутником по умолчанию. */
@@ -119,8 +126,27 @@ export const useAppStore = create<AppState>()(
   },
   revsBack: 1,
   revsForward: 2,
+  customSats: [],
+
+  addCustom: (c) => {
+    const id = Math.max(CUSTOM_ID_BASE, ...get().customSats.map((x) => x.id)) + 1;
+    const sat: CustomSatellite = { ...c, id, epochMs: Date.now() };
+    set({ customSats: [...get().customSats, sat] });
+    get().setRecord(customToRecord(sat));
+  },
+  removeCustom: (id) => {
+    const s = get();
+    set({ customSats: s.customSats.filter((x) => x.id !== id) });
+    // Удалили выбранный — переходим к спутнику тела по умолчанию
+    if (s.record?.elements.noradId === id) void s.loadNorad(DEFAULT_SATELLITE[s.body]);
+  },
 
   loadNorad: async (id) => {
+    if (isCustomId(id)) {
+      const c = get().customSats.find((x) => x.id === id);
+      if (c) return get().setRecord(customToRecord(c));
+      id = DEFAULT_SATELLITE[get().body]; // спутник удалён или открыта чужая ссылка
+    }
     const seq = ++loadSeq;
     set({ loading: true, error: null, pendingNorad: id, lastNorad: id });
     try {
@@ -179,6 +205,7 @@ export const useAppStore = create<AppState>()(
         layers: s.layers,
         revsBack: s.revsBack,
         revsForward: s.revsForward,
+        customSats: s.customSats,
       }),
       merge: (persisted, current) => {
         const p = (persisted ?? {}) as Partial<AppState>;

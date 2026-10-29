@@ -19,7 +19,7 @@ const REQUEST_TIMEOUT_MS = 10_000;
 const MAX_RESULTS = 25;
 
 /** Откуда получены данные. */
-export type DataSource = 'online' | 'cache' | 'fallback' | 'manual' | 'horizons';
+export type DataSource = 'online' | 'cache' | 'fallback' | 'manual' | 'horizons' | 'custom';
 
 export interface SatelliteRecord {
   elements: OrbitalElements;

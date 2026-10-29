@@ -1,0 +1,104 @@
+.bodies {
+  display: flex;
+  align-self: flex-start;
+  padding: 3px;
+  border: 1px solid var(--line-strong);
+  border-radius: var(--r-chip);
+}
+
+.bodies button {
+  height: 30px;
+  padding: 0 var(--sp-4);
+  border: 0;
+  border-radius: var(--r-chip);
+  background: none;
+  color: var(--text-1);
+  transition: color var(--dur) var(--ease);
+}
+
+.bodies button:hover {
+  color: var(--text-0);
+}
+
+.bodies button[aria-checked='true'] {
+  background: var(--bg-3);
+  color: var(--text-0);
+}
+
+.grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--sp-3) var(--sp-4);
+}
+
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-1);
+  min-width: 0;
+}
+
+.wide {
+  grid-column: 1 / -1;
+}
+
+.field label {
+  color: var(--text-1);
+  font-size: var(--fs-caption);
+}
+
+.inputWrap {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+  height: 36px;
+  padding: 0 var(--sp-3);
+  border: 1px solid var(--field-edge);
+  border-radius: var(--r-control);
+  background: var(--bg-0);
+}
+
+.inputWrap:focus-within {
+  border-color: var(--orbit);
+}
+
+.inputWrap:has(input[aria-invalid='true']) {
+  border-color: var(--danger);
+}
+
+.input {
+  flex: 1;
+  min-width: 0;
+  border: 0;
+  outline: 0;
+  background: transparent;
+  color: var(--text-0);
+  font-family: var(--font-data);
+  font-size: var(--fs-body);
+  font-variant-numeric: tabular-nums;
+}
+
+.unit {
+  color: var(--text-2);
+  font-size: var(--fs-caption);
+}
+
+.summary {
+  margin: 0;
+  color: var(--text-0);
+  font-family: var(--font-data);
+  font-size: var(--fs-body);
+}
+
+@media (max-width: 520px) {
+  .grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+/* iOS Safari увеличивает страницу при фокусе на поле с текстом мельче 16px */
+@media (max-width: 720px) {
+  .input {
+    font-size: 16px;
+  }
+}

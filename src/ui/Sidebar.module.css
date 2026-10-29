@@ -105,6 +105,45 @@
   color: var(--sat);
 }
 
+.addChip {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  border-style: dashed;
+}
+
+/* Свой спутник: название и кнопка удаления — одна «таблетка» */
+.customChip {
+  display: inline-flex;
+}
+
+.customChip .chip {
+  border-top-right-radius: 0;
+  border-bottom-right-radius: 0;
+  border-right: 0;
+}
+
+.chipRemove {
+  display: grid;
+  place-items: center;
+  width: 26px;
+  height: 28px;
+  border: 1px solid var(--line-strong);
+  border-left: 1px solid var(--line);
+  border-radius: 0 var(--r-chip) var(--r-chip) 0;
+  background: transparent;
+  color: var(--text-2);
+  transition: color var(--dur) var(--ease);
+}
+
+.chipRemove:hover {
+  color: var(--danger);
+}
+
+.customChip[data-current] .chipRemove {
+  border-color: var(--sat);
+}
+
 .chip[data-pending] {
   border-style: dashed;
   border-color: var(--orbit);

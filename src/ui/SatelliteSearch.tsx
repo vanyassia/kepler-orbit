@@ -1,4 +1,4 @@
-import { FileText, LoaderCircle, Search } from 'lucide-react';
+import { FileText, LoaderCircle, Orbit, Search } from 'lucide-react';
 import { useEffect, useId, useRef, useState } from 'react';
 import type { SatelliteRecord } from '../data/celestrak';
 import { searchSatellites } from '../data/celestrak';
@@ -7,6 +7,7 @@ import { POPULAR_SATELLITES } from '../data/popular';
 import { BODIES } from '../physics/bodies';
 import { useAppStore } from '../state/store';
 import styles from './SatelliteSearch.module.css';
+import { CustomOrbitDialog } from './CustomOrbitDialog';
 import { TleDialog } from './TleDialog';
 
 type Item = { kind: 'popular'; noradId: number; title: string; note: string } | { kind: 'result'; record: SatelliteRecord };
@@ -20,6 +21,7 @@ export function SatelliteSearch() {
   const [notice, setNotice] = useState<string | null>(null);
   const [active, setActive] = useState(0);
   const [tleOpen, setTleOpen] = useState(false);
+  const [customOpen, setCustomOpen] = useState(false);
   const rootRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const listId = useId();
@@ -174,6 +176,16 @@ export function SatelliteSearch() {
           >
             <FileText size={14} /> Ввести TLE вручную
           </button>}
+          <button
+            type="button"
+            className={styles.tleButton}
+            onClick={() => {
+              setCustomOpen(true);
+              setOpen(false);
+            }}
+          >
+            <Orbit size={14} /> Свой спутник: задать орбиту
+          </button>
         </div>
       )}
       {/* Объявление результатов поиска для экранных читалок */}
@@ -184,6 +196,7 @@ export function SatelliteSearch() {
             (results === null ? '' : results.length === 0 ? 'Ничего не найдено' : `Найдено: ${results.length}`)}
       </div>
       <TleDialog open={tleOpen} onClose={() => setTleOpen(false)} />
+      <CustomOrbitDialog open={customOpen} onClose={() => setCustomOpen(false)} />
       <SlashShortcut onTrigger={() => inputRef.current?.focus()} />
     </div>
   );

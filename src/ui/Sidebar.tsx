@@ -1,5 +1,6 @@
-import { X } from 'lucide-react';
-import { useEffect, useMemo } from 'react';
+import { Plus, X } from 'lucide-react';
+import { useEffect, useMemo, useState } from 'react';
+import { customToRecord } from '../data/custom';
 import { ORBITERS } from '../data/orbiters';
 import { POPULAR_SATELLITES } from '../data/popular';
 import { BODIES } from '../physics/bodies';
@@ -7,6 +8,7 @@ import { useThrottledSimTime } from '../hooks/useSimClock';
 import { RAD } from '../physics/constants';
 import { propagate } from '../physics/propagate';
 import { useAppStore } from '../state/store';
+import { CustomOrbitDialog } from './CustomOrbitDialog';
 import { FormulaSteps } from './FormulaSteps';
 import styles from './Sidebar.module.css';
 import { fmt, fmtDateTime, fmtDuration, fmtLat, fmtLon } from './format';
@@ -67,10 +69,17 @@ function SatelliteCard() {
         </div>
       )}
       <dl className={styles.ids}>
-        <div>
-          <dt>{el.noradId < 0 ? 'NAIF' : 'NORAD'}</dt>
-          <dd className="num">{el.noradId}</dd>
-        </div>
+        {record.source === 'custom' ? (
+          <div>
+            <dt>Орбита</dt>
+            <dd>своя</dd>
+          </div>
+        ) : (
+          <div>
+            <dt>{el.noradId < 0 ? 'NAIF' : 'NORAD'}</dt>
+            <dd className="num">{el.noradId}</dd>
+          </div>
+        )}
         {el.body && el.body !== 'earth' && (
           <div>
             <dt>Центральное тело</dt>
@@ -102,6 +111,11 @@ function QuickPicks() {
   const pending = useAppStore((s) => s.pendingNorad);
   const loadNorad = useAppStore((s) => s.loadNorad);
   const body = useAppStore((s) => s.body);
+  const customSats = useAppStore((s) => s.customSats);
+  const setRecord = useAppStore((s) => s.setRecord);
+  const removeCustom = useAppStore((s) => s.removeCustom);
+  const [dialogOpen, setDialogOpen] = useState(false);
+  const mine = customSats.filter((c) => c.body === body);
   // Земля — популярные спутники из CelesTrak, Луна и Марс — аппараты из снимка JPL Horizons
   const picks =
     body === 'earth'
@@ -123,7 +137,22 @@ function QuickPicks() {
             {p.title}
           </button>
         ))}
+        {/* Свои спутники этого тела: выбор и удаление */}
+        {mine.map((c) => (
+          <span key={c.id} className={styles.customChip} data-current={current === c.id || undefined}>
+            <button type="button" className={styles.chip} aria-pressed={current === c.id} title="Свой спутник" onClick={() => setRecord(customToRecord(c))}>
+              {c.name}
+            </button>
+            <button type="button" className={styles.chipRemove} aria-label={`Удалить спутник «${c.name}»`} title="Удалить" onClick={() => removeCustom(c.id)}>
+              <X size={12} />
+            </button>
+          </span>
+        ))}
+        <button type="button" className={`${styles.chip} ${styles.addChip}`} onClick={() => setDialogOpen(true)}>
+          <Plus size={13} aria-hidden="true" /> Свой спутник
+        </button>
       </div>
+      <CustomOrbitDialog open={dialogOpen} onClose={() => setDialogOpen(false)} />
     </section>
   );
 }

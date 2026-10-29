@@ -26,7 +26,8 @@
 }
 
 .status[data-kind='fallback'] .dot,
-.status[data-kind='manual'] .dot {
+.status[data-kind='manual'] .dot,
+.status[data-kind='custom'] .dot {
   background: var(--warn);
 }
 

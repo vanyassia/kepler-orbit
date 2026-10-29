@@ -9,6 +9,7 @@ const LABELS = {
   fallback: 'Встроенный пример',
   manual: 'TLE введён вручную',
   horizons: 'JPL Horizons',
+  custom: 'Своя орбита',
 } as const;
 
 /** Откуда взяты элементы и насколько они свежие. */
@@ -29,7 +30,7 @@ export function DataStatus() {
   const epochAgeDays = (now - record.elements.epochMs) / 86_400_000;
   const stale = Math.abs(epochAgeDays) > 3;
   const detail =
-    record.source === 'manual'
+    record.source === 'manual' || record.source === 'custom'
       ? null
       : record.source === 'fallback' || record.source === 'horizons'
         ? 'снимок сделан ' + fmtAge(now - record.fetchedAt)
