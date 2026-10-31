@@ -64,6 +64,13 @@
   color: var(--text-1);
 }
 
+.satNote {
+  margin: var(--sp-3) 0 0;
+  color: var(--text-1);
+  font-size: var(--fs-caption);
+  text-wrap: pretty;
+}
+
 .error {
   margin: var(--sp-3) 0 0;
   padding: var(--sp-2) var(--sp-3);

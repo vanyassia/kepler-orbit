@@ -45,7 +45,7 @@ const TRACK_R = 1.0025;
 /** Угол обзора камеры по вертикали, градусы. */
 export const CAMERA_FOV = 38;
 /** Предел отдаления камеры, радиусов тела: вмещает самую большую орбиту списка (Спектр-Р, ~53 радиуса). */
-const MAX_CAMERA_DISTANCE = 160;
+const MAX_CAMERA_DISTANCE = 220;
 const WORLD_UP = new Vector3(0, 1, 0);
 const NO_ROTATION = new Quaternion();
 
@@ -394,7 +394,9 @@ export function GlobeScene({ overlay, onReady }: { overlay: React.RefObject<HTML
     if (!orbit || !geometry) return;
     const s = propagate(orbit, useAppStore.getState().simTime);
     const satDir = toScene(s.eci, new Vector3(), orbit.body.radius).normalize();
-    const dist = Math.min(MAX_CAMERA_DISTANCE, Math.max(3.4, (orbit.rApogee / orbit.body.radius) * 2.3 + 0.8));
+    // Очень вытянутая орбита (Марс-3, e ≈ 0,96) уходит от тела почти в одну сторону: нужен запас, чтобы апоцентр попал в кадр
+    const margin = orbit.e > 0.9 ? 3 : 2.3;
+    const dist = Math.min(MAX_CAMERA_DISTANCE, Math.max(3.4, (orbit.rApogee / orbit.body.radius) * margin + 0.8));
     // Камера сбоку от спутника, чуть выше плоскости экватора — видны и Земля, и плоскость орбиты
     const dir = satDir.clone().add(new Vector3(0, 0.35, 0)).normalize();
     const to = dir.multiplyScalar(dist);

@@ -27,7 +27,8 @@
 
 .status[data-kind='fallback'] .dot,
 .status[data-kind='manual'] .dot,
-.status[data-kind='custom'] .dot {
+.status[data-kind='custom'] .dot,
+.status[data-kind='historic'] .dot {
   background: var(--warn);
 }
 

@@ -69,10 +69,10 @@ function SatelliteCard() {
         </div>
       )}
       <dl className={styles.ids}>
-        {record.source === 'custom' ? (
+        {record.source === 'custom' || record.source === 'historic' ? (
           <div>
             <dt>Орбита</dt>
-            <dd>своя</dd>
+            <dd>{record.source === 'custom' ? 'своя' : 'историческая'}</dd>
           </div>
         ) : (
           <div>
@@ -97,6 +97,7 @@ function SatelliteCard() {
           <dd className="num">{fmtDateTime(el.epochMs)}</dd>
         </div>
       </dl>
+      {record.source === 'historic' && <p className={styles.satNote}>Форма орбиты по опубликованным данным. Углы Ω и ω и положение на орбите условные.</p>}
       {error && (
         <p className={styles.error} role="alert">
           {error}
