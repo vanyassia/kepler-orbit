@@ -147,7 +147,7 @@ export function SatelliteSearch() {
       {open && (
         <div className={styles.dropdown}>
           {(needle || !earth) && (
-            <div className={styles.heading}>{needle ? `Найдено: ${items.length}` : `Аппараты: ${BODIES[body].name}, данные JPL Horizons`}</div>
+            <div className={styles.heading}>{needle ? `Найдено: ${items.length}` : `Спутники: ${BODIES[body].name}, данные JPL Horizons`}</div>
           )}
           {notice && <div className={styles.notice}>{notice}</div>}
           {needle && items.length === 0 && !busy && (

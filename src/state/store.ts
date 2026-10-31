@@ -11,7 +11,7 @@ import type { SatelliteRecord } from '../data/celestrak';
 import { loadByNorad } from '../data/celestrak';
 import type { CustomSatellite } from '../data/custom';
 import { CUSTOM_ID_BASE, customToRecord, isCustomId } from '../data/custom';
-import { DEFAULT_SATELLITE, loadOrbiter } from '../data/orbiters';
+import { DEFAULT_SATELLITE, isOrbiterId, loadOrbiter } from '../data/orbiters';
 import type { BodyId } from '../physics/bodies';
 import type { PreparedOrbit } from '../physics/propagate';
 import { prepareOrbit } from '../physics/propagate';
@@ -150,7 +150,7 @@ export const useAppStore = create<AppState>()(
     const seq = ++loadSeq;
     set({ loading: true, error: null, pendingNorad: id, lastNorad: id });
     try {
-      const rec = id < 0 ? await loadOrbiter(id) : await loadByNorad(id);
+      const rec = isOrbiterId(id) ? await loadOrbiter(id) : await loadByNorad(id);
       if (seq !== loadSeq) return; // пользователь уже выбрал другой спутник
       set({ record: rec, body: rec.elements.body ?? 'earth', orbit: prepareOrbit(rec.elements), loading: false, pendingNorad: null });
     } catch (e) {

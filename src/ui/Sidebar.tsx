@@ -1,7 +1,7 @@
 import { Plus, X } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
 import { customToRecord } from '../data/custom';
-import { ORBITERS } from '../data/orbiters';
+import { isOrbiterId, ORBITERS } from '../data/orbiters';
 import { POPULAR_GROUPS, POPULAR_SATELLITES } from '../data/popular';
 import { BODIES } from '../physics/bodies';
 import { useThrottledSimTime } from '../hooks/useSimClock';
@@ -76,7 +76,7 @@ function SatelliteCard() {
           </div>
         ) : (
           <div>
-            <dt>{el.noradId < 0 ? 'NAIF' : 'NORAD'}</dt>
+            <dt>{isOrbiterId(el.noradId) ? 'NAIF' : 'NORAD'}</dt>
             <dd className="num">{el.noradId}</dd>
           </div>
         )}
