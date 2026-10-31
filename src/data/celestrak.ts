@@ -55,7 +55,8 @@ interface FallbackSnapshot {
 let fallbackPromise: Promise<FallbackSnapshot> | null = null;
 
 async function loadFallback(fetchImpl: typeof fetch): Promise<FallbackSnapshot> {
-  fallbackPromise ??= fetchImpl(FALLBACK_URL).then((r) => {
+  // no-cache: сайт разрешает кэшировать файлы 10 минут, а в старом снимке может не быть новых спутников
+  fallbackPromise ??= fetchImpl(FALLBACK_URL, { cache: 'no-cache' }).then((r) => {
     if (!r.ok) throw new Error(`Снимок данных недоступен (${r.status})`);
     return r.json() as Promise<FallbackSnapshot>;
   });

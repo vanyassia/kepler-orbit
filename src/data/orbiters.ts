@@ -58,7 +58,8 @@ let snapshot: Promise<{ savedAt: string; items: OrbiterSnapshotItem[] }> | null 
 
 /** Элементы спутника Луны или Марса из снимка JPL Horizons. */
 export async function loadOrbiter(naifId: number): Promise<SatelliteRecord> {
-  snapshot ??= fetch(`${import.meta.env.BASE_URL}data/orbiters.json`).then((r) => {
+  // no-cache: сайт разрешает кэшировать файлы 10 минут, а старый снимок не подходит к новому списку
+  snapshot ??= fetch(`${import.meta.env.BASE_URL}data/orbiters.json`, { cache: 'no-cache' }).then((r) => {
     if (!r.ok) throw new Error(`Снимок элементов JPL Horizons недоступен (${r.status})`);
     return r.json();
   });
@@ -71,7 +72,10 @@ export async function loadOrbiter(naifId: number): Promise<SatelliteRecord> {
   }
   const it = snap.items.find((x) => x.naifId === naifId);
   const meta = ORBITERS.find((o) => o.naifId === naifId);
-  if (!it) throw new Error(`Аппарат NAIF ${naifId} не найден в снимке JPL Horizons`);
+  if (!it) {
+    snapshot = null; // при следующем выборе запросить снимок заново
+    throw new Error(`Спутник NAIF ${naifId} не найден в снимке JPL Horizons`);
+  }
   return {
     source: 'horizons',
     fetchedAt: Date.parse(snap.savedAt),
