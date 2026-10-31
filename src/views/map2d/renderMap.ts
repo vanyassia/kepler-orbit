@@ -173,7 +173,7 @@ export function renderMap(ctx: CanvasRenderingContext2D, sc: MapScene): void {
   clipToMap(ctx, v);
   // Ночная сторона
   if (layers.night) {
-    ctx.imageSmoothingQuality = 'high';
+    ctx.imageSmoothingQuality = 'low'; // плавный градиент: дорогое сглаживание здесь не заметно
     ctx.drawImage(sc.masks.dark, 0, 0, WORLD_W, WORLD_H);
     if (sc.lightsLayer && layers.imagery) {
       ctx.globalCompositeOperation = 'lighter';

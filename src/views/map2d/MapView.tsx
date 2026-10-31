@@ -153,6 +153,8 @@ export default function MapView() {
     const ctx = canvas.getContext('2d', { alpha: false })!;
     const masks = createNightMasks();
     const lights = document.createElement('canvas');
+    // Снимок огней в масштабе вида: тяжёлое уменьшение 8K — только при смене вида, а не с каждой маской
+    const lightsScaled = document.createElement('canvas');
     // Снимок и линии меняются только с видом и слоями: готовые холсты копируются в кадр вместо перерисовки
     const base = document.createElement('canvas');
     const lines = document.createElement('canvas');
@@ -220,19 +222,29 @@ export default function MapView() {
         masksChanged = true;
       }
 
-      // Слой огней городов = ночной снимок × маска; пересобирается при изменении вида или маски
+      // Слой огней городов = ночной снимок в масштабе вида × маска
       const key = `${canvas.width}x${canvas.height}|${view.s}|${view.ox}|${view.oy}|${night?.src}`;
-      if (earth && night && st.layers.night && (masksChanged || key !== lightsKey)) {
-        lightsKey = key;
-        lights.width = canvas.width;
-        lights.height = canvas.height;
-        const lctx = lights.getContext('2d')!;
-        lctx.setTransform(dpr * view.s, 0, 0, dpr * view.s, dpr * view.ox, dpr * view.oy);
-        lctx.globalCompositeOperation = 'source-over';
-        lctx.imageSmoothingQuality = 'high';
-        lctx.drawImage(night, 0, 0, 360, 180);
-        lctx.globalCompositeOperation = 'destination-in';
-        lctx.drawImage(masks.lights, 0, 0, 360, 180);
+      if (earth && night && st.layers.night) {
+        const world = [dpr * view.s, 0, 0, dpr * view.s, dpr * view.ox, dpr * view.oy] as const;
+        if (key !== lightsKey) {
+          lightsKey = key;
+          masksChanged = true;
+          lightsScaled.width = lights.width = canvas.width;
+          lightsScaled.height = lights.height = canvas.height;
+          const sctx = lightsScaled.getContext('2d')!;
+          sctx.setTransform(...world);
+          sctx.imageSmoothingQuality = 'high';
+          sctx.drawImage(night, 0, 0, 360, 180);
+        }
+        if (masksChanged) {
+          const lctx = lights.getContext('2d')!;
+          lctx.setTransform(1, 0, 0, 1, 0, 0);
+          lctx.globalCompositeOperation = 'copy';
+          lctx.drawImage(lightsScaled, 0, 0);
+          lctx.setTransform(...world);
+          lctx.globalCompositeOperation = 'destination-in';
+          lctx.drawImage(masks.lights, 0, 0, 360, 180);
+        }
       }
 
       const o = st.orbit;
