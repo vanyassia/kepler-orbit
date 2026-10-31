@@ -28,6 +28,8 @@ export interface LabelSpec {
   id: string;
   text: string;
   className: string;
+  /** Цвет текста, если он не задан классом. */
+  color?: string;
   /** Записывает мировые координаты точки привязки в out; null — подпись сейчас не показывать. */
   anchor: (out: Vector3) => Vector3 | null;
   /** Меньше — важнее: ставится раньше и рисуется поверх. */
@@ -102,6 +104,7 @@ export class LabelLayer {
         it.dirty = true;
       }
       it.el.style.zIndex = String(Math.max(0, 10 - s.priority));
+      if (s.color) it.el.style.color = s.color;
     }
     // sort стабилен: внутри одного приоритета сохраняется порядок specs (регионы — от крупных)
     this.order = [...this.items.values()].sort((a, b) => a.spec.priority - b.spec.priority);

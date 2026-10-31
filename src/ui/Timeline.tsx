@@ -28,7 +28,12 @@ export function Timeline() {
 
   const nodes = useMemo(() => (orbit ? ascendingNodeTimes(orbit, start, start + span) : []), [orbit, start, span]);
   // При очень коротком периоде засечек слишком много — прореживаем
-  const step = Math.max(1, Math.ceil(nodes.length / 40));
+  const marks = useMemo(() => {
+    const step = Math.max(1, Math.ceil(nodes.length / 40));
+    return nodes
+      .filter((_, k) => k % step === 0)
+      .map((n) => <span key={n} className={styles.node} style={{ left: `${((n - start) / span) * 100}%` }} />);
+  }, [nodes, start, span]);
 
   const live = playing && speed === 1 && Math.abs(t - now) < 3000;
   const offsetH = (t - now) / 3_600_000;
@@ -63,11 +68,7 @@ export function Timeline() {
 
       <div className={styles.scrub}>
         <div className={styles.track}>
-          {nodes
-            .filter((_, k) => k % step === 0)
-            .map((n) => (
-              <span key={n} className={styles.node} style={{ left: `${((n - start) / span) * 100}%` }} />
-            ))}
+          {marks}
           {now >= start && now <= start + span && (
             <span className={styles.nowMark} style={{ left: `${((now - start) / span) * 100}%` }} title="Сейчас" />
           )}

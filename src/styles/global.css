@@ -84,6 +84,14 @@ button:disabled {
   }
 }
 
+/* Сенсорные экраны: кнопки не меньше пальца. На компьютере размеры остаются плотными */
+@media (pointer: coarse) {
+  button {
+    min-width: 40px;
+    min-height: 40px;
+  }
+}
+
 /*
  * Переходы между видами (View Transitions, <ViewTransition> в Workspace.tsx).
  * Корень не анимируется и остаётся «живым»: часы, шкала времени и подписи продолжают

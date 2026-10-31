@@ -1,12 +1,13 @@
 import { Columns2, Globe2, Map, RotateCw, SatelliteDish } from 'lucide-react';
-import { lazy, Suspense, useDeferredValue, ViewTransition } from 'react';
+import { lazy, Suspense, useDeferredValue, useEffect, ViewTransition } from 'react';
 import type { ViewMode } from '../state/store';
 import { useAppStore } from '../state/store';
-import { MapView } from '../views/map2d/MapView';
 import styles from './Workspace.module.css';
 import { rovingKeyDown, rovingTabIndex } from './roving';
 
 const GlobeView = lazy(() => import('../views/globe3d/GlobeView'));
+const loadMapView = () => import('../views/map2d/MapView');
+const MapView = lazy(loadMapView);
 
 const VIEWS: { id: ViewMode; label: string; icon: typeof Map }[] = [
   { id: 'split', label: 'Оба вида', icon: Columns2 },
@@ -30,6 +31,12 @@ export function Workspace() {
   const hasRecord = useAppStore((s) => !!s.record);
   const error = useAppStore((s) => s.error);
   const loading = useAppStore((s) => s.loading);
+
+  // Карта открывается не сразу, но к первому нажатию её код уже готов
+  useEffect(() => {
+    const timer = setTimeout(() => void loadMapView(), 3000);
+    return () => clearTimeout(timer);
+  }, []);
 
   return (
     <div className={styles.workspace} data-view={shownView}>
@@ -71,7 +78,9 @@ export function Workspace() {
       {shownView !== '3d' && (
         <ViewTransition key="map" enter="pane-in" exit="pane-out" update="pane-move" default="none">
           <section className={styles.pane} aria-label="Карта">
-            <MapView />
+            <Suspense fallback={<div className={styles.loading}>Загрузка карты…</div>}>
+              <MapView />
+            </Suspense>
           </section>
         </ViewTransition>
       )}

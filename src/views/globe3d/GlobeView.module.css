@@ -159,38 +159,6 @@
   text-shadow: 0 0 4px #04080f, 0 0 2px #04080f;
 }
 
-:global(.globe-label.node-1) {
-  color: #b38cff;
-}
-
-:global(.globe-label.node-2) {
-  color: #6be07c;
-}
-
-:global(.globe-label.node-3) {
-  color: #fff07a;
-}
-
-:global(.globe-label.node-4) {
-  color: #e6eef8;
-}
-
-:global(.globe-label.node-5) {
-  color: #e6eef8;
-}
-
-:global(.globe-label.node-6) {
-  color: #e6eef8;
-}
-
-:global(.globe-label.node-7) {
-  color: #e6eef8;
-}
-
-:global(.globe-label.node-8) {
-  color: #e6eef8;
-}
-
 :global(.globe-label.region) {
   background: transparent;
   font-family: var(--font-display);

@@ -125,7 +125,7 @@ export function SatelliteSearch() {
           name="satellite"
           enterKeyHint="search"
           value={query}
-          placeholder={earth ? 'МКС, Метеор, HST, 25544…' : body === 'moon' ? 'LRO, Danuri…' : 'MRO, TGO, Hope…'}
+          placeholder={matchMedia('(max-width: 720px)').matches ? 'Поиск' : earth ? 'МКС, Метеор, HST, 25544…' : body === 'moon' ? 'LRO, Danuri…' : 'MRO, TGO, Hope…'}
           onChange={(e) => {
             setQuery(e.target.value);
             setActive(0);

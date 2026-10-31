@@ -9,12 +9,14 @@
  *  - NASA Visible Earth, облачный покров, 8192×4096, общественное достояние.
  *  - Solar System Scope: карта нормалей, маска бликов (океаны), звёздное небо, карты Луны и Марса, CC BY 4.0.
  *
- * Пережатие выполняется встроенной в macOS утилитой `sips` (без сторонних зависимостей).
+ * Пережатие выполняется встроенной в macOS утилитой `sips`, затем `cwebp` (brew install webp).
+ * Качество WebP подобрано так, чтобы SSIM к JPEG был не ниже 0,99. Mars 8K и Земля 16K остаются в JPEG:
+ * зернистый снимок Марса в WebP того же качества почти не легчает, а 16384 пикселя WebP не вмещает.
  * Запуск: npm run fetch:textures
  * Переменная SRC_DIR позволяет указать папку с уже скачанными исходниками.
  */
 import { execFileSync } from 'node:child_process';
-import { existsSync, mkdirSync, statSync } from 'node:fs';
+import { existsSync, mkdirSync, rmSync, statSync } from 'node:fs';
 import { join, resolve } from 'node:path';
 
 const ROOT = resolve(import.meta.dirname, '..');
@@ -35,6 +37,24 @@ const sources = {
   'sss_moon.jpg': 'https://www.solarsystemscope.com/textures/download/8k_moon.jpg',
   'sss_mars.jpg': 'https://www.solarsystemscope.com/textures/download/8k_mars.jpg',
 };
+
+/** Качество WebP; файлов нет в списке — остаются в JPEG. */
+const WEBP = {
+  'earth_day_8k.jpg': 93,
+  'earth_day_2k.jpg': 90,
+  'earth_night_8k.jpg': 84,
+  'earth_night_2k.jpg': 82,
+  'earth_clouds_4k.jpg': 84,
+  'earth_normal_4k.jpg': 85,
+  'earth_specular_2k.jpg': 82,
+  'stars_4k.jpg': 90,
+  'moon_6k.jpg': 84,
+  'moon_2k.jpg': 85,
+  'mars_2k.jpg': 90,
+};
+
+/** Значки тел в переключателе. */
+const THUMBS = { 'earth_day_2k.jpg': 'thumb_earth.webp', 'moon_2k.jpg': 'thumb_moon.webp', 'mars_2k.jpg': 'thumb_mars.webp' };
 
 /** [исходник, выходной файл, ширина, качество JPEG] — высота всегда ширина/2 (равнопромежуточная проекция) */
 const outputs = [
@@ -74,5 +94,16 @@ for (const [src, out, width, quality] of outputs) {
     { stdio: 'ignore' },
   );
   console.log(`  ${(statSync(dst).size / 1e6).toFixed(1)} МБ`);
+  if (THUMBS[out]) {
+    const small = join(SRC, `${out}.thumb.png`);
+    execFileSync('sips', ['-z', '80', '160', '-s', 'format', 'png', dst, '--out', small], { stdio: 'ignore' });
+    execFileSync('cwebp', ['-quiet', '-q', '82', '-m', '6', '-sharp_yuv', small, '-o', join(OUT, THUMBS[out])]);
+  }
+  if (WEBP[out]) {
+    const webp = dst.replace(/\.jpg$/, '.webp');
+    execFileSync('cwebp', ['-quiet', '-mt', '-q', String(WEBP[out]), '-m', '6', '-sharp_yuv', dst, '-o', webp]);
+    rmSync(dst);
+    console.log(`  WebP: ${(statSync(webp).size / 1e6).toFixed(1)} МБ`);
+  }
 }
 console.log('Готово:', OUT);

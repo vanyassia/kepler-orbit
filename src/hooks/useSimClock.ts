@@ -34,7 +34,9 @@ export function useThrottledSimTime(intervalMs = 100): number {
       const now = performance.now();
       // Скачок времени (ползунок, «Сейчас») показываем сразу
       const jump = Math.abs(s.simTime - prev.simTime) > 60_000 * Math.max(1, s.speed / 60);
-      if (jump || now - lastSet >= intervalMs) {
+      // На малых скоростях числа меняются медленно — обновлять панели чаще незачем
+      const gap = s.speed <= 10 ? Math.max(intervalMs, 250) : intervalMs;
+      if (jump || now - lastSet >= gap) {
         lastSet = now;
         setT(s.simTime);
       }

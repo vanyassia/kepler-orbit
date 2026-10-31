@@ -48,5 +48,5 @@ export function TopBar() {
 }
 
 function Logo() {
-  return <img className={styles.logo} src={`${import.meta.env.BASE_URL}logo.png`} width={32} height={32} alt="" />;
+  return <img className={styles.logo} src={`${import.meta.env.BASE_URL}logo.webp`} width={32} height={32} alt="" />;
 }

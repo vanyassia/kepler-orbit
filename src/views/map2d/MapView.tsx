@@ -15,12 +15,13 @@ import { LayersMenu, RevsControl } from '../../ui/LayersMenu';
 import { fmt, fmtLat, fmtLon } from '../../ui/format';
 import { satelliteTitle } from '../../ui/satelliteTitle';
 import { LIGHT_DEVICE, NIGHT_LIGHTS, SURFACE, SURFACE_CREDIT, useProgressiveImage } from '../assets';
+import { frameDue, peakAngularRateDeg, simMsPerShift } from '../frameRate';
 import { orbitSource, Revolutions, revolutionColor, TrackCache } from '../trackCache';
 import type { BorderPaths } from './geo';
 import { loadBorders } from './geo';
 import { createNightMasks, updateNightMasks } from './nightMask';
-import type { View } from './renderMap';
-import { renderMap, toScreen, toWorldLonLat } from './renderMap';
+import type { MapScene, View } from './renderMap';
+import { renderBase, renderLines, renderMap, toScreen, toWorldLonLat } from './renderMap';
 import styles from './MapView.module.css';
 
 const MAX_ZOOM = 20;
@@ -31,7 +32,7 @@ function baseFit(w: number, h: number) {
   return { s0, ox0: (w - 360 * s0) / 2, oy0: (h - 180 * s0) / 2 };
 }
 
-export function MapView() {
+export default function MapView() {
   const wrapRef = useRef<HTMLDivElement>(null);
   const legendRef = useRef<HTMLUListElement>(null);
   const footerRef = useRef<HTMLDivElement>(null);
@@ -152,12 +153,20 @@ export function MapView() {
     const ctx = canvas.getContext('2d', { alpha: false })!;
     const masks = createNightMasks();
     const lights = document.createElement('canvas');
+    // Снимок и линии меняются только с видом и слоями: готовые холсты копируются в кадр вместо перерисовки
+    const base = document.createElement('canvas');
+    const lines = document.createElement('canvas');
+    let staticKey = '';
     const trackCache = new TrackCache();
+    let revs: Revolutions | null = null;
+    let revsRevision = -1;
+    let nodePoints: MapScene['nodePoints'] = [];
     let lastSub = { lat: NaN, lon: NaN };
     let lastMaskAt = 0;
     let lightsKey = '';
     let lastTime = NaN;
     let lastDraw = 0;
+    let stepMs = 0;
     // Фон метки спутника — цвет панелей темы (--bg-1), перечитывается при смене тела
     let labelBg = 'rgba(12, 24, 41, 0.9)';
     let labelBgBody = '';
@@ -169,9 +178,11 @@ export function MapView() {
       const { w, h, dpr } = sizeRef.current;
       if (w === 0 || h === 0) return;
       if (st.simTime === lastTime && !dirtyRef.current) return;
-      // Ход времени перерисовываем не чаще 30 раз в секунду; масштаб, слои и наведение — сразу
+      // Ход времени — когда спутник заметно сдвинулся на карте, но не чаще 30 раз в секунду;
+      // масштаб, слои и наведение — сразу
       const nowMs = performance.now();
-      if (!dirtyRef.current && nowMs - lastDraw < 33) return;
+      const sinceDraw = nowMs - lastDraw;
+      if (!dirtyRef.current && (sinceDraw < 33 || !frameDue(Math.abs(st.simTime - lastTime), sinceDraw, stepMs))) return;
       lastDraw = nowMs;
       lastTime = st.simTime;
       dirtyRef.current = false;
@@ -179,6 +190,19 @@ export function MapView() {
       const t = transformRef.current;
       const { s0, ox0, oy0 } = baseFit(w, h);
       const view: View = { s: s0 * t.k, ox: t.x + t.k * ox0, oy: t.y + t.k * oy0, w, h, dpr, k: t.k };
+      stepMs = st.orbit ? simMsPerShift(peakAngularRateDeg(st.orbit) * view.s) : Infinity;
+
+      const earth = st.body === 'earth';
+      const { imagery, grid, borders: bordersOn } = st.layers;
+      const nextStaticKey = `${canvas.width}x${canvas.height}|${view.s}|${view.ox}|${view.oy}|${imagery}|${grid}|${bordersOn}|${earth}`;
+      if (nextStaticKey !== staticKey) {
+        staticKey = nextStaticKey;
+        const scene = { view, layers: st.layers, day, borders: earth ? borders : null };
+        base.width = lines.width = canvas.width;
+        base.height = lines.height = canvas.height;
+        renderBase(base.getContext('2d', { alpha: false })!, scene);
+        renderLines(lines.getContext('2d')!, scene);
+      }
 
       // Маски ночи пересчитываются, когда Солнце сместилось больше чем на 0,05°
       // Подсолнечная точка на текущем теле: направление на Солнце → вращающаяся система тела
@@ -198,7 +222,6 @@ export function MapView() {
 
       // Слой огней городов = ночной снимок × маска; пересобирается при изменении вида или маски
       const key = `${canvas.width}x${canvas.height}|${view.s}|${view.ox}|${view.oy}|${night?.src}`;
-      const earth = st.body === 'earth';
       if (earth && night && st.layers.night && (masksChanged || key !== lightsKey)) {
         lightsKey = key;
         lights.width = canvas.width;
@@ -214,24 +237,23 @@ export function MapView() {
 
       const o = st.orbit;
       const track = o ? trackCache.get(orbitSource(o), st.simTime, st.revsBack, st.revsForward) : null;
-      // Витки: границы — восходящие узлы; подписи ставятся в начале каждого следующего витка
-      const revs = o ? new Revolutions(o, st.simTime, st.revsBack, st.revsForward) : null;
-      const windowEnd = st.simTime + st.revsForward * (o?.T ?? 0) * 1000;
-      const nodePoints =
-        revs && o
-          ? revs.nodes
-              .filter((n) => n > st.simTime && n <= windowEnd)
-              .map((n) => ({ offset: revs.offsetAt(n), point: orbitSource(o).at(n)! }))
-          : [];
+      // Витки: границы — восходящие узлы; подписи ставятся в начале каждого следующего витка.
+      // Считаются заново, когда окно трассы сдвинулось на шаг сетки
+      if (o && track && track.revision !== revsRevision) {
+        revsRevision = track.revision;
+        const r = new Revolutions(o, st.simTime, st.revsBack, st.revsForward);
+        const windowEnd = st.simTime + st.revsForward * o.T * 1000;
+        revs = r;
+        nodePoints = r.nodes.filter((n) => n > st.simTime && n <= windowEnd).map((n) => ({ offset: r.offsetAt(n), point: orbitSource(o).at(n)! }));
+      }
       const title = st.record ? satelliteTitle(st.record.elements).title : '';
       renderMap(ctx, {
         view,
         layers: st.layers,
-        day,
-        night,
-        // Границы, ночные огни — только у Земли
-        borders: earth ? borders : null,
+        base,
+        lines,
         masks,
+        // Ночные огни — только у Земли
         lightsLayer: earth && night ? lights : null,
         subsolar: sub,
         track,

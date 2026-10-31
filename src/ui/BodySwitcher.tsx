@@ -1,14 +1,14 @@
 import { BODIES, type BodyId } from '../physics/bodies';
 import { useAppStore } from '../state/store';
-import { SURFACE } from '../views/assets';
+import { BODY_THUMB } from '../views/assets';
 import styles from './BodySwitcher.module.css';
 import { rovingKeyDown, rovingTabIndex } from './roving';
 
 const ORDER: BodyId[] = ['earth', 'moon', 'mars'];
 
 /**
- * Выбор центрального тела. Диски — настоящие снимки поверхности (те же текстуры,
- * что у глобуса), у выбранного — кольцо орбиты.
+ * Выбор центрального тела. Диски — настоящие снимки поверхности (уменьшенные копии текстур глобуса),
+ * у выбранного — кольцо орбиты.
  */
 export function BodySwitcher() {
   const body = useAppStore((s) => s.body);
@@ -27,7 +27,7 @@ export function BodySwitcher() {
           onClick={() => selectBody(id)}
           title={`Спутники: ${BODIES[id].name}`}
         >
-          <span className={styles.disc} style={{ backgroundImage: `url(${SURFACE[id][0]})` }} aria-hidden="true">
+          <span className={styles.disc} style={{ backgroundImage: `url(${BODY_THUMB[id]})` }} aria-hidden="true">
             <span className={styles.ring} />
           </span>
           <span className={styles.label}>{BODIES[id].name}</span>

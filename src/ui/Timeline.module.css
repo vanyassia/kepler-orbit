@@ -145,6 +145,22 @@
   background: var(--sat);
 }
 
+/* Сенсорные экраны: ползунок выше видимой дорожки и с широким бегунком */
+@media (pointer: coarse) {
+  .range {
+    inset: -10px 0;
+    height: 40px;
+  }
+
+  .range::-webkit-slider-thumb {
+    width: 22px;
+  }
+
+  .range::-moz-range-thumb {
+    width: 22px;
+  }
+}
+
 .scale {
   display: flex;
   justify-content: space-between;

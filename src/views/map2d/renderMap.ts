@@ -13,15 +13,15 @@ import type { BorderPaths } from './geo';
 import { WORLD_H, WORLD_W } from './geo';
 import type { NightMasks } from './nightMask';
 import type { Revolutions, TrackWindow } from '../trackCache';
-import { revolutionColor } from '../trackCache';
+import { ORBIT_COLOR, revolutionColor, SAT_COLOR } from '../trackCache';
 import { fmtDuration } from '../../ui/format';
 
 export const COLORS = {
   bg: '#081120',
   ocean: '#0b1d33',
   land: '#16304d',
-  orbit: '#46d6ff',
-  sat: '#ffb547',
+  orbit: ORBIT_COLOR,
+  sat: SAT_COLOR,
   ruCity: '#ff5d5d',
   sun: '#ffd27a',
   text: '#e6eef8',
@@ -54,12 +54,20 @@ function setScreen(ctx: CanvasRenderingContext2D, v: View) {
   ctx.setTransform(v.dpr, 0, 0, v.dpr, 0, 0);
 }
 
-export interface MapScene {
+/** То, что меняется только при смене вида или слоёв: рисуется один раз в отдельные холсты. */
+export interface StaticScene {
   view: View;
   layers: Layers;
   day: HTMLImageElement | null;
-  night: HTMLImageElement | null;
   borders: BorderPaths | null;
+}
+
+export interface MapScene {
+  view: View;
+  layers: Layers;
+  /** Готовые слои: снимок или схема (под ночью) и сетка с границами (над ней). Размер — как у холста. */
+  base: HTMLCanvasElement;
+  lines: HTMLCanvasElement;
   masks: NightMasks;
   /** Слой огней городов, заранее совмещённый с маской (размер холста). */
   lightsLayer: HTMLCanvasElement | null;
@@ -82,20 +90,22 @@ export interface MapScene {
   bottomInset: number;
 }
 
-export function renderMap(ctx: CanvasRenderingContext2D, sc: MapScene): void {
-  const { view: v, layers } = sc;
-  setScreen(ctx, v);
-  ctx.fillStyle = COLORS.bg;
-  ctx.fillRect(0, 0, v.w, v.h);
-
-  // Обрезаем всё по прямоугольнику карты
-  ctx.save();
+/** Обрезка по прямоугольнику карты, дальше — мировые координаты. */
+function clipToMap(ctx: CanvasRenderingContext2D, v: View) {
   setWorld(ctx, v);
   ctx.beginPath();
   ctx.rect(0, 0, WORLD_W, WORLD_H);
   ctx.clip();
+}
 
-  // 1. Подложка: спутниковый снимок или схема
+/** Подложка: спутниковый снимок или схема. */
+export function renderBase(ctx: CanvasRenderingContext2D, sc: StaticScene): void {
+  const { view: v, layers } = sc;
+  setScreen(ctx, v);
+  ctx.fillStyle = COLORS.bg;
+  ctx.fillRect(0, 0, v.w, v.h);
+  ctx.save();
+  clipToMap(ctx, v);
   ctx.imageSmoothingQuality = 'high';
   if (layers.imagery && sc.day) {
     ctx.drawImage(sc.day, 0, 0, WORLD_W, WORLD_H);
@@ -107,23 +117,16 @@ export function renderMap(ctx: CanvasRenderingContext2D, sc: MapScene): void {
       ctx.fill(sc.borders.land);
     }
   }
+  ctx.restore();
+}
 
-  // 2. Ночная сторона
-  if (layers.night) {
-    ctx.drawImage(sc.masks.dark, 0, 0, WORLD_W, WORLD_H);
-    if (sc.lightsLayer && layers.imagery) {
-      setScreen(ctx, v);
-      ctx.globalCompositeOperation = 'lighter';
-      ctx.setTransform(1, 0, 0, 1, 0, 0);
-      ctx.drawImage(sc.lightsLayer, 0, 0);
-      ctx.globalCompositeOperation = 'source-over';
-      setWorld(ctx, v);
-    }
-  }
-
+/** Сетка 15° и границы государств с береговой линией (прозрачный слой над ночной стороной). */
+export function renderLines(ctx: CanvasRenderingContext2D, sc: StaticScene): void {
+  const { view: v, layers } = sc;
+  ctx.save();
+  clipToMap(ctx, v);
   const px = 1 / v.s; // один CSS-пиксель в мировых единицах
 
-  // 3. Сетка 15°
   if (layers.grid) {
     ctx.beginPath();
     for (let lon = 15; lon < 360; lon += 15) {
@@ -147,7 +150,6 @@ export function renderMap(ctx: CanvasRenderingContext2D, sc: MapScene): void {
     ctx.stroke();
   }
 
-  // 4. Границы государств и береговая линия
   if (layers.borders && sc.borders) {
     ctx.lineJoin = 'round';
     ctx.strokeStyle = layers.imagery ? 'rgba(235, 242, 255, 0.38)' : 'rgba(150, 190, 235, 0.45)';
@@ -158,8 +160,35 @@ export function renderMap(ctx: CanvasRenderingContext2D, sc: MapScene): void {
       ctx.stroke(sc.borders.coast);
     }
   }
+  ctx.restore();
+}
 
-  // 5. Трасса (граница дня и ночи видна по затенению — отдельной линией не рисуется) с цветом по виткам — во всю яркость по всему окну
+/** Кадр карты: готовые слои, ночь и всё, что движется вместе со временем. */
+export function renderMap(ctx: CanvasRenderingContext2D, sc: MapScene): void {
+  const { view: v, layers } = sc;
+  ctx.setTransform(1, 0, 0, 1, 0, 0);
+  ctx.drawImage(sc.base, 0, 0);
+
+  ctx.save();
+  clipToMap(ctx, v);
+  // Ночная сторона
+  if (layers.night) {
+    ctx.imageSmoothingQuality = 'high';
+    ctx.drawImage(sc.masks.dark, 0, 0, WORLD_W, WORLD_H);
+    if (sc.lightsLayer && layers.imagery) {
+      ctx.globalCompositeOperation = 'lighter';
+      ctx.setTransform(1, 0, 0, 1, 0, 0);
+      ctx.drawImage(sc.lightsLayer, 0, 0);
+      ctx.globalCompositeOperation = 'source-over';
+    }
+  }
+  ctx.setTransform(1, 0, 0, 1, 0, 0);
+  ctx.drawImage(sc.lines, 0, 0);
+  setWorld(ctx, v);
+
+  const px = 1 / v.s; // один CSS-пиксель в мировых единицах
+
+  // Трасса (граница дня и ночи видна по затенению — отдельной линией не рисуется) с цветом по виткам — во всю яркость по всему окну
   if (sc.track) {
     const color = (tau: number) => revolutionColor(sc.revs ? sc.revs.offsetAt(tau) : 0);
     drawTrack(ctx, sc.track.past, px, false, color);

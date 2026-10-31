@@ -8,6 +8,10 @@ import { trackStepSeconds } from '../physics/groundTrack';
 import type { PreparedOrbit } from '../physics/propagate';
 import { ascendingNodeTimes, propagate } from '../physics/propagate';
 
+/** Цвета холстов (глобус и карта); те же значения — в токенах оформления --orbit и --sat. */
+export const ORBIT_COLOR = '#46d6ff';
+export const SAT_COLOR = '#ffb547';
+
 export interface TrackSource {
   /** Объект, по смене которого кэш сбрасывается (орбита). */
   key: object;
@@ -45,7 +49,12 @@ export interface TrackWindow {
   future: TrackPoint[];
   /** Текущая подспутниковая точка. */
   current: TrackPoint;
+  /** Номер набора точек: меняется, когда окно сдвинулось на шаг сетки. Между сменами меняется только current. */
+  revision: number;
 }
+
+/** Предел числа точек в каждой части окна: столько вмещают линии глобуса. */
+export const MAX_WINDOW_POINTS = 20_000;
 
 export class TrackCache {
   private key: object | null = null;
@@ -53,32 +62,59 @@ export class TrackCache {
   private from = 0;
   private to = 0;
   private stepMs = 0;
+  /** Последнее окно: его массивы используются повторно, чтобы не плодить мусор в памяти на каждый кадр. */
+  private window: TrackWindow | null = null;
+  private span = '';
+  private revision = 0;
 
   get(src: TrackSource, t: number, revsBack: number, revsForward: number): TrackWindow | null {
     const Tms = src.periodSec * 1000;
     const a = t - revsBack * Tms;
     const b = t + revsForward * Tms;
-    if (src.key !== this.key || a < this.from || b > this.to) {
+    // Длинные орбиты (Спектр-Р, Чандра) на нескольких витках: шаг растёт, чтобы окно вместилось в линии глобуса
+    const stepMs = Math.max(src.stepSec * 1000, (Math.max(revsBack, revsForward) * Tms) / (MAX_WINDOW_POINTS - 2));
+    if (src.key !== this.key || stepMs !== this.stepMs || a < this.from || b > this.to) {
       const margin = 0.25 * Tms;
       this.key = src.key;
-      this.stepMs = src.stepSec * 1000;
+      this.stepMs = stepMs;
       // Выравниваем начало по сетке шага, чтобы точки не «дрожали» при пересчёте
-      this.from = Math.floor((a - margin) / this.stepMs) * this.stepMs;
+      this.from = Math.floor((a - margin) / stepMs) * stepMs;
       this.to = b + margin;
       this.points = [];
-      for (let tt = this.from; tt <= this.to; tt += this.stepMs) this.points.push(src.at(tt));
+      for (let tt = this.from; tt <= this.to; tt += stepMs) this.points.push(src.at(tt));
+      this.span = '';
     }
     const current = src.at(t);
     if (!current) return null;
     const ia = Math.max(0, Math.ceil((a - this.from) / this.stepMs));
     const it = Math.floor((t - this.from) / this.stepMs);
     const ib = Math.floor((b - this.from) / this.stepMs);
-    const ok = (p: TrackPoint | null): p is TrackPoint => p !== null;
-    return {
-      past: [...this.points.slice(ia, it + 1).filter(ok), current],
-      future: [current, ...this.points.slice(it + 1, ib + 1).filter(ok)],
-      current,
-    };
+    const span = `${ia}|${it}|${ib}`;
+    const w = this.window;
+    if (w && span === this.span) {
+      w.current = current;
+      w.past[w.past.length - 1] = current;
+      w.future[0] = current;
+      return w;
+    }
+    this.span = span;
+    const next = w ?? { past: [], future: [], current, revision: 0 };
+    next.current = current;
+    next.revision = ++this.revision;
+    next.past.length = 0;
+    next.future.length = 1;
+    next.future[0] = current;
+    for (let i = ia; i <= it; i++) {
+      const p = this.points[i];
+      if (p) next.past.push(p);
+    }
+    next.past.push(current);
+    for (let i = it + 1; i <= ib; i++) {
+      const p = this.points[i];
+      if (p) next.future.push(p);
+    }
+    this.window = next;
+    return next;
   }
 }
 
@@ -119,7 +155,7 @@ export class Revolutions {
  * различимость при обычном зрении ≥ 15 по всем парам. Светлота выше «тёмной» полосы
  * намеренно: линии лежат поверх спутникового снимка, а не на однотонном фоне графика.
  */
-const FUTURE_REV_COLORS = ['#46d6ff', '#b38cff', '#6be07c', '#fff07a'];
+const FUTURE_REV_COLORS = [ORBIT_COLOR, '#b38cff', '#6be07c', '#fff07a'];
 /** Витки +4 и дальше. */
 const FAR_REV_COLOR = '#e6eef8';
 const PAST_REV_COLOR = '#5f7a96';

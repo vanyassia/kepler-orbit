@@ -32,7 +32,8 @@ import { useAppStore } from '../../state/store';
 import { fmt } from '../../ui/format';
 import { satelliteTitle } from '../../ui/satelliteTitle';
 import type { TrackWindow } from '../trackCache';
-import { orbitSource, Revolutions, revolutionColor, TrackCache } from '../trackCache';
+import { frameDue, pixelsPerUnit, simMsPerShift } from '../frameRate';
+import { MAX_WINDOW_POINTS, ORBIT_COLOR, orbitSource, Revolutions, revolutionColor, SAT_COLOR, TrackCache } from '../trackCache';
 import { axisToScene, geoToLocal, toScene } from './coords';
 import { DynamicLine } from './DynamicLine';
 import type { LabelSpec } from './LabelLayer';
@@ -40,9 +41,9 @@ import { LabelLayer, OFFSET } from './LabelLayer';
 import { atmosphereShader, cloudsShader, earthShader } from './shaders';
 import { useEarthTextures } from './textures';
 
-const ORBIT_COLOR = '#46d6ff';
-const SAT_COLOR = '#ffb547';
 const TRACK_R = 1.0025;
+/** Угол обзора камеры по вертикали, градусы. */
+export const CAMERA_FOV = 38;
 /** Предел отдаления камеры, радиусов тела: вмещает самую большую орбиту списка (Спектр-Р, ~53 радиуса). */
 const MAX_CAMERA_DISTANCE = 160;
 const WORLD_UP = new Vector3(0, 1, 0);
@@ -126,9 +127,18 @@ export function GlobeScene({ overlay, onReady }: { overlay: React.RefObject<HTML
   const size = useThree((s) => s.size);
   const invalidate = useThree((s) => s.invalidate);
 
-  // Режим «по требованию»: новый кадр — при любом изменении состояния (ход времени, слои, спутник),
-  // после каждой перерисовки компонента (загрузились текстуры) и когда догрузились шрифты подписей
-  useEffect(() => useAppStore.subscribe(() => invalidate()), [invalidate]);
+  // Режим «по требованию»: новый кадр — при изменении состояния (слои, спутник, скорость), когда ход времени
+  // заметно сдвинул картинку (frameRate.ts), после каждой перерисовки компонента (загрузились текстуры)
+  // и когда догрузились шрифты подписей
+  const drawn = useRef({ time: Number.NaN, at: 0, stepMs: 0 });
+  useEffect(
+    () =>
+      useAppStore.subscribe((s, p) => {
+        const d = drawn.current;
+        if (s.simTime === p.simTime || frameDue(Math.abs(s.simTime - d.time), performance.now() - d.at, d.stepMs)) invalidate();
+      }),
+    [invalidate],
+  );
   useEffect(() => {
     invalidate();
   });
@@ -192,8 +202,8 @@ export function GlobeScene({ overlay, onReady }: { overlay: React.RefObject<HTML
 
   const lines = useMemo(
     () => ({
-      past: new DynamicLine(6000, lineMaterial(ORBIT_COLOR, 1.6, 0.95)),
-      future: new DynamicLine(6000, lineMaterial(ORBIT_COLOR, 1.8, 0.95, true)),
+      past: new DynamicLine(MAX_WINDOW_POINTS, lineMaterial(ORBIT_COLOR, 1.6, 0.95)),
+      future: new DynamicLine(MAX_WINDOW_POINTS, lineMaterial(ORBIT_COLOR, 1.8, 0.95, true)),
       radius: new DynamicLine(2, lineMaterial(SAT_COLOR, 1, 0.45)),
     }),
     [],
@@ -218,7 +228,7 @@ export function GlobeScene({ overlay, onReady }: { overlay: React.RefObject<HTML
     u.nightMap.value = earth && tex.night ? tex.night : blank.black;
     u.normalMap.value = earth && tex.normal ? tex.normal : blank.flat;
     u.specMap.value = earth && tex.specular ? tex.specular : blank.black;
-    if (tex.clouds) u.cloudsMap.value = tex.clouds;
+    u.cloudsMap.value = tex.clouds ?? blank.black;
     const look = LOOK[bodyId];
     u.hazeColor.value.set(...look.haze);
     u.hazeStrength.value = look.hazeStrength;
@@ -291,7 +301,8 @@ export function GlobeScene({ overlay, onReady }: { overlay: React.RefObject<HTML
         specs.push({
           id: `node-${k}`,
           text: `+${k}`,
-          className: `globe-label node node-${k}`,
+          className: 'globe-label node',
+          color: revolutionColor(k),
           anchor: (out) => {
             const p = nodeLocal.current[k];
             return p ? earthGroup.current.localToWorld(out.copy(p)) : null;
@@ -381,18 +392,27 @@ export function GlobeScene({ overlay, onReady }: { overlay: React.RefObject<HTML
     const dist = Math.min(MAX_CAMERA_DISTANCE, Math.max(3.4, (orbit.rApogee / orbit.body.radius) * 2.3 + 0.8));
     // Камера сбоку от спутника, чуть выше плоскости экватора — видны и Земля, и плоскость орбиты
     const dir = satDir.clone().add(new Vector3(0, 0.35, 0)).normalize();
-    camAnim.current = { from: camera.position.clone(), to: dir.multiplyScalar(dist), start: performance.now() };
+    const to = dir.multiplyScalar(dist);
+    if (matchMedia('(prefers-reduced-motion: reduce)').matches) {
+      camera.position.copy(to);
+      camera.lookAt(0, 0, 0);
+    } else {
+      camAnim.current = { from: camera.position.clone(), to, start: performance.now() };
+    }
   }, [orbit, geometry, camera]);
 
   const prevSatDir = useRef(new Vector3());
   const prevQ = useRef<Quaternion | null>(null);
   const lastLabelUpdate = useRef(0);
+  /** Какой набор точек трассы сейчас в линиях. */
+  const shownRevision = useRef(-1);
   const buf = useMemo(
     () => ({
-      past: new Float32Array(6000 * 3),
-      future: new Float32Array(6000 * 3),
-      pastRgb: new Float32Array(6000 * 3),
-      futureRgb: new Float32Array(6000 * 3),
+      past: new Float32Array(MAX_WINDOW_POINTS * 3),
+      future: new Float32Array(MAX_WINDOW_POINTS * 3),
+      pastRgb: new Float32Array(MAX_WINDOW_POINTS * 3),
+      futureRgb: new Float32Array(MAX_WINDOW_POINTS * 3),
+      radius: new Float32Array(6),
     }),
     [],
   );
@@ -406,12 +426,14 @@ export function GlobeScene({ overlay, onReady }: { overlay: React.RefObject<HTML
       return c;
     };
   }, []);
-  const tmp = useMemo(() => ({ v: new Vector3(), w: new Vector3(), q: new Quaternion(), q2: new Quaternion() }), []);
+  const tmp = useMemo(() => ({ v: new Vector3(), w: new Vector3(), q: new Quaternion(), q2: new Quaternion(), q3: new Quaternion() }), []);
 
   useFrame(() => {
     const st = useAppStore.getState();
     const t = st.simTime;
     const b = BODIES[st.body];
+    drawn.current.time = t;
+    drawn.current.at = performance.now();
     // Шар тела повёрнут из инерциальной системы во вращающуюся (S или W, для Марса — с поправкой полюса)
     const orient = orientationOf(b, t, tmp.q2);
     earthGroup.current.quaternion.copy(orient);
@@ -441,6 +463,9 @@ export function GlobeScene({ overlay, onReady }: { overlay: React.RefObject<HTML
       const satPos = toScene(s.eci, tmp.v, b.radius);
       satGroup.current.position.copy(satPos);
       const dir = tmp.w.copy(satPos).normalize();
+      // Быстрее всего на экране движется спутник или поверхность под ним — считаем по ближнему из них
+      const nearest = Math.max(0.15, Math.min(camera.position.length() - 1, camera.position.distanceTo(satPos)));
+      drawn.current.stepMs = simMsPerShift((s.V / b.radius) * pixelsPerUnit(size.height, CAMERA_FOV, nearest));
 
       // Режимы камеры: за спутником / вместе с Землёй
       if (!anim) {
@@ -452,13 +477,14 @@ export function GlobeScene({ overlay, onReady }: { overlay: React.RefObject<HTML
           camera.up.applyQuaternion(tmp.q);
         } else if (st.camera === 'earth' && prevQ.current) {
           // Поворот тела за кадр: q_тек · q_пред⁻¹
-          tmp.q.copy(orient).multiply(prevQ.current.clone().invert());
+          tmp.q.copy(orient).multiply(tmp.q3.copy(prevQ.current).invert());
           camera.position.applyQuaternion(tmp.q);
         }
         // Слежение выключено — «верх» плавно возвращается к оси тела
         const uprighting = st.camera !== 'follow' && camera.up.y < 0.999999;
+        const reducedMotion = uprighting && matchMedia('(prefers-reduced-motion: reduce)').matches;
         if (uprighting) {
-          camera.up.applyQuaternion(tmp.q.setFromUnitVectors(camera.up, WORLD_UP).slerp(NO_ROTATION, 0.88));
+          camera.up.applyQuaternion(tmp.q.setFromUnitVectors(camera.up, WORLD_UP).slerp(NO_ROTATION, reducedMotion ? 0 : 0.88));
           if (camera.up.y >= 0.999999) camera.up.copy(WORLD_UP);
           invalidate();
         }
@@ -468,42 +494,51 @@ export function GlobeScene({ overlay, onReady }: { overlay: React.RefObject<HTML
       prevQ.current = (prevQ.current ?? new Quaternion()).copy(orient);
 
       // Радиус-вектор r: от центра Земли к спутнику
-      lines.radius.setPoints([0, 0, 0, satPos.x, satPos.y, satPos.z], 2);
+      buf.radius[3] = satPos.x;
+      buf.radius[4] = satPos.y;
+      buf.radius[5] = satPos.z;
+      lines.radius.setPoints(buf.radius, 2);
 
-      // Трасса (в ГСК, внутри группы Земли), цвет — по номеру витка
+      // Трасса (в ГСК, внутри группы Земли), цвет — по номеру витка. Пересобирается, когда окно
+      // сдвинулось на шаг сетки; в остальных кадрах меняется только точка под спутником
       const w = trackCache.get(orbitSource(o), t, st.revsBack, st.revsForward)!;
-      const revs = new Revolutions(o, t, st.revsBack, st.revsForward);
-      const fill = (pts: TrackWindow['past'], arr: Float32Array, rgb?: Float32Array) => {
-        const n = Math.min(pts.length, 6000);
-        for (let k = 0; k < n; k++) {
-          geoToLocal(pts[k].lat, pts[k].lon, TRACK_R, tmp.v);
-          arr[k * 3] = tmp.v.x;
-          arr[k * 3 + 1] = tmp.v.y;
-          arr[k * 3 + 2] = tmp.v.z;
-          if (rgb) {
+      if (w.revision === shownRevision.current) {
+        geoToLocal(w.current.lat, w.current.lon, TRACK_R, tmp.v);
+        lines.past.moveLast(tmp.v.x, tmp.v.y, tmp.v.z);
+        lines.future.moveFirst(tmp.v.x, tmp.v.y, tmp.v.z);
+      } else {
+        shownRevision.current = w.revision;
+        const revs = new Revolutions(o, t, st.revsBack, st.revsForward);
+        const fill = (pts: TrackWindow['past'], arr: Float32Array, rgb: Float32Array) => {
+          const n = Math.min(pts.length, MAX_WINDOW_POINTS);
+          for (let k = 0; k < n; k++) {
+            geoToLocal(pts[k].lat, pts[k].lon, TRACK_R, tmp.v);
+            arr[k * 3] = tmp.v.x;
+            arr[k * 3 + 1] = tmp.v.y;
+            arr[k * 3 + 2] = tmp.v.z;
             const c = revColor(revs.offsetAt(pts[k].timeMs));
             rgb[k * 3] = c.r;
             rgb[k * 3 + 1] = c.g;
             rgb[k * 3 + 2] = c.b;
           }
-        }
-        return n;
-      };
-      lines.past.setPoints(buf.past, fill(w.past, buf.past, buf.pastRgb), buf.pastRgb);
-      lines.future.setPoints(buf.future, fill(w.future, buf.future, buf.futureRgb), buf.futureRgb);
-      const first = w.past[0];
-      const last = w.future[w.future.length - 1];
-      geoToLocal(first.lat, first.lon, TRACK_R, startMarker.current.position);
-      geoToLocal(last.lat, last.lon, TRACK_R, endMarker.current.position);
-      startMarker.current.visible = st.revsBack > 0;
+          return n;
+        };
+        lines.past.setPoints(buf.past, fill(w.past, buf.past, buf.pastRgb), buf.pastRgb);
+        lines.future.setPoints(buf.future, fill(w.future, buf.future, buf.futureRgb), buf.futureRgb);
+        const first = w.past[0];
+        const last = w.future[w.future.length - 1];
+        geoToLocal(first.lat, first.lon, TRACK_R, startMarker.current.position);
+        geoToLocal(last.lat, last.lon, TRACK_R, endMarker.current.position);
+        startMarker.current.visible = st.revsBack > 0;
 
-      // Начала следующих витков: точные подспутниковые точки в моменты восходящих узлов
-      const windowEnd = t + st.revsForward * o.T * 1000;
-      nodeLocal.current = [];
-      for (const n of revs.nodes) {
-        if (n <= t || n > windowEnd) continue;
-        const p = orbitSource(o).at(n)!;
-        nodeLocal.current[revs.offsetAt(n)] = geoToLocal(p.lat, p.lon, TRACK_R);
+        // Начала следующих витков: точные подспутниковые точки в моменты восходящих узлов
+        const windowEnd = t + st.revsForward * o.T * 1000;
+        nodeLocal.current = [];
+        for (const n of revs.nodes) {
+          if (n <= t || n > windowEnd) continue;
+          const p = orbitSource(o).at(n)!;
+          nodeLocal.current[revs.offsetAt(n)] = geoToLocal(p.lat, p.lon, TRACK_R);
+        }
       }
 
       // Подспутниковая точка
@@ -516,6 +551,8 @@ export function GlobeScene({ overlay, onReady }: { overlay: React.RefObject<HTML
         const title = st.record ? satelliteTitle(st.record.elements).title : '';
         labelLayer.current?.setText('sat', `${title}, ${fmt(s.h, 0)} км`);
       }
+    } else {
+      drawn.current.stepMs = Infinity;
     }
 
     if (!labelLayer.current && overlay.current) {

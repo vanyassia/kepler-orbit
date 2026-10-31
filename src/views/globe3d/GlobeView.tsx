@@ -7,7 +7,7 @@ import { useAppStore } from '../../state/store';
 import { LayersMenu, RevsControl } from '../../ui/LayersMenu';
 import { rovingKeyDown, rovingTabIndex } from '../../ui/roving';
 import { LIGHT_DEVICE } from '../assets';
-import { GlobeScene } from './GlobeScene';
+import { CAMERA_FOV, GlobeScene } from './GlobeScene';
 import styles from './GlobeView.module.css';
 
 const CAMERA_MODES: { id: CameraMode; label: string; hint: string; icon: typeof Earth }[] = [
@@ -38,7 +38,7 @@ export default function GlobeView() {
         frameloop="demand"
         // Полная чёткость на компьютере; на телефонах и слабых устройствах — не выше 1,5 (пикселей на 44 % меньше)
         dpr={LIGHT_DEVICE ? [1, 1.5] : [1, 2]}
-        camera={{ fov: 38, near: 0.005, far: 3000, position: [0, 1.6, 4.2] }}
+        camera={{ fov: CAMERA_FOV, near: 0.005, far: 3000, position: [0, 1.6, 4.2] }}
         gl={{ antialias: true, toneMapping: ACESFilmicToneMapping, toneMappingExposure: 1.05, powerPreference: 'high-performance' }}
         role="application"
         aria-roledescription="трёхмерный глобус"

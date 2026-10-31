@@ -111,3 +111,10 @@
     display: none;
   }
 }
+
+/* Самые узкие экраны: логотип уступает место полю поиска */
+@media (max-width: 420px) {
+  .logo {
+    display: none;
+  }
+}
