@@ -58,7 +58,8 @@ function setScreen(ctx: CanvasRenderingContext2D, v: View) {
 export interface StaticScene {
   view: View;
   layers: Layers;
-  day: HTMLImageElement | null;
+  /** Копия снимка, подобранная под ширину карты на экране. */
+  day: ImageBitmap | HTMLImageElement | null;
   borders: BorderPaths | null;
 }
 
@@ -98,6 +99,10 @@ function clipToMap(ctx: CanvasRenderingContext2D, v: View) {
   ctx.clip();
 }
 
+/** Готовая копия почти совпадает с экраном и сглаживается просто; снимок целиком сильно уменьшается — ему нужно лучшее. */
+export const smoothingFor = (img: ImageBitmap | HTMLImageElement | null): ImageSmoothingQuality =>
+  img instanceof HTMLImageElement ? 'high' : img && img.width > 4096 ? 'medium' : 'low';
+
 /** Подложка: спутниковый снимок или схема. */
 export function renderBase(ctx: CanvasRenderingContext2D, sc: StaticScene): void {
   const { view: v, layers } = sc;
@@ -106,7 +111,7 @@ export function renderBase(ctx: CanvasRenderingContext2D, sc: StaticScene): void
   ctx.fillRect(0, 0, v.w, v.h);
   ctx.save();
   clipToMap(ctx, v);
-  ctx.imageSmoothingQuality = 'high';
+  ctx.imageSmoothingQuality = smoothingFor(sc.day);
   if (layers.imagery && sc.day) {
     ctx.drawImage(sc.day, 0, 0, WORLD_W, WORLD_H);
   } else {

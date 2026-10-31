@@ -28,6 +28,8 @@ export default function GlobeView() {
   const withBody = { earth: 'С Землёй', moon: 'С Луной', mars: 'С Марсом' }[body];
   const overlay = useRef<HTMLDivElement>(null);
   const [ready, setReady] = useState(false);
+  // На отдельной карте глобус скрыт, но не закрывается: снимки в видеокарте остаются, а кадры не рисуются
+  const hidden = useAppStore((s) => s.view === '2d');
 
   return (
     <div className={styles.wrap}>
@@ -35,7 +37,7 @@ export default function GlobeView() {
         className={styles.canvas}
         // Кадр рисуется по требованию: когда идёт время, двигается камера или что-то изменилось.
         // На паузе с неподвижной камерой видеокарта не работает впустую (раньше — 60 кадров в секунду всегда)
-        frameloop="demand"
+        frameloop={hidden ? 'never' : 'demand'}
         // Полная чёткость на компьютере; на телефонах и слабых устройствах — не выше 1,5 (пикселей на 44 % меньше)
         dpr={LIGHT_DEVICE ? [1, 1.5] : [1, 2]}
         camera={{ fov: CAMERA_FOV, near: 0.005, far: 3000, position: [0, 1.6, 4.2] }}

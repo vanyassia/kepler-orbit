@@ -4,6 +4,7 @@
  */
 import { useEffect, useState } from 'react';
 import type { BodyId } from '../physics/bodies';
+import { askWorker, newImageId, OFF_THREAD } from './imageClient';
 
 const base = import.meta.env.BASE_URL;
 
@@ -78,30 +79,64 @@ export function loadImage(url: string, priority: 'high' | 'low' = 'high'): Promi
   return p;
 }
 
-/** Сколько ждут тяжёлые снимки: загрузка в видеокарту останавливает кадры, а камера летит к спутнику 1,1 с. */
-const HEAVY_DELAY_MS = 1200;
-
-/**
- * Версии снимка по очереди, от лёгкой к подробной: лёгкая (lead) появляется сразу и не делит канал
- * с тяжёлыми, остальные — когда камера долетела. Версия, которую не удалось скачать, пропускается.
- */
-export async function loadInOrder(urls: readonly string[], onImage: (img: HTMLImageElement) => void, alive: () => boolean, lead = true): Promise<void> {
-  for (const [idx, url] of urls.entries()) {
-    const first = lead && idx === 0;
-    if (!first) await new Promise((resolve) => setTimeout(resolve, HEAVY_DELAY_MS));
-    if (!alive()) return;
-    const img = await loadImage(url, first ? 'high' : 'low').catch(() => null);
-    if (img && alive()) onImage(img);
-  }
+/** Снимок для карты: готовые уменьшенные копии по возрастанию и полный файл, который грузится только при сильном приближении. */
+export interface MapImage {
+  levels: (ImageBitmap | HTMLImageElement)[];
+  fullUrl: string | null;
 }
 
-/** Прогрессивная загрузка: возвращает лучшее из уже загруженных изображений. */
-export function useProgressiveImage(urls: readonly string[]): HTMLImageElement | null {
-  const [img, setImg] = useState<HTMLImageElement | null>(null);
+const mapImages = new Map<string, Promise<MapImage>>();
+
+/** Копии готовит отдельный поток: пересчёт 8K до размера экрана здесь занял бы 0,3 с. */
+function loadMapImage(url: string): Promise<MapImage> {
+  let p = mapImages.get(url);
+  if (!p) {
+    const plain = () => loadImage(url).then((img) => ({ levels: [img], fullUrl: null }));
+    p = OFF_THREAD
+      ? askWorker<{ id: number; levels: ImageBitmap[]; complete: boolean }>({ type: 'levels', id: newImageId(), url }).then(
+          ({ levels, complete }) => ({ levels, fullUrl: complete ? null : url }),
+          (e) => {
+            console.warn('Снимок карты загружается обычным способом:', url, e);
+            return plain();
+          },
+        )
+      : plain();
+    p.catch(() => mapImages.delete(url));
+    mapImages.set(url, p);
+  }
+  return p;
+}
+
+/** Полный снимок нужен, когда самая большая копия уже уже видимой ширины карты. */
+export function ensureFullImage(img: MapImage, px: number, onReady: () => void) {
+  const url = img.fullUrl;
+  const top = img.levels[img.levels.length - 1];
+  if (!url || px <= top.width) return;
+  img.fullUrl = null;
+  void askWorker<{ id: number; levels: ImageBitmap[]; complete: boolean }>({ type: 'full', id: newImageId(), url }).then(
+    ({ levels: [full] }) => {
+      img.levels = [...img.levels, full];
+      onReady();
+    },
+    () => {
+      img.fullUrl = url;
+    },
+  );
+}
+
+/** Прогрессивная загрузка для карты: возвращает лучшее из уже подготовленного. */
+export function useProgressiveImage(urls: readonly string[]): MapImage | null {
+  const [img, setImg] = useState<MapImage | null>(null);
   const key = urls.join('|');
   useEffect(() => {
     let alive = true;
-    void loadInOrder(urls, setImg, () => alive);
+    void (async () => {
+      for (const url of urls) {
+        const next = await loadMapImage(url).catch(() => null);
+        if (!alive) return;
+        if (next) setImg(next);
+      }
+    })();
     return () => {
       alive = false;
     };

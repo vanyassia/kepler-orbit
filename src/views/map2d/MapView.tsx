@@ -14,14 +14,15 @@ import { useAppStore } from '../../state/store';
 import { LayersMenu, RevsControl } from '../../ui/LayersMenu';
 import { fmt, fmtLat, fmtLon } from '../../ui/format';
 import { satelliteTitle } from '../../ui/satelliteTitle';
-import { LIGHT_DEVICE, NIGHT_LIGHTS, SURFACE, SURFACE_CREDIT, useProgressiveImage } from '../assets';
+import { ensureFullImage, LIGHT_DEVICE, NIGHT_LIGHTS, SURFACE, SURFACE_CREDIT, useProgressiveImage } from '../assets';
 import { frameDue, peakAngularRateDeg, simMsPerShift } from '../frameRate';
+import { pickLevel } from '../imageChunks';
 import { orbitSource, Revolutions, revolutionColor, TrackCache } from '../trackCache';
 import type { BorderPaths } from './geo';
 import { loadBorders } from './geo';
 import { createNightMasks, updateNightMasks } from './nightMask';
 import type { MapScene, View } from './renderMap';
-import { renderBase, renderLines, renderMap, toScreen, toWorldLonLat } from './renderMap';
+import { renderBase, renderLines, renderMap, smoothingFor, toScreen, toWorldLonLat } from './renderMap';
 import styles from './MapView.module.css';
 
 const MAX_ZOOM = 20;
@@ -76,8 +77,11 @@ export default function MapView() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [body, borders]);
 
+  // Цикл кадров живёт всё время, новые снимки и границы читает отсюда
+  const dataRef = useRef({ day, night, borders });
   // Перерисовка при смене изображений/данных
   useEffect(() => {
+    dataRef.current = { day, night, borders };
     dirtyRef.current = true;
   }, [day, night, borders]);
   useEffect(
@@ -131,6 +135,7 @@ export default function MapView() {
     };
     const ro = new ResizeObserver(([entry]) => {
       const { width, height } = entry.contentRect;
+      if (width === 0 || height === 0) return; // панель скрыта: холст и его снимок остаются до возвращения
       const dpr = Math.min(window.devicePixelRatio || 1, 2.5);
       sizeRef.current = { w: width, h: height, dpr };
       canvas.width = Math.round(width * dpr);
@@ -166,6 +171,8 @@ export default function MapView() {
     let lastSub = { lat: NaN, lon: NaN };
     let lastMaskAt = 0;
     let lightsKey = '';
+    let baseSource: ImageBitmap | HTMLImageElement | null = null;
+    let lightsSource: ImageBitmap | HTMLImageElement | null = null;
     let lastTime = NaN;
     let lastDraw = 0;
     let stepMs = 0;
@@ -178,7 +185,7 @@ export default function MapView() {
       raf = requestAnimationFrame(frame);
       const st = useAppStore.getState();
       const { w, h, dpr } = sizeRef.current;
-      if (w === 0 || h === 0) return;
+      if (w === 0 || h === 0 || st.view === '3d') return;
       if (st.simTime === lastTime && !dirtyRef.current) return;
       // Ход времени: одна карта — на каждый кадр экрана, вместе с глобусом — через кадр, ровно по 33 мс при 60 Гц
       // (порог ниже периода: при пороге 33 мс кадры чередовались через 34 и 51 мс). Масштаб, слои и наведение — сразу
@@ -197,10 +204,22 @@ export default function MapView() {
 
       const earth = st.body === 'earth';
       const { imagery, grid, borders: bordersOn } = st.layers;
-      const nextStaticKey = `${canvas.width}x${canvas.height}|${view.s}|${view.ox}|${view.oy}|${imagery}|${grid}|${bordersOn}|${earth}`;
-      if (nextStaticKey !== staticKey) {
+      const { day, night, borders } = dataRef.current;
+      // Ширина всей карты на экране в пикселях: под неё подбираются копии снимков
+      const worldPx = 360 * view.s * dpr;
+      const redraw = () => {
+        dirtyRef.current = true;
+      };
+      if (day) ensureFullImage(day, worldPx, redraw);
+      if (night) ensureFullImage(night, worldPx, redraw);
+      const daySource = day && pickLevel(day.levels, worldPx);
+      const nightSource = night && pickLevel(night.levels, worldPx);
+
+      const nextStaticKey = `${canvas.width}x${canvas.height}|${view.s}|${view.ox}|${view.oy}|${imagery}|${grid}|${bordersOn}|${earth}|${!!borders}`;
+      if (nextStaticKey !== staticKey || daySource !== baseSource) {
         staticKey = nextStaticKey;
-        const scene = { view, layers: st.layers, day, borders: earth ? borders : null };
+        baseSource = daySource;
+        const scene = { view, layers: st.layers, day: daySource, borders: earth ? borders : null };
         base.width = lines.width = canvas.width;
         base.height = lines.height = canvas.height;
         renderBase(base.getContext('2d', { alpha: false })!, scene);
@@ -224,18 +243,19 @@ export default function MapView() {
       }
 
       // Слой огней городов = ночной снимок в масштабе вида × маска
-      const key = `${canvas.width}x${canvas.height}|${view.s}|${view.ox}|${view.oy}|${night?.src}`;
-      if (earth && night && st.layers.night) {
+      const key = `${canvas.width}x${canvas.height}|${view.s}|${view.ox}|${view.oy}`;
+      if (earth && nightSource && st.layers.night) {
         const world = [dpr * view.s, 0, 0, dpr * view.s, dpr * view.ox, dpr * view.oy] as const;
-        if (key !== lightsKey) {
+        if (key !== lightsKey || nightSource !== lightsSource) {
           lightsKey = key;
+          lightsSource = nightSource;
           masksChanged = true;
           lightsScaled.width = lights.width = canvas.width;
           lightsScaled.height = lights.height = canvas.height;
           const sctx = lightsScaled.getContext('2d')!;
           sctx.setTransform(...world);
-          sctx.imageSmoothingQuality = 'high';
-          sctx.drawImage(night, 0, 0, 360, 180);
+          sctx.imageSmoothingQuality = smoothingFor(nightSource);
+          sctx.drawImage(nightSource, 0, 0, 360, 180);
         }
         if (masksChanged) {
           const lctx = lights.getContext('2d')!;
@@ -267,7 +287,7 @@ export default function MapView() {
         lines,
         masks,
         // Ночные огни — только у Земли
-        lightsLayer: earth && night ? lights : null,
+        lightsLayer: earth && nightSource ? lights : null,
         subsolar: sub,
         track,
         satLabel: track ? `${title}, ${fmt(track.current.h, 0)} км` : '',
@@ -293,7 +313,7 @@ export default function MapView() {
     };
     raf = requestAnimationFrame(frame);
     return () => cancelAnimationFrame(raf);
-  }, [day, night, borders]);
+  }, []);
 
   // Координаты под курсором и подсветка города
   const onPointerMove = (e: React.PointerEvent<HTMLCanvasElement>) => {

@@ -1,5 +1,5 @@
 import { Columns2, Globe2, Map, MonitorX, RotateCw, SatelliteDish } from 'lucide-react';
-import { lazy, Suspense, useDeferredValue, useEffect, ViewTransition } from 'react';
+import { lazy, Suspense, useDeferredValue, useEffect, useRef, ViewTransition } from 'react';
 import type { ViewMode } from '../state/store';
 import { useAppStore } from '../state/store';
 import { ErrorBoundary } from './ErrorBoundary';
@@ -21,7 +21,7 @@ const VIEW_IDS = VIEWS.map((v) => v.id);
  * Область визуализации: 3D-глобус и/или 2D-карта.
  *
  * Смена вида анимируется переходом (View Transition): оставшаяся панель плавно меняет размер,
- * убранная гаснет, добавленная проявляется. Состояние лежит в zustand, а его обновления React
+ * впервые добавленная проявляется. Состояние лежит в zustand, а его обновления React
  * выполняет синхронно, поэтому панели читают отложенное значение (useDeferredValue) —
  * именно оно запускает переход. Кнопки переключателя показывают выбор сразу.
  */
@@ -32,6 +32,13 @@ export function Workspace() {
   const hasRecord = useAppStore((s) => !!s.record);
   const error = useAppStore((s) => s.error);
   const loading = useAppStore((s) => s.loading);
+
+  // Открытая однажды панель остаётся в документе и только скрывается: заново создавать глобус и карту —
+  // это снова загружать снимки в видеокарту, заметная остановка при каждом переключении вида
+  const opened = useRef({ globe: false, map: false });
+  opened.current.globe ||= shownView !== '2d';
+  opened.current.map ||= shownView !== '3d';
+  const { globe: globeOpened, map: mapOpened } = opened.current;
 
   // Карта открывается не сразу, но к первому нажатию её код уже готов
   useEffect(() => {
@@ -64,9 +71,9 @@ export function Workspace() {
         ))}
       </div>
       {!hasRecord && (error || loading) && <EmptyState error={error} />}
-      {shownView !== '2d' && (
-        <ViewTransition key="globe" enter="pane-in" exit="pane-out" update="pane-move" default="none">
-          <section className={styles.pane} aria-label="Трёхмерный вид">
+      {globeOpened && (
+        <ViewTransition key="globe" enter="pane-in" update="pane-move" default="none">
+          <section className={styles.pane} aria-label="Трёхмерный вид" hidden={shownView === '2d'}>
             <ErrorBoundary fallback={<ViewFailed title="Глобус не запустился" hint="Браузер не дал WebGL, либо страница устарела после обновления сайта. Карта работает и без WebGL." showMap={shownView === '3d'} />}>
               <Suspense fallback={<div className={styles.loading}>Загрузка глобуса…</div>}>
                 {/* Глобус проявляется, когда загрузился его код; надпись загрузки исчезает сразу */}
@@ -78,9 +85,9 @@ export function Workspace() {
           </section>
         </ViewTransition>
       )}
-      {shownView !== '3d' && (
-        <ViewTransition key="map" enter="pane-in" exit="pane-out" update="pane-move" default="none">
-          <section className={styles.pane} aria-label="Карта">
+      {mapOpened && (
+        <ViewTransition key="map" enter="pane-in" update="pane-move" default="none">
+          <section className={styles.pane} aria-label="Карта" hidden={shownView === '3d'}>
             <ErrorBoundary fallback={<ViewFailed title="Карта не загрузилась" hint="Страница устарела после обновления сайта или пропала связь." />}>
               <Suspense fallback={<div className={styles.loading}>Загрузка карты…</div>}>
                 <MapView />

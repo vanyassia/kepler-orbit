@@ -145,6 +145,11 @@ export function GlobeScene({ overlay, onReady }: { overlay: React.RefObject<HTML
   useEffect(() => {
     document.fonts?.ready.then(() => invalidate());
   }, [invalidate]);
+  // Глобус снова показан: пока он был скрыт, кадры не рисовались
+  const frameloop = useThree((s) => s.frameloop);
+  useEffect(() => {
+    if (frameloop !== 'never') invalidate();
+  }, [frameloop, invalidate]);
 
   const orbit = useAppStore((s) => s.orbit);
   const record = useAppStore((s) => s.record);

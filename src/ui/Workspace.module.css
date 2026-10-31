@@ -26,6 +26,10 @@
   overflow: hidden;
 }
 
+.pane[hidden] {
+  display: none;
+}
+
 .workspace[data-view='split'] .pane + .pane {
   border-top: 1px solid var(--line);
 }
