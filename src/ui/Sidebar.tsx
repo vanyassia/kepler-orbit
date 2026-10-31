@@ -2,7 +2,7 @@ import { Plus, X } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
 import { customToRecord } from '../data/custom';
 import { ORBITERS } from '../data/orbiters';
-import { POPULAR_SATELLITES } from '../data/popular';
+import { POPULAR_GROUPS, POPULAR_SATELLITES } from '../data/popular';
 import { BODIES } from '../physics/bodies';
 import { useThrottledSimTime } from '../hooks/useSimClock';
 import { RAD } from '../physics/constants';
@@ -106,6 +106,8 @@ function SatelliteCard() {
   );
 }
 
+type Pick = { noradId: number; title: string; note: string };
+
 function QuickPicks() {
   const current = useAppStore((s) => s.record?.elements.noradId);
   const pending = useAppStore((s) => s.pendingNorad);
@@ -115,28 +117,32 @@ function QuickPicks() {
   const setRecord = useAppStore((s) => s.setRecord);
   const removeCustom = useAppStore((s) => s.removeCustom);
   const [dialogOpen, setDialogOpen] = useState(false);
+  const [showAll, setShowAll] = useState(false);
+  const earth = body === 'earth';
   const mine = customSats.filter((c) => c.body === body);
-  // Земля — популярные спутники из CelesTrak, Луна и Марс — аппараты из снимка JPL Horizons
-  const picks =
-    body === 'earth'
-      ? POPULAR_SATELLITES
-      : ORBITERS.filter((o) => o.body === body).map((o) => ({ noradId: o.naifId, title: o.title, note: o.note }));
+  // Земля — короткий список из CelesTrak, Луна и Марс — аппараты из снимка JPL Horizons.
+  // Выбранный спутник не из короткого списка остаётся виден среди кнопок.
+  const picks: Pick[] = earth
+    ? POPULAR_SATELLITES.filter((p) => p.featured || p.noradId === current)
+    : ORBITERS.filter((o) => o.body === body).map((o) => ({ noradId: o.naifId, title: o.title, note: o.note }));
+  const chip = (p: Pick) => (
+    <button
+      key={p.noradId}
+      type="button"
+      className={styles.chip}
+      aria-pressed={current === p.noradId}
+      data-pending={pending === p.noradId || undefined}
+      title={p.note}
+      onClick={() => void loadNorad(p.noradId)}
+    >
+      {p.title}
+    </button>
+  );
+  const expanded = earth && showAll;
   return (
     <section className={styles.section} aria-label="Быстрый выбор">
       <div className={styles.chips}>
-        {picks.map((p) => (
-          <button
-            key={p.noradId}
-            type="button"
-            className={styles.chip}
-            aria-pressed={current === p.noradId}
-            data-pending={pending === p.noradId || undefined}
-            title={p.note}
-            onClick={() => void loadNorad(p.noradId)}
-          >
-            {p.title}
-          </button>
-        ))}
+        {!expanded && picks.map(chip)}
         {/* Свои спутники этого тела: выбор и удаление */}
         {mine.map((c) => (
           <span key={c.id} className={styles.customChip} data-current={current === c.id || undefined}>
@@ -151,7 +157,20 @@ function QuickPicks() {
         <button type="button" className={`${styles.chip} ${styles.addChip}`} onClick={() => setDialogOpen(true)}>
           <Plus size={13} aria-hidden="true" /> Свой спутник
         </button>
+        {earth && (
+          <button type="button" className={`${styles.chip} ${styles.moreChip}`} aria-expanded={showAll} onClick={() => setShowAll((v) => !v)}>
+            {showAll ? 'Свернуть список' : `Все спутники: ${POPULAR_SATELLITES.length}`}
+          </button>
+        )}
       </div>
+      {/* Группы — под кнопками: «Свернуть список» остаётся рядом, а не в конце длинного списка */}
+      {expanded &&
+        POPULAR_GROUPS.map((g) => (
+          <div key={g.label} className={styles.pickGroup}>
+            <h3 className={styles.pickGroupLabel}>{g.label}</h3>
+            <div className={styles.chips}>{g.satellites.map(chip)}</div>
+          </div>
+        ))}
       <CustomOrbitDialog open={dialogOpen} onClose={() => setDialogOpen(false)} />
     </section>
   );

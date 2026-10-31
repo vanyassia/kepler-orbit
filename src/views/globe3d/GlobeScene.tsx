@@ -43,6 +43,8 @@ import { useEarthTextures } from './textures';
 const ORBIT_COLOR = '#46d6ff';
 const SAT_COLOR = '#ffb547';
 const TRACK_R = 1.0025;
+/** Предел отдаления камеры, радиусов тела: вмещает самую большую орбиту списка (Спектр-Р, ~53 радиуса). */
+const MAX_CAMERA_DISTANCE = 160;
 
 /** Позиции подписей (см. LabelLayer): спутник — над точкой, при наложении — в другие углы */
 const SAT_OFFSETS = [
@@ -372,7 +374,7 @@ export function GlobeScene({ overlay, onReady }: { overlay: React.RefObject<HTML
     if (!orbit || !geometry) return;
     const s = propagate(orbit, useAppStore.getState().simTime);
     const satDir = toScene(s.eci, new Vector3(), orbit.body.radius).normalize();
-    const dist = Math.min(26, Math.max(3.4, (orbit.rApogee / orbit.body.radius) * 2.3 + 0.8));
+    const dist = Math.min(MAX_CAMERA_DISTANCE, Math.max(3.4, (orbit.rApogee / orbit.body.radius) * 2.3 + 0.8));
     // Камера сбоку от спутника, чуть выше плоскости экватора — видны и Земля, и плоскость орбиты
     const dir = satDir.clone().add(new Vector3(0, 0.35, 0)).normalize();
     camAnim.current = { from: camera.position.clone(), to: dir.multiplyScalar(dist), start: performance.now() };
@@ -514,7 +516,7 @@ export function GlobeScene({ overlay, onReady }: { overlay: React.RefObject<HTML
 
   return (
     <>
-      <OrbitControls makeDefault enableDamping dampingFactor={0.08} enablePan={false} minDistance={1.15} maxDistance={60} rotateSpeed={0.5} zoomSpeed={0.8} />
+      <OrbitControls makeDefault enableDamping dampingFactor={0.08} enablePan={false} minDistance={1.15} maxDistance={MAX_CAMERA_DISTANCE} rotateSpeed={0.5} zoomSpeed={0.8} />
 
       {/* Звёздное небо — неподвижно в АГЭСК */}
       {tex.stars && (

@@ -112,6 +112,28 @@
   border-style: dashed;
 }
 
+.moreChip {
+  border-color: transparent;
+  padding: 0 var(--sp-2);
+  color: var(--orbit);
+}
+
+.moreChip:hover {
+  border-color: transparent;
+  color: var(--text-0);
+}
+
+.pickGroup {
+  margin-top: var(--sp-3);
+}
+
+.pickGroupLabel {
+  margin: 0 0 var(--sp-2);
+  color: var(--text-2);
+  font-size: var(--fs-caption);
+  font-weight: 400;
+}
+
 /* Свой спутник: название и кнопка удаления — одна «таблетка» */
 .customChip {
   display: inline-flex;

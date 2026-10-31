@@ -1,18 +1,19 @@
 import { FileText, LoaderCircle, Orbit, Search } from 'lucide-react';
-import { useEffect, useId, useRef, useState } from 'react';
+import { Fragment, useEffect, useId, useRef, useState } from 'react';
 import type { SatelliteRecord } from '../data/celestrak';
 import { searchSatellites } from '../data/celestrak';
 import { ORBITERS } from '../data/orbiters';
-import { POPULAR_SATELLITES } from '../data/popular';
+import { POPULAR_GROUPS } from '../data/popular';
 import { BODIES } from '../physics/bodies';
 import { useAppStore } from '../state/store';
 import styles from './SatelliteSearch.module.css';
 import { CustomOrbitDialog } from './CustomOrbitDialog';
 import { TleDialog } from './TleDialog';
 
-type Item = { kind: 'popular'; noradId: number; title: string; note: string } | { kind: 'result'; record: SatelliteRecord };
+type Popular = { kind: 'popular'; noradId: number; title: string; note: string; group?: string };
+type Item = Popular | { kind: 'result'; record: SatelliteRecord };
 
-/** Поиск спутника по названию (латиницей, как в каталоге) или номеру NORAD. */
+/** Поиск спутника: по своему списку (в том числе по-русски), каталогу CelesTrak (латиницей) и номеру NORAD. */
 export function SatelliteSearch() {
   const [query, setQuery] = useState('');
   const [open, setOpen] = useState(false);
@@ -34,8 +35,9 @@ export function SatelliteSearch() {
   // Поиск с задержкой 300 мс; предыдущий запрос отменяется
   useEffect(() => {
     const q = query.trim();
-    // Каталог CelesTrak — только для спутников Земли; на Луне и Марсе ищем по местному списку
-    if (!earth || (q.length < 2 && !/^\d+$/.test(q))) {
+    // Каталог CelesTrak — только для спутников Земли и только латиницей или по номеру;
+    // на Луне и Марсе и для русских названий ищем по местному списку
+    if (!earth || /[а-яё]/i.test(q) || (q.length < 2 && !/^\d+$/.test(q))) {
       setResults(null);
       setNotice(null);
       setBusy(false);
@@ -71,12 +73,15 @@ export function SatelliteSearch() {
   }, []);
 
   const needle = query.trim().toLowerCase();
-  const local: Item[] = earth
-    ? POPULAR_SATELLITES.map((p) => ({ kind: 'popular', ...p }))
-    : ORBITERS.filter((o) => o.body === body)
-        .filter((o) => !needle || o.title.toLowerCase().includes(needle) || String(o.naifId).includes(needle))
-        .map((o) => ({ kind: 'popular', noradId: o.naifId, title: o.title, note: o.note }));
-  const items: Item[] = results === null ? local : results.map((record) => ({ kind: 'result', record }));
+  const catalog: Popular[] = earth
+    ? POPULAR_GROUPS.flatMap((g) => g.satellites.map((s) => ({ kind: 'popular' as const, ...s, group: g.label })))
+    : ORBITERS.filter((o) => o.body === body).map((o) => ({ kind: 'popular', noradId: o.naifId, title: o.title, note: o.note }));
+  const matches = (p: Popular) => `${p.title} ${p.note} ${p.group ?? ''} ${p.noradId}`.toLowerCase().includes(needle);
+  const local = needle ? catalog.filter(matches) : catalog;
+  // Сначала свой список с русскими названиями, затем остальное из каталога CelesTrak
+  const known = new Set(local.map((p) => p.noradId));
+  const remote: Item[] = (results ?? []).filter((r) => !known.has(r.elements.noradId)).map((record) => ({ kind: 'result', record }));
+  const items: Item[] = [...local, ...remote];
 
   const choose = (item: Item) => {
     if (item.kind === 'popular') void loadNorad(item.noradId);
@@ -86,14 +91,20 @@ export function SatelliteSearch() {
     inputRef.current?.blur();
   };
 
+  // Список длиннее окна: выбранная клавишами строка должна оставаться видимой
+  const moveActive = (next: number) => {
+    setActive(next);
+    document.getElementById(`${listId}-${next}`)?.scrollIntoView({ block: 'nearest' });
+  };
+
   const onKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === 'ArrowDown') {
       e.preventDefault();
       setOpen(true);
-      setActive((a) => Math.min(a + 1, items.length - 1));
+      moveActive(Math.min(active + 1, items.length - 1));
     } else if (e.key === 'ArrowUp') {
       e.preventDefault();
-      setActive((a) => Math.max(a - 1, 0));
+      moveActive(Math.max(active - 1, 0));
     } else if (e.key === 'Enter' && open && items[active]) {
       e.preventDefault();
       choose(items[active]);
@@ -114,9 +125,10 @@ export function SatelliteSearch() {
           name="satellite"
           enterKeyHint="search"
           value={query}
-          placeholder={earth ? 'ISS, HST, 25544…' : body === 'moon' ? 'LRO, Danuri…' : 'MRO, TGO, Hope…'}
+          placeholder={earth ? 'МКС, Метеор, HST, 25544…' : body === 'moon' ? 'LRO, Danuri…' : 'MRO, TGO, Hope…'}
           onChange={(e) => {
             setQuery(e.target.value);
+            setActive(0);
             setOpen(true);
           }}
           onFocus={() => setOpen(true)}
@@ -134,9 +146,11 @@ export function SatelliteSearch() {
 
       {open && (
         <div className={styles.dropdown}>
-          <div className={styles.heading}>{results === null ? (earth ? 'Популярные спутники' : `Аппараты: ${BODIES[body].name}, данные JPL Horizons`) : `Найдено: ${results.length}`}</div>
+          {(needle || !earth) && (
+            <div className={styles.heading}>{needle ? `Найдено: ${items.length}` : `Аппараты: ${BODIES[body].name}, данные JPL Horizons`}</div>
+          )}
           {notice && <div className={styles.notice}>{notice}</div>}
-          {results !== null && results.length === 0 && !busy && (
+          {needle && items.length === 0 && !busy && (
             <div className={styles.empty}>
               Ничего не найдено. Названия в каталоге CelesTrak — латиницей: ISS, HST, METEOR, GLONASS.
             </div>
@@ -147,22 +161,31 @@ export function SatelliteSearch() {
               const title = item.kind === 'popular' ? item.title : item.record.elements.name;
               const id = item.kind === 'popular' ? item.noradId : item.record.elements.noradId;
               const note = item.kind === 'popular' ? item.note : item.record.elements.cosparId;
+              const prev = items[idx - 1];
+              const group = !needle && item.kind === 'popular' ? item.group : undefined;
+              const newGroup = group && (prev?.kind !== 'popular' || prev.group !== group);
               return (
-                <li
-                  key={key}
-                  id={`${listId}-${idx}`}
-                  role="option"
-                  aria-selected={idx === active}
-                  className={styles.option}
-                  onPointerEnter={() => setActive(idx)}
-                  onClick={() => choose(item)}
-                >
-                  <span className={styles.optTitle} title={title}>
-                    {title}
-                  </span>
-                  <span className={styles.optNote}>{note}</span>
-                  <span className={`${styles.optId} num`}>{id}</span>
-                </li>
+                <Fragment key={key}>
+                  {newGroup && (
+                    <li role="presentation" className={styles.groupLabel}>
+                      {group}
+                    </li>
+                  )}
+                  <li
+                    id={`${listId}-${idx}`}
+                    role="option"
+                    aria-selected={idx === active}
+                    className={styles.option}
+                    onPointerEnter={() => setActive(idx)}
+                    onClick={() => choose(item)}
+                  >
+                    <span className={styles.optTitle} title={title}>
+                      {title}
+                    </span>
+                    <span className={styles.optNote}>{note}</span>
+                    <span className={`${styles.optId} num`}>{id}</span>
+                  </li>
+                </Fragment>
               );
             })}
           </ul>
@@ -193,7 +216,7 @@ export function SatelliteSearch() {
         {busy
           ? ''
           : notice ??
-            (results === null ? '' : results.length === 0 ? 'Ничего не найдено' : `Найдено: ${results.length}`)}
+            (!needle ? '' : items.length === 0 ? 'Ничего не найдено' : `Найдено: ${items.length}`)}
       </div>
       <TleDialog open={tleOpen} onClose={() => setTleOpen(false)} />
       <CustomOrbitDialog open={customOpen} onClose={() => setCustomOpen(false)} />

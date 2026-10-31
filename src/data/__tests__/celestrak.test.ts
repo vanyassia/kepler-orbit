@@ -110,7 +110,7 @@ describe('Встроенный снимок: все спутники дают п
     const orbit = prepareOrbit(ommToElements(r));
     const s = propagate(orbit, NOW);
     expect(orbit.hPerigee).toBeGreaterThan(150);
-    expect(orbit.hApogee).toBeLessThan(45000);
+    expect(orbit.hApogee).toBeLessThan(400000); // самая высокая в списке: Спектр-Р, апогей ~328 000 км
     expect(Math.abs(s.lat)).toBeLessThanOrEqual(orbit.i + 1e-9);
     expect(s.h).toBeGreaterThanOrEqual(orbit.hPerigee - 1e-6);
     expect(s.h).toBeLessThanOrEqual(orbit.hApogee + 1e-6);

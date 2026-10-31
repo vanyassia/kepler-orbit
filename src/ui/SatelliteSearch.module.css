@@ -111,6 +111,16 @@
   overscroll-behavior: contain;
 }
 
+.groupLabel {
+  padding: var(--sp-3) var(--sp-3) var(--sp-1);
+  color: var(--text-2);
+  font-size: var(--fs-caption);
+}
+
+.groupLabel:first-child {
+  padding-top: var(--sp-1);
+}
+
 .option {
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto;
