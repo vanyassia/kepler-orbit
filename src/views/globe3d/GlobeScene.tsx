@@ -135,7 +135,7 @@ export function GlobeScene({ overlay, onReady }: { overlay: React.RefObject<HTML
     () =>
       useAppStore.subscribe((s, p) => {
         const d = drawn.current;
-        if (s.simTime === p.simTime || frameDue(Math.abs(s.simTime - d.time), performance.now() - d.at, d.stepMs)) invalidate();
+        if (s.simTime === p.simTime || frameDue(s.speed, Math.abs(s.simTime - d.time), performance.now() - d.at, d.stepMs)) invalidate();
       }),
     [invalidate],
   );

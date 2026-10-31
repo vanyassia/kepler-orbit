@@ -180,11 +180,12 @@ export default function MapView() {
       const { w, h, dpr } = sizeRef.current;
       if (w === 0 || h === 0) return;
       if (st.simTime === lastTime && !dirtyRef.current) return;
-      // Ход времени — когда спутник заметно сдвинулся на карте, но не чаще 30 раз в секунду;
-      // масштаб, слои и наведение — сразу
+      // Ход времени: одна карта — на каждый кадр экрана, вместе с глобусом — через кадр, ровно по 33 мс при 60 Гц
+      // (порог ниже периода: при пороге 33 мс кадры чередовались через 34 и 51 мс). Масштаб, слои и наведение — сразу
       const nowMs = performance.now();
       const sinceDraw = nowMs - lastDraw;
-      if (!dirtyRef.current && (sinceDraw < 33 || !frameDue(Math.abs(st.simTime - lastTime), sinceDraw, stepMs))) return;
+      const minGap = st.view === 'split' ? 25 : 12;
+      if (!dirtyRef.current && (sinceDraw < minGap || !frameDue(st.speed, Math.abs(st.simTime - lastTime), sinceDraw, stepMs))) return;
       lastDraw = nowMs;
       lastTime = st.simTime;
       dirtyRef.current = false;

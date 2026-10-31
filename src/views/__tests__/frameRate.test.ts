@@ -14,11 +14,15 @@ describe('Частота кадров по содержанию картинки
     expect(simMsPerShift(0)).toBe(Infinity);
   });
 
-  it('кадр нужен при заметном сдвиге, после долгого простоя и если кадра ещё не было', () => {
-    expect(frameDue(100, 10, 500)).toBe(false);
-    expect(frameDue(500, 10, 500)).toBe(true);
-    expect(frameDue(100, MAX_FRAME_INTERVAL_MS, 500)).toBe(true);
-    expect(frameDue(Number.NaN, 0, 500)).toBe(true);
+  it('на ×1 кадр нужен при заметном сдвиге, после долгого простоя и если кадра ещё не было', () => {
+    expect(frameDue(1, 100, 10, 500)).toBe(false);
+    expect(frameDue(1, 500, 10, 500)).toBe(true);
+    expect(frameDue(1, 100, MAX_FRAME_INTERVAL_MS, 500)).toBe(true);
+    expect(frameDue(1, Number.NaN, 0, 500)).toBe(true);
+  });
+
+  it('при ускорении времени кадр нужен всегда: движение не должно идти рывками', () => {
+    for (const speed of [10, 60, 300, 1000, 5000]) expect(frameDue(speed, 1, 1, 500)).toBe(true);
   });
 
   it('угловая скорость в перицентре: круговая орбита — n, эллипс — выше по закону площадей', () => {
