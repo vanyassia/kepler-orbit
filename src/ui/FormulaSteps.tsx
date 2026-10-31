@@ -5,6 +5,7 @@
 import { ChevronDown } from 'lucide-react';
 import { lazy, Suspense, useState } from 'react';
 import { useAppStore } from '../state/store';
+import { ErrorBoundary } from './ErrorBoundary';
 import styles from './FormulaSteps.module.css';
 
 const FormulaStepsBody = lazy(() => import('./FormulaStepsBody'));
@@ -21,9 +22,11 @@ export function FormulaSteps() {
         <ChevronDown size={16} className={styles.chevron} aria-hidden="true" />
       </button>
       {open && (
-        <Suspense fallback={<p className={styles.note}>Загрузка формул…</p>}>
-          <FormulaStepsBody />
-        </Suspense>
+        <ErrorBoundary fallback={<p className={styles.note}>Формулы не загрузились. Обновите страницу.</p>}>
+          <Suspense fallback={<p className={styles.note}>Загрузка формул…</p>}>
+            <FormulaStepsBody />
+          </Suspense>
+        </ErrorBoundary>
       )}
     </section>
   );

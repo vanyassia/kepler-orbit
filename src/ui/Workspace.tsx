@@ -1,7 +1,8 @@
-import { Columns2, Globe2, Map, RotateCw, SatelliteDish } from 'lucide-react';
+import { Columns2, Globe2, Map, MonitorX, RotateCw, SatelliteDish } from 'lucide-react';
 import { lazy, Suspense, useDeferredValue, useEffect, ViewTransition } from 'react';
 import type { ViewMode } from '../state/store';
 import { useAppStore } from '../state/store';
+import { ErrorBoundary } from './ErrorBoundary';
 import styles from './Workspace.module.css';
 import { rovingKeyDown, rovingTabIndex } from './roving';
 
@@ -66,24 +67,52 @@ export function Workspace() {
       {shownView !== '2d' && (
         <ViewTransition key="globe" enter="pane-in" exit="pane-out" update="pane-move" default="none">
           <section className={styles.pane} aria-label="Трёхмерный вид">
-            <Suspense fallback={<div className={styles.loading}>Загрузка глобуса…</div>}>
-              {/* Глобус проявляется, когда загрузился его код; надпись загрузки исчезает сразу */}
-              <ViewTransition enter="fade-in" default="none">
-                <GlobeView />
-              </ViewTransition>
-            </Suspense>
+            <ErrorBoundary fallback={<ViewFailed title="Глобус не запустился" hint="Браузер не дал WebGL, либо страница устарела после обновления сайта. Карта работает и без WebGL." showMap={shownView === '3d'} />}>
+              <Suspense fallback={<div className={styles.loading}>Загрузка глобуса…</div>}>
+                {/* Глобус проявляется, когда загрузился его код; надпись загрузки исчезает сразу */}
+                <ViewTransition enter="fade-in" default="none">
+                  <GlobeView />
+                </ViewTransition>
+              </Suspense>
+            </ErrorBoundary>
           </section>
         </ViewTransition>
       )}
       {shownView !== '3d' && (
         <ViewTransition key="map" enter="pane-in" exit="pane-out" update="pane-move" default="none">
           <section className={styles.pane} aria-label="Карта">
-            <Suspense fallback={<div className={styles.loading}>Загрузка карты…</div>}>
-              <MapView />
-            </Suspense>
+            <ErrorBoundary fallback={<ViewFailed title="Карта не загрузилась" hint="Страница устарела после обновления сайта или пропала связь." />}>
+              <Suspense fallback={<div className={styles.loading}>Загрузка карты…</div>}>
+                <MapView />
+              </Suspense>
+            </ErrorBoundary>
           </section>
         </ViewTransition>
       )}
+    </div>
+  );
+}
+
+/** Панель не смогла запуститься: что случилось и что делать дальше. */
+function ViewFailed({ title, hint, showMap = false }: { title: string; hint: string; showMap?: boolean }) {
+  const setView = useAppStore((s) => s.setView);
+  return (
+    <div className={styles.empty} role="alert">
+      <div className={styles.emptyCard}>
+        <MonitorX size={28} aria-hidden="true" />
+        <h2>{title}</h2>
+        <p className={styles.emptyHint}>{hint}</p>
+        <div className={styles.actions}>
+          {showMap && (
+            <button type="button" className={styles.retry} onClick={() => setView('2d')}>
+              <Map size={15} aria-hidden="true" /> Открыть карту
+            </button>
+          )}
+          <button type="button" className={styles.retry} onClick={() => location.reload()}>
+            <RotateCw size={15} aria-hidden="true" /> Обновить страницу
+          </button>
+        </div>
+      </div>
     </div>
   );
 }

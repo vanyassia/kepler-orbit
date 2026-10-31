@@ -78,14 +78,19 @@ export function loadImage(url: string, priority: 'high' | 'low' = 'high'): Promi
   return p;
 }
 
+/** Сколько ждут тяжёлые снимки: загрузка в видеокарту останавливает кадры, а камера летит к спутнику 1,1 с. */
+const HEAVY_DELAY_MS = 1200;
+
 /**
- * Версии снимка по очереди, от лёгкой к подробной: лёгкая появляется сразу и не делит канал
- * с тяжёлыми. Версия, которую не удалось скачать, пропускается — остаётся предыдущая.
+ * Версии снимка по очереди, от лёгкой к подробной: лёгкая (lead) появляется сразу и не делит канал
+ * с тяжёлыми, остальные — когда камера долетела. Версия, которую не удалось скачать, пропускается.
  */
 export async function loadInOrder(urls: readonly string[], onImage: (img: HTMLImageElement) => void, alive: () => boolean, lead = true): Promise<void> {
   for (const [idx, url] of urls.entries()) {
+    const first = lead && idx === 0;
+    if (!first) await new Promise((resolve) => setTimeout(resolve, HEAVY_DELAY_MS));
     if (!alive()) return;
-    const img = await loadImage(url, lead && idx === 0 ? 'high' : 'low').catch(() => null);
+    const img = await loadImage(url, first ? 'high' : 'low').catch(() => null);
     if (img && alive()) onImage(img);
   }
 }

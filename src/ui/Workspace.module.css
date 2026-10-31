@@ -118,6 +118,12 @@
   color: var(--text-2) !important;
 }
 
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--sp-2);
+}
+
 .retry {
   display: inline-flex;
   align-items: center;

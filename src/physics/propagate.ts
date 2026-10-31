@@ -214,6 +214,21 @@ export function propagate(orbit: PreparedOrbit, timeMs: number): SatelliteState 
 }
 
 /**
+ * Подспутниковая точка и высота в момент t: те же шаги, что в propagate, но без координат и скоростей.
+ * Для трасс из тысяч точек, где нужны только φ, λ и h.
+ */
+export function subPointAt(orbit: PreparedOrbit, timeMs: number): { lat: number; lon: number; h: number } {
+  const dt = (timeMs - orbit.epochMs) / 1000;
+  const { E } = solveKepler(meanAnomalyAt(orbit.M0, orbit.n, dt), orbit.e); // (4), (5)
+  const u = argumentOfLatitude(orbit.omega, trueAnomalyFromEccentric(E, orbit.e)) + orbit.uShift; // (6), (8)
+  return {
+    lat: latitudeFromArgument(u, orbit.iEq),
+    lon: subSatelliteLongitude(orbit.lambdaNode, equatorPath(u, orbit.iEq), orbit.body.turn(orbit.epochMs, timeMs)),
+    h: radiusFromEccentric(orbit.a, orbit.e, E) - orbit.body.radius,
+  };
+}
+
+/**
  * Положение КА в АГЭСК при заданной истинной аномалии (без привязки ко времени).
  * Используется для построения эллипса орбиты и характерных точек.
  */

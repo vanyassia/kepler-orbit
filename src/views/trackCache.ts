@@ -6,7 +6,7 @@ import { RAD } from '../physics/constants';
 import type { TrackPoint } from '../physics/groundTrack';
 import { trackStepSeconds } from '../physics/groundTrack';
 import type { PreparedOrbit } from '../physics/propagate';
-import { ascendingNodeTimes, propagate } from '../physics/propagate';
+import { ascendingNodeTimes, subPointAt } from '../physics/propagate';
 
 /** Цвета холстов (глобус и карта); те же значения — в токенах оформления --orbit и --sat. */
 export const ORBIT_COLOR = '#46d6ff';
@@ -33,8 +33,8 @@ export function orbitSource(orbit: PreparedOrbit): TrackSource {
       periodSec: orbit.T,
       stepSec: trackStepSeconds(orbit),
       at: (t) => {
-        const st = propagate(orbit, t);
-        return { timeMs: t, lat: st.lat * RAD, lon: st.lon * RAD, h: st.h };
+        const p = subPointAt(orbit, t);
+        return { timeMs: t, lat: p.lat * RAD, lon: p.lon * RAD, h: p.h };
       },
     };
     sources.set(orbit, s);

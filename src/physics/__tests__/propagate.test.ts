@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { DEG, MU, RAD } from '../constants';
 import { cross, norm } from '../math';
 import type { OrbitalElements } from '../propagate';
-import { ascendingNodeTimes, orbitEllipse, prepareOrbit, propagate } from '../propagate';
+import { ascendingNodeTimes, orbitEllipse, prepareOrbit, propagate, subPointAt } from '../propagate';
 import { groundTrack, splitAtAntimeridian } from '../groundTrack';
 
 /** МКС, CelesTrak, эпоха 2026-10-21T01:08:59.469792 */
@@ -168,5 +168,26 @@ describe('Трасса: разрыв на линии перемены дат', (
     expect(segs).toHaveLength(2);
     expect(segs[0][1]).toMatchObject({ lon: 180, lat: 11, timeMs: 1 });
     expect(segs[1][0]).toMatchObject({ lon: -180, lat: 11 });
+  });
+});
+
+describe('Лёгкий расчёт подспутниковой точки', () => {
+  const base = { name: 't', noradId: 1, epochMs: Date.UTC(2026, 9, 31), inclinationDeg: 63.4, raanDeg: 120, argPerigeeDeg: 270, meanAnomalyDeg: 40 };
+  const cases: [string, OrbitalElements][] = [
+    ['круговая орбита Земли', { ...base, meanMotion: 15.5, eccentricity: 0.0007 }],
+    ['орбита «Молния»', { ...base, meanMotion: 2.006, eccentricity: 0.68 }],
+    ['полярная орбита Луны', { ...base, body: 'moon', meanMotion: 12.3, eccentricity: 0.01 }],
+    ['орбита Марса (другой полюс)', { ...base, body: 'mars', meanMotion: 12.9, eccentricity: 0.3 }],
+  ];
+  it.each(cases)('%s: совпадает с полным расчётом', (_name, el) => {
+    const orbit = prepareOrbit(el);
+    for (let k = -50; k <= 50; k++) {
+      const t = el.epochMs + k * 731_000;
+      const full = propagate(orbit, t);
+      const light = subPointAt(orbit, t);
+      expect(light.lat).toBe(full.lat);
+      expect(light.lon).toBe(full.lon);
+      expect(light.h).toBe(full.h);
+    }
   });
 });
