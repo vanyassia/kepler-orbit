@@ -45,6 +45,8 @@ const SAT_COLOR = '#ffb547';
 const TRACK_R = 1.0025;
 /** Предел отдаления камеры, радиусов тела: вмещает самую большую орбиту списка (Спектр-Р, ~53 радиуса). */
 const MAX_CAMERA_DISTANCE = 160;
+const WORLD_UP = new Vector3(0, 1, 0);
+const NO_ROTATION = new Quaternion();
 
 /** Позиции подписей (см. LabelLayer): спутник — над точкой, при наложении — в другие углы */
 const SAT_OFFSETS = [
@@ -349,17 +351,19 @@ export function GlobeScene({ overlay, onReady }: { overlay: React.RefObject<HTML
     if (!host) return;
     const onKey = (e: KeyboardEvent) => {
       if (e.metaKey || e.ctrlKey || e.altKey) return;
-      const sph = new Spherical().setFromVector3(camera.position);
+      // Сферические координаты — относительно «верха» камеры: при слежении он повёрнут
+      const toUp = new Quaternion().setFromUnitVectors(camera.up, WORLD_UP);
+      const sph = new Spherical().setFromVector3(camera.position.clone().applyQuaternion(toUp));
       if (e.key === 'ArrowLeft') sph.theta -= STEP;
       else if (e.key === 'ArrowRight') sph.theta += STEP;
       else if (e.key === 'ArrowUp') sph.phi = Math.max(0.05, sph.phi - STEP);
       else if (e.key === 'ArrowDown') sph.phi = Math.min(Math.PI - 0.05, sph.phi + STEP);
       else if (e.key === '+' || e.key === '=') sph.radius = Math.max(1.15, sph.radius * 0.85);
-      else if (e.key === '-' || e.key === '−') sph.radius = Math.min(60, sph.radius / 0.85);
+      else if (e.key === '-' || e.key === '−') sph.radius = Math.min(MAX_CAMERA_DISTANCE, sph.radius / 0.85);
       else return;
       e.preventDefault();
       camAnim.current = null;
-      camera.position.setFromSpherical(sph);
+      camera.position.setFromSpherical(sph).applyQuaternion(toUp.invert());
       camera.lookAt(0, 0, 0);
       controls?.update();
       invalidate();
@@ -441,14 +445,24 @@ export function GlobeScene({ overlay, onReady }: { overlay: React.RefObject<HTML
       // Режимы камеры: за спутником / вместе с Землёй
       if (!anim) {
         if (st.camera === 'follow' && prevSatDir.current.lengthSq() > 0) {
+          // Камера поворачивается вместе со своим «верхом», как одно целое со спутником.
+          // Если «верх» оставить вдоль оси тела, картинка резко проворачивается у полюсов.
           tmp.q.setFromUnitVectors(prevSatDir.current, dir);
           camera.position.applyQuaternion(tmp.q);
+          camera.up.applyQuaternion(tmp.q);
         } else if (st.camera === 'earth' && prevQ.current) {
           // Поворот тела за кадр: q_тек · q_пред⁻¹
           tmp.q.copy(orient).multiply(prevQ.current.clone().invert());
           camera.position.applyQuaternion(tmp.q);
         }
-        if (st.camera !== 'free') controls?.update();
+        // Слежение выключено — «верх» плавно возвращается к оси тела
+        const uprighting = st.camera !== 'follow' && camera.up.y < 0.999999;
+        if (uprighting) {
+          camera.up.applyQuaternion(tmp.q.setFromUnitVectors(camera.up, WORLD_UP).slerp(NO_ROTATION, 0.88));
+          if (camera.up.y >= 0.999999) camera.up.copy(WORLD_UP);
+          invalidate();
+        }
+        if (st.camera !== 'free' || uprighting) controls?.update();
       }
       prevSatDir.current.copy(dir);
       prevQ.current = (prevQ.current ?? new Quaternion()).copy(orient);
