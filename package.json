@@ -2,7 +2,7 @@
   "name": "kepler-orbit-viewer",
   "private": true,
   "version": "0.1.0",
-  "description": "Визуализация трассы спутника в 2D и 3D (задача двух тел). Учебный проект МАИ.",
+  "description": "Визуализация трассы спутника в 2D и 3D (задача двух тел).",
   "type": "module",
   "scripts": {
     "dev": "vite",
