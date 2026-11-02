@@ -316,10 +316,12 @@
   background: var(--orbit);
 }
 
+/* Ширина часов постоянная: смещение «−4,6 ч» не должно укорачивать ползунок рядом */
 .readout {
   flex: none;
+  width: 12.5rem;
   text-align: end;
-  min-width: 170px;
+  white-space: nowrap;
 }
 
 .time {
@@ -328,8 +330,25 @@
 }
 
 .sub {
+  overflow: hidden;
+  text-overflow: ellipsis;
   color: var(--text-2);
   font-size: var(--fs-micro);
+}
+
+/* Обе надписи кнопки в одной ячейке: кнопка всегда шириной с длинную, видна одна */
+.nowLabel {
+  display: grid;
+}
+
+.nowLabel > span {
+  grid-area: 1 / 1;
+  text-align: center;
+}
+
+.nowLabel > span[hidden] {
+  display: block;
+  visibility: hidden;
 }
 
 .offset {
@@ -383,7 +402,7 @@
     flex-basis: 100%;
   }
   .readout {
-    min-width: 0;
+    width: auto;
     margin-left: auto;
   }
   .scale {

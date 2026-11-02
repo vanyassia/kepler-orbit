@@ -115,7 +115,11 @@ export function Timeline() {
         aria-label={live ? 'В реальном времени' : 'Вернуться к текущему времени'}
       >
         <RotateCcw size={15} aria-hidden="true" />
-        <span className={styles.nowLabel}>{live ? 'В реальном времени' : 'Сейчас'}</span>
+        {/* Обе надписи занимают место всегда: ширина кнопки не меняется, и ползунок не растягивается при нажатии */}
+        <span className={styles.nowLabel}>
+          <span hidden={!live || undefined}>В реальном времени</span>
+          <span hidden={live || undefined}>Сейчас</span>
+        </span>
       </button>
       <KeyboardShortcuts />
     </footer>
