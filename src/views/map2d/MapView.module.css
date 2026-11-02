@@ -111,3 +111,13 @@
     display: none;
   }
 }
+
+/* Сенсорный экран: масштаб меняется щипком, кнопки «+» и «−» лишние */
+@media (pointer: coarse) {
+  .zoom .zoomStep {
+    display: none;
+  }
+  .zoom .zoomStep + .zoomStep + button {
+    border-top: 0;
+  }
+}

@@ -6,7 +6,7 @@
 import { Line, OrbitControls } from '@react-three/drei';
 import { useFrame, useThree } from '@react-three/fiber';
 import { useEffect, useMemo, useRef } from 'react';
-import type { Group, Mesh, Sprite } from 'three';
+import type { Group, Mesh, PerspectiveCamera, Sprite } from 'three';
 import {
   AdditiveBlending,
   BackSide,
@@ -131,6 +131,16 @@ export function GlobeScene({ overlay, onReady }: { overlay: React.RefObject<HTML
   // заметно сдвинул картинку (frameRate.ts), после каждой перерисовки компонента (загрузились текстуры)
   // и когда догрузились шрифты подписей
   const drawn = useRef({ time: Number.NaN, at: 0, stepMs: 0 });
+
+  // Узкая высокая панель (телефон): угол обзора задан по горизонтали, иначе тело не помещается по ширине
+  useEffect(() => {
+    const cam = camera as PerspectiveCamera;
+    const aspect = size.width / size.height;
+    const half = (CAMERA_FOV / 2) * (Math.PI / 180);
+    cam.fov = aspect < 1 ? (2 * Math.atan(Math.tan(half) / aspect) * 180) / Math.PI : CAMERA_FOV;
+    cam.updateProjectionMatrix();
+    invalidate();
+  }, [camera, size.width, size.height, invalidate]);
   useEffect(
     () =>
       useAppStore.subscribe((s, p) => {
@@ -472,7 +482,7 @@ export function GlobeScene({ overlay, onReady }: { overlay: React.RefObject<HTML
       const dir = tmp.w.copy(satPos).normalize();
       // Быстрее всего на экране движется спутник или поверхность под ним — считаем по ближнему из них
       const nearest = Math.max(0.15, Math.min(camera.position.length() - 1, camera.position.distanceTo(satPos)));
-      drawn.current.stepMs = simMsPerShift((s.V / b.radius) * pixelsPerUnit(size.height, CAMERA_FOV, nearest));
+      drawn.current.stepMs = simMsPerShift((s.V / b.radius) * pixelsPerUnit(size.height, (camera as PerspectiveCamera).fov, nearest));
 
       // Режимы камеры: за спутником / вместе с Землёй
       if (!anim) {

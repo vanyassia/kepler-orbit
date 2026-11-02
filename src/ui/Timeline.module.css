@@ -355,26 +355,46 @@
   }
 }
 
+/*
+ * Узкий экран (телефон): три строки во всю ширину — время и «Сейчас»; пауза рядом с ползунком, как в плеере;
+ * скорости — ровная полоса из шести одинаковых кнопок
+ */
 @media (max-width: 860px) {
   .bar {
-    flex-wrap: wrap;
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr) auto;
+    grid-template-areas:
+      'clock clock now'
+      'play scrub scrub'
+      'speeds speeds speeds';
+    align-items: center;
     gap: var(--sp-2) var(--sp-3);
     padding: var(--sp-2) max(var(--sp-3), env(safe-area-inset-right)) max(var(--sp-2), env(safe-area-inset-bottom)) max(var(--sp-3), env(safe-area-inset-left));
   }
   .play {
+    grid-area: play;
     width: 36px;
     height: 36px;
   }
+  .speeds {
+    grid-area: speeds;
+    display: grid;
+    grid-template-columns: repeat(6, minmax(0, 1fr));
+  }
   .speed {
-    padding: 0 6px;
+    padding: 0;
   }
   .scrub {
-    order: 10;
-    flex-basis: 100%;
+    grid-area: scrub;
+    min-width: 0;
   }
   .readout {
+    grid-area: clock;
     width: auto;
-    margin-left: auto;
+    text-align: start;
+  }
+  .nowBtn {
+    grid-area: now;
   }
   .scale {
     display: none;

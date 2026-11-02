@@ -26,6 +26,12 @@ import { renderBase, renderLines, renderMap, smoothingFor, toScreen, toWorldLonL
 import styles from './MapView.module.css';
 
 const MAX_ZOOM = 20;
+/**
+ * Подгонять карту по высоте: на сенсорном экране (телефон, планшет) и в узкой панели. На компьютере
+ * широкая колонка «Обоих видов» остаётся целой картой мира.
+ */
+const FIT_MAX_WIDTH = 700;
+const fitByHeight = (w: number) => w < FIT_MAX_WIDTH || matchMedia('(pointer: coarse)').matches;
 
 /** Базовое вписывание карты 2:1 в холст (без масштабирования пользователем). */
 function baseFit(w: number, h: number) {
@@ -46,6 +52,8 @@ export default function MapView() {
   const sizeRef = useRef({ w: 0, h: 0, dpr: 1 });
   const hoverRef = useRef<City | null>(null);
   const dirtyRef = useRef(true);
+  /** Пока пользователь сам не двигал карту, она подгоняется под панель (на телефоне — по высоте, к спутнику). */
+  const autoFitRef = useRef(true);
   const [borders, setBorders] = useState<BorderPaths | null>(null);
 
   const body = useAppStore((s) => s.body);
@@ -115,8 +123,9 @@ export default function MapView() {
     const wrap = wrapRef.current!;
     const z = zoom<HTMLCanvasElement, unknown>()
       .scaleExtent([1, MAX_ZOOM])
-      .on('zoom', (e: { transform: ZoomTransform }) => {
+      .on('zoom', (e: { transform: ZoomTransform; sourceEvent: unknown }) => {
         transformRef.current = e.transform;
+        if (e.sourceEvent) autoFitRef.current = false; // карту двигали пальцем, колесом или мышью
         dirtyRef.current = true;
         // При приближении — подробные границы (1:50 млн), один раз
         if (e.transform.k >= 2) loadFineBorders();
@@ -133,6 +142,24 @@ export default function MapView() {
         [ox0 + 360 * s0, oy0 + 180 * s0],
       ]);
     };
+    // Узкая высокая панель: карта приближается до высоты панели и встаёт по центру на спутник, щипком — вся карта
+    const fitted = (): ZoomTransform => {
+      const { w, h } = sizeRef.current;
+      const k = Math.min(MAX_ZOOM, (2 * h) / w);
+      if (!fitByHeight(w) || k <= 1) return zoomIdentity;
+      const st = useAppStore.getState();
+      const lon = st.orbit ? orbitSource(st.orbit).at(st.simTime)?.lon ?? 0 : 0;
+      const { s0, ox0, oy0 } = baseFit(w, h);
+      return zoomIdentity.translate(w / 2, h / 2).scale(k).translate(-(ox0 + s0 * (lon + 180)), -(oy0 + s0 * 90));
+    };
+    // zoom.transform сам не ограничивает сдвиг краями карты — ограничиваем тем же правилом, что и жесты
+    const clamp = (t: ZoomTransform) => {
+      const { w, h } = sizeRef.current;
+      return z.constrain()(t, [[0, 0], [w, h]], z.translateExtent());
+    };
+    const unsubscribe = useAppStore.subscribe((s, p) => {
+      if (s.orbit !== p.orbit && autoFitRef.current && sizeRef.current.w > 0) select(canvas).call(z.transform, clamp(fitted()));
+    });
     const ro = new ResizeObserver(([entry]) => {
       const { width, height } = entry.contentRect;
       if (width === 0 || height === 0) return; // панель скрыта: холст и его снимок остаются до возвращения
@@ -141,13 +168,15 @@ export default function MapView() {
       canvas.width = Math.round(width * dpr);
       canvas.height = Math.round(height * dpr);
       applyExtent();
-      select(canvas).call(z.transform, transformRef.current); // ограничить сдвиг после изменения размера
+      // Ограничить сдвиг после изменения размера (или заново подогнать, если карту ещё не трогали)
+      select(canvas).call(z.transform, clamp(autoFitRef.current ? fitted() : transformRef.current));
       dirtyRef.current = true;
     });
     ro.observe(wrap);
     select(canvas).call(z).on('dblclick.zoom', null);
     return () => {
       ro.disconnect();
+      unsubscribe();
       select(canvas).on('.zoom', null);
     };
   }, []);
@@ -345,6 +374,7 @@ export default function MapView() {
   };
 
   const zoomBy = (factor: number) => {
+    autoFitRef.current = false;
     const canvas = canvasRef.current!;
     if (zoomRef.current) select(canvas).transition().duration(250).call(zoomRef.current.scaleBy, factor);
   };
@@ -366,10 +396,12 @@ export default function MapView() {
     e.preventDefault();
   };
   const resetZoom = () => {
+    autoFitRef.current = false;
     const canvas = canvasRef.current!;
     if (zoomRef.current) select(canvas).transition().duration(300).call(zoomRef.current.transform, zoomIdentity);
   };
   const centerOnSatellite = () => {
+    autoFitRef.current = false;
     const st = useAppStore.getState();
     if (!st.orbit || !zoomRef.current) return;
     const tr = orbitSource(st.orbit).at(st.simTime)!;
@@ -406,10 +438,10 @@ export default function MapView() {
           <RevsControl />
         </LayersMenu>
         <div className={styles.zoom}>
-          <button type="button" onClick={() => zoomBy(1.6)} aria-label="Приблизить" title="Приблизить">
+          <button type="button" className={styles.zoomStep} onClick={() => zoomBy(1.6)} aria-label="Приблизить" title="Приблизить">
             <Plus size={16} />
           </button>
-          <button type="button" onClick={() => zoomBy(1 / 1.6)} aria-label="Отдалить" title="Отдалить">
+          <button type="button" className={styles.zoomStep} onClick={() => zoomBy(1 / 1.6)} aria-label="Отдалить" title="Отдалить">
             <Minus size={16} />
           </button>
           <button type="button" onClick={centerOnSatellite} aria-label="К спутнику" title="К спутнику">
