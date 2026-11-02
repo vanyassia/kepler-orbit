@@ -208,12 +208,12 @@ export function renderMap(ctx: CanvasRenderingContext2D, sc: MapScene): void {
   // Подписи без наложений: место под меткой спутника занимается первым, остальные его обходят
   const placed: Rect[] = [];
   const satBox = sc.track ? satelliteLabelBox(ctx, v, sc.track.current, sc.satLabel) : null;
-  if (satBox) placed.push([satBox.x - 14, satBox.y - 9, satBox.x + 14, satBox.y + 9], [satBox.lx - 3, satBox.ly - 3, satBox.lx + satBox.w + 3, satBox.ly + 25]);
+  if (satBox) placed.push([satBox.x - 18, satBox.y - 18, satBox.x + 18, satBox.y + 18], [satBox.lx - 3, satBox.ly - 3, satBox.lx + satBox.w + 3, satBox.ly + 25]);
   if (layers.cities) drawCities(ctx, v, sc.cities, sc.hoverCity, placed);
   if (sc.regions.length) drawRegionLabels(ctx, v, sc.regions, sc.bodyRadius, placed);
   if (sc.track) drawNodeLabels(ctx, v, sc.nodePoints, placed);
   if (sc.track) drawTrackEnds(ctx, v, sc.track, placed);
-  if (satBox) drawSatellite(ctx, satBox, sc.satLabel, sc.labelBg);
+  if (satBox && sc.track) drawSatellite(ctx, satBox, sc.satLabel, sc.labelBg, trackHeading(sc.track));
 }
 
 function hexToRgb(hex: string): [number, number, number] {
@@ -500,34 +500,110 @@ function satelliteLabelBox(ctx: CanvasRenderingContext2D, v: View, p: TrackPoint
   return { x, y, w, lx: Math.min(Math.max(x + 14, 4), v.w - w - 4), ly: Math.max(y - 34, 4) };
 }
 
-function drawSatellite(ctx: CanvasRenderingContext2D, box: ReturnType<typeof satelliteLabelBox>, label: string, labelBg: string) {
+/** Направление полёта на экране, рад: от текущей точки к следующей точке трассы (через линию перемены дат — коротким путём). */
+export function trackHeading(track: TrackWindow): number {
+  const cur = track.current;
+  const next = track.future.find((p) => p.timeMs > cur.timeMs);
+  // В конце окна трассы направление берётся по предыдущей точке
+  const [a, b] = next ? [cur, next] : [track.past.findLast((p) => p.timeMs < cur.timeMs), cur];
+  if (!a) return 0;
+  const dLon = ((b.lon - a.lon + 540) % 360) - 180;
+  return Math.atan2(-(b.lat - a.lat), dLon);
+}
+
+/** Солнечная панель вдоль оси y от y0 до y1: синие ячейки в алюминиевой рамке. */
+function solarPanel(ctx: CanvasRenderingContext2D, y0: number, y1: number) {
+  const w = 8;
+  const g = ctx.createLinearGradient(-w / 2, y0, w / 2, y1);
+  g.addColorStop(0, '#2c6fbe');
+  g.addColorStop(0.5, '#173f78');
+  g.addColorStop(1, '#25609f');
+  ctx.fillStyle = g;
+  ctx.fillRect(-w / 2, Math.min(y0, y1), w, Math.abs(y1 - y0));
+  ctx.beginPath();
+  const cells = 4;
+  for (let k = 1; k < cells; k++) {
+    const y = y0 + ((y1 - y0) * k) / cells;
+    ctx.moveTo(-w / 2, y);
+    ctx.lineTo(w / 2, y);
+  }
+  ctx.moveTo(0, y0);
+  ctx.lineTo(0, y1);
+  ctx.strokeStyle = 'rgba(150, 205, 255, 0.55)';
+  ctx.lineWidth = 0.6;
+  ctx.stroke();
+  ctx.strokeStyle = '#c9d4e2';
+  ctx.lineWidth = 0.9;
+  ctx.strokeRect(-w / 2, Math.min(y0, y1), w, Math.abs(y1 - y0));
+}
+
+/**
+ * Значок аппарата: корпус в золотистой теплоизоляции, две солнечные панели на штангах и антенна
+ * по ходу полёта. Значок повёрнут по направлению движения по трассе.
+ */
+function drawSatellite(ctx: CanvasRenderingContext2D, box: ReturnType<typeof satelliteLabelBox>, label: string, labelBg: string, heading: number) {
   const { x, y, w, lx, ly } = box;
   ctx.save();
   // Ореол
   const g = ctx.createRadialGradient(x, y, 0, x, y, 22);
-  g.addColorStop(0, 'rgba(255, 181, 71, 0.45)');
+  g.addColorStop(0, 'rgba(255, 181, 71, 0.4)');
   g.addColorStop(1, 'rgba(255, 181, 71, 0)');
   ctx.fillStyle = g;
   ctx.beginPath();
   ctx.arc(x, y, 22, 0, Math.PI * 2);
   ctx.fill();
-  // Значок КА: ромб с «панелями»
+
   ctx.translate(x, y);
-  ctx.fillStyle = COLORS.sat;
-  ctx.strokeStyle = '#1d1300';
-  ctx.lineWidth = 1.5;
+  ctx.rotate(heading);
+  ctx.shadowColor = 'rgba(0, 0, 0, 0.55)';
+  ctx.shadowBlur = 4;
+  ctx.shadowOffsetY = 1.5;
+  // Штанги панелей
+  ctx.strokeStyle = '#c9d4e2';
+  ctx.lineWidth = 1.2;
   ctx.beginPath();
-  ctx.rect(-11, -2.5, 6, 5);
-  ctx.rect(5, -2.5, 6, 5);
-  ctx.fill();
-  ctx.beginPath();
-  ctx.moveTo(0, -5.5);
-  ctx.lineTo(5.5, 0);
-  ctx.lineTo(0, 5.5);
-  ctx.lineTo(-5.5, 0);
-  ctx.closePath();
+  ctx.moveTo(0, -4);
+  ctx.lineTo(0, -6.5);
+  ctx.moveTo(0, 4);
+  ctx.lineTo(0, 6.5);
   ctx.stroke();
+  solarPanel(ctx, -6.5, -17);
+  solarPanel(ctx, 6.5, 17);
+  ctx.shadowColor = 'transparent';
+
+  // Антенна: штырь и тарелка впереди по ходу полёта
+  ctx.strokeStyle = '#dfe6ef';
+  ctx.lineWidth = 1;
+  ctx.beginPath();
+  ctx.moveTo(5.5, 0);
+  ctx.lineTo(8.5, 0);
+  ctx.stroke();
+  ctx.beginPath();
+  ctx.ellipse(9.2, 0, 1.4, 3.2, 0, 0, Math.PI * 2);
+  ctx.fillStyle = '#f3f6fa';
   ctx.fill();
+  ctx.strokeStyle = '#7f8ea3';
+  ctx.lineWidth = 0.7;
+  ctx.stroke();
+
+  // Корпус в теплоизоляции: золотистая фольга со светлым бликом
+  const foil = ctx.createLinearGradient(0, -4.5, 0, 4.5);
+  foil.addColorStop(0, '#ffe3a3');
+  foil.addColorStop(0.45, '#f2b34c');
+  foil.addColorStop(1, '#a8661a');
+  ctx.beginPath();
+  ctx.roundRect(-6, -4.5, 12, 9, 2);
+  ctx.fillStyle = foil;
+  ctx.fill();
+  ctx.strokeStyle = '#2a1a05';
+  ctx.lineWidth = 0.9;
+  ctx.stroke();
+  ctx.beginPath();
+  ctx.moveTo(-4.5, -2.6);
+  ctx.lineTo(4.5, -2.6);
+  ctx.strokeStyle = 'rgba(255, 250, 235, 0.75)';
+  ctx.lineWidth = 0.8;
+  ctx.stroke();
   ctx.restore();
 
   // Подпись
