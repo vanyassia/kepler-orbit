@@ -28,12 +28,14 @@ export function Timeline() {
 
   const nodes = useMemo(() => (orbit ? ascendingNodeTimes(orbit, start, start + span) : []), [orbit, start, span]);
   // При очень коротком периоде засечек слишком много — прореживаем
-  const marks = useMemo(() => {
+  const shown = useMemo(() => {
     const step = Math.max(1, Math.ceil(nodes.length / 40));
-    return nodes
-      .filter((_, k) => k % step === 0)
-      .map((n) => <span key={n} className={styles.node} style={{ left: `${((n - start) / span) * 100}%` }} />);
-  }, [nodes, start, span]);
+    return nodes.filter((_, k) => k % step === 0);
+  }, [nodes]);
+  // Засечки на пройденной (янтарной) части шкалы — янтарные, впереди — голубые
+  const marks = shown.map((n) => (
+    <span key={n} className={styles.node} data-passed={n <= t || undefined} style={{ left: `${((n - start) / span) * 100}%` }} />
+  ));
 
   // Пока бегунок тянут, он показан стеклянной линзой
   const [dragging, setDragging] = useState(false);

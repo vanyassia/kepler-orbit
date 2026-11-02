@@ -114,6 +114,10 @@
   pointer-events: none;
 }
 
+.node[data-passed] {
+  background: var(--sat);
+}
+
 .nowMark {
   position: absolute;
   top: 0;
