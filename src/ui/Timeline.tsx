@@ -98,9 +98,7 @@ export function Timeline() {
             aria-valuetext={fmtDateTime(t, 'MSK') + ' МСК'}
             onPointerDown={() => setDragging(true)}
           />
-          <span className={styles.thumb} data-active={dragging || undefined} aria-hidden="true">
-            <span className={styles.lens} />
-          </span>
+          <span className={styles.thumb} data-active={dragging || undefined} aria-hidden="true" />
         </div>
         <div className={styles.scale}>
           <span className="num">{fmtDateTime(start, 'MSK', false)}</span>
