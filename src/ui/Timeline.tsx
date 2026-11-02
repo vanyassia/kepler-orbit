@@ -35,6 +35,19 @@ export function Timeline() {
       .map((n) => <span key={n} className={styles.node} style={{ left: `${((n - start) / span) * 100}%` }} />);
   }, [nodes, start, span]);
 
+  // Пока бегунок тянут, он показан стеклянной линзой
+  const [dragging, setDragging] = useState(false);
+  useEffect(() => {
+    if (!dragging) return;
+    const stop = () => setDragging(false);
+    window.addEventListener('pointerup', stop);
+    window.addEventListener('pointercancel', stop);
+    return () => {
+      window.removeEventListener('pointerup', stop);
+      window.removeEventListener('pointercancel', stop);
+    };
+  }, [dragging]);
+
   const live = playing && speed === 1 && Math.abs(t - now) < 3000;
   const offsetH = (t - now) / 3_600_000;
 
@@ -67,7 +80,8 @@ export function Timeline() {
       </div>
 
       <div className={styles.scrub}>
-        <div className={styles.track}>
+        <div className={styles.track} style={{ '--p': Math.min(1, Math.max(0, (t - start) / span)) } as React.CSSProperties}>
+          <span className={styles.fill} aria-hidden="true" />
           {marks}
           {now >= start && now <= start + span && (
             <span className={styles.nowMark} style={{ left: `${((now - start) / span) * 100}%` }} title="Сейчас" />
@@ -82,7 +96,11 @@ export function Timeline() {
             onChange={(e) => setSimTime(start + Number(e.target.value) * 1000)}
             aria-label="Время симуляции"
             aria-valuetext={fmtDateTime(t, 'MSK') + ' МСК'}
+            onPointerDown={() => setDragging(true)}
           />
+          <span className={styles.thumb} data-active={dragging || undefined} aria-hidden="true">
+            <span className={styles.lens} />
+          </span>
         </div>
         <div className={styles.scale}>
           <span className="num">{fmtDateTime(start, 'MSK', false)}</span>

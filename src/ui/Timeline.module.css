@@ -10,13 +10,10 @@
 }
 
 /*
- * Кнопка «Пуск» — толстая стеклянная линза с янтарным оттенком, как кнопки Liquid Glass:
- * купол светлее сверху, кромка ловит свет с двух сторон (сверху слева ярко, снизу справа слабее),
- * у края стекло утолщается и светлеет, снизу — преломлённый янтарный свет, под кнопкой — мягкая тень.
+ * Кнопка «Пуск» — прозрачное стекло без цвета, как кнопки плеера в iOS: тонкая светлая кромка сверху,
+ * лёгкое отражение снизу и мягкая тень. Значок сплошной, а не контурный.
  */
 .play {
-  position: relative;
-  isolation: isolate;
   display: grid;
   place-items: center;
   width: 40px;
@@ -24,84 +21,29 @@
   flex: none;
   border: 0;
   border-radius: 50%;
-  background:
-    radial-gradient(90% 60% at 50% 105%, color-mix(in srgb, var(--sat) 75%, transparent), transparent 65%),
-    radial-gradient(circle at 50% 50%, transparent 56%, rgb(255 255 255 / 0.16) 69%, transparent 74%),
-    linear-gradient(180deg, rgb(255 255 255 / 0.3), rgb(255 255 255 / 0.04) 52%, rgb(0 0 0 / 0.12));
-  background-color: color-mix(in srgb, var(--sat) 26%, transparent);
-  backdrop-filter: blur(14px) saturate(1.8);
+  background: linear-gradient(180deg, rgb(255 255 255 / 0.16), rgb(255 255 255 / 0.05));
+  backdrop-filter: blur(20px) saturate(1.6);
   box-shadow:
-    inset 1.5px 2px 1px -1px rgb(255 255 255 / 0.95),
-    inset -1px -1.5px 1px -1px rgb(255 255 255 / 0.55),
-    inset 0 0 0 1px rgb(255 255 255 / 0.14),
-    inset 0 -6px 10px -6px color-mix(in srgb, var(--sat) 90%, transparent),
-    inset 0 4px 8px -6px rgb(255 255 255 / 0.5),
-    0 10px 22px -8px color-mix(in srgb, var(--sat) 60%, rgb(0 0 0 / 0.6)),
-    0 3px 6px rgb(0 0 0 / 0.4),
-    0 0 0 0.5px rgb(0 0 0 / 0.35);
-  color: #fff8ec;
+    inset 0 1px 0.5px rgb(255 255 255 / 0.4),
+    inset 0 -0.5px 0.5px rgb(255 255 255 / 0.12),
+    inset 0 0 0 0.5px rgb(255 255 255 / 0.16),
+    0 4px 12px rgb(0 0 0 / 0.35);
+  color: var(--text-0);
   transition:
     transform 220ms cubic-bezier(0.3, 1.4, 0.5, 1),
-    background-color var(--dur) var(--ease),
-    box-shadow var(--dur) var(--ease);
-}
-
-/* Блик купола: светлое пятно у верхней кромки */
-.play::before {
-  content: '';
-  position: absolute;
-  inset: 2px 5px auto;
-  height: 52%;
-  z-index: -1;
-  border-radius: 50% / 60% 60% 40% 40%;
-  background: linear-gradient(180deg, rgb(255 255 255 / 0.55), rgb(255 255 255 / 0.08) 75%, transparent);
-  pointer-events: none;
-}
-
-/* Свет на кромке: яркая дуга сверху слева и отражение снизу справа */
-.play::after {
-  content: '';
-  position: absolute;
-  inset: 0;
-  z-index: -1;
-  padding: 1.5px;
-  border-radius: inherit;
-  background: conic-gradient(
-    from 200deg,
-    rgb(255 255 255 / 0.05),
-    rgb(255 255 255 / 0.95) 60deg,
-    rgb(255 255 255 / 0.1) 120deg,
-    rgb(255 255 255 / 0) 180deg,
-    rgb(255 255 255 / 0.55) 240deg,
-    rgb(255 255 255 / 0.05) 300deg
-  );
-  -webkit-mask:
-    linear-gradient(#000 0 0) content-box,
-    linear-gradient(#000 0 0);
-  -webkit-mask-composite: xor;
-  mask-composite: exclude;
-  pointer-events: none;
+    background-color var(--dur) var(--ease);
 }
 
 .play svg {
-  filter: drop-shadow(0 1px 1.5px rgb(60 30 0 / 0.55));
+  fill: currentColor;
 }
 
 .play:hover {
-  background-color: color-mix(in srgb, var(--sat) 36%, transparent);
+  background-color: rgb(255 255 255 / 0.06);
 }
 
-/* Нажатие: линза пружинит и чуть проседает */
 .play:active {
   transform: scale(0.92);
-  box-shadow:
-    inset 1.5px 2px 1px -1px rgb(255 255 255 / 0.8),
-    inset -1px -1.5px 1px -1px rgb(255 255 255 / 0.45),
-    inset 0 0 0 1px rgb(255 255 255 / 0.14),
-    inset 0 3px 8px rgb(0 0 0 / 0.25),
-    inset 0 -6px 10px -6px color-mix(in srgb, var(--sat) 90%, transparent),
-    0 4px 10px -6px color-mix(in srgb, var(--sat) 60%, rgb(0 0 0 / 0.6)),
-    0 1px 2px rgb(0 0 0 / 0.4);
 }
 
 .speeds {
@@ -143,6 +85,9 @@
 }
 
 .track {
+  /* Ширина невидимого бегунка: центр видимого ходит так же, от --tw/2 до края минус --tw/2 */
+  --tw: 22px;
+  --x: calc(var(--tw) / 2 + (100% - var(--tw)) * var(--p, 0.5));
   position: relative;
   height: 20px;
 }
@@ -200,97 +145,134 @@
   background: transparent;
 }
 
-/*
- * Бегунок — стеклянная капсула той же природы: светлый купол сверху, кромка с двух сторон,
- * утолщение стекла по бокам; засечки витков просвечивают сквозь неё, при перетаскивании она растёт.
- */
+/* Невидимый бегунок самого ползунка: им пользуются мышь, палец и клавиатура, а виден стеклянный .thumb */
 .range::-webkit-slider-thumb {
   appearance: none;
-  width: 16px;
-  height: 20px;
-  border-radius: 8px;
-  background:
-    radial-gradient(130% 55% at 50% 0%, rgb(255 255 255 / 0.85), rgb(255 255 255 / 0.15) 70%, transparent 72%),
-    radial-gradient(110% 50% at 50% 100%, color-mix(in srgb, var(--sat) 85%, transparent), transparent 75%),
-    linear-gradient(90deg, rgb(255 255 255 / 0.35), transparent 32%, transparent 68%, rgb(255 255 255 / 0.25)),
-    color-mix(in srgb, var(--sat) 32%, transparent);
-  box-shadow:
-    inset 1px 1.5px 0.5px -0.5px rgb(255 255 255 / 0.95),
-    inset -1px -1px 0.5px -0.5px rgb(255 255 255 / 0.5),
-    inset 0 0 0 1px rgb(255 255 255 / 0.2),
-    inset 0 -3px 4px -2px color-mix(in srgb, var(--sat) 90%, transparent),
-    0 5px 10px -3px rgb(0 0 0 / 0.6),
-    0 1px 2px rgb(0 0 0 / 0.5),
-    0 0 0 0.5px rgb(0 0 0 / 0.4);
-  transition: transform 220ms cubic-bezier(0.3, 1.4, 0.5, 1);
+  width: var(--tw);
+  height: 28px;
+  background: transparent;
 }
 
 .range::-moz-range-thumb {
-  width: 16px;
-  height: 20px;
+  width: var(--tw);
+  height: 28px;
   border: 0;
-  border-radius: 8px;
-  background:
-    radial-gradient(130% 55% at 50% 0%, rgb(255 255 255 / 0.85), rgb(255 255 255 / 0.15) 70%, transparent 72%),
-    radial-gradient(110% 50% at 50% 100%, color-mix(in srgb, var(--sat) 85%, transparent), transparent 75%),
-    linear-gradient(90deg, rgb(255 255 255 / 0.35), transparent 32%, transparent 68%, rgb(255 255 255 / 0.25)),
-    color-mix(in srgb, var(--sat) 32%, transparent);
+  background: transparent;
+}
+
+/* Пройденная часть шкалы — янтарная, до центра бегунка */
+.fill {
+  position: absolute;
+  left: 0;
+  top: 50%;
+  width: var(--x);
+  height: 4px;
+  margin-top: -2px;
+  border-radius: 2px;
+  background: var(--sat);
+  pointer-events: none;
+}
+
+/*
+ * Бегунок как в iOS, только вертикальный: в покое — светлая капсула; пока его тянут, она вырастает
+ * в прозрачную стеклянную линзу, сквозь которую шкала видна увеличенной.
+ */
+.thumb {
+  position: absolute;
+  left: var(--x);
+  top: 50%;
+  width: 14px;
+  height: 22px;
+  overflow: hidden;
+  border-radius: 999px;
+  transform: translate(-50%, -50%);
+  background: linear-gradient(180deg, #ffffff, #dde3ea);
   box-shadow:
-    inset 1px 1.5px 0.5px -0.5px rgb(255 255 255 / 0.95),
-    inset -1px -1px 0.5px -0.5px rgb(255 255 255 / 0.5),
-    inset 0 0 0 1px rgb(255 255 255 / 0.2),
-    inset 0 -3px 4px -2px color-mix(in srgb, var(--sat) 90%, transparent),
-    0 5px 10px -3px rgb(0 0 0 / 0.6),
-    0 1px 2px rgb(0 0 0 / 0.5),
-    0 0 0 0.5px rgb(0 0 0 / 0.4);
-  transition: transform 220ms cubic-bezier(0.3, 1.4, 0.5, 1);
+    inset 0 -1px 1px rgb(0 0 0 / 0.12),
+    0 0 0 0.5px rgb(0 0 0 / 0.35),
+    0 2px 6px rgb(0 0 0 / 0.45);
+  pointer-events: none;
+  transition:
+    width 260ms cubic-bezier(0.3, 1.35, 0.5, 1),
+    height 260ms cubic-bezier(0.3, 1.35, 0.5, 1),
+    background 200ms var(--ease),
+    box-shadow 200ms var(--ease);
 }
 
-.range:active::-webkit-slider-thumb {
-  transform: scale(1.2);
+/* Увеличенная шкала внутри линзы: янтарь до центра, дальше серая дорожка */
+.lens {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 50%;
+  height: 9px;
+  margin-top: -4.5px;
+  background: linear-gradient(90deg, var(--sat) 50%, rgb(255 255 255 / 0.2) 50%);
+  opacity: 0;
+  transition: opacity 160ms var(--ease);
 }
 
-.range:active::-moz-range-thumb {
-  transform: scale(1.2);
+/* Блик стекла сверху */
+.thumb::after {
+  content: '';
+  position: absolute;
+  inset: 1px 2px auto;
+  height: 45%;
+  border-radius: 999px 999px 40% 40%;
+  background: linear-gradient(180deg, rgb(255 255 255 / 0.35), transparent);
+  opacity: 0;
+  transition: opacity 160ms var(--ease);
 }
 
-/* Просьба системы убрать прозрачность: прежние сплошные янтарные кнопки */
+.thumb[data-active] {
+  width: 26px;
+  height: 36px;
+  background: linear-gradient(180deg, rgb(255 255 255 / 0.1), rgb(255 255 255 / 0.03));
+  backdrop-filter: blur(1.5px) brightness(1.15);
+  box-shadow:
+    inset 0 1.5px 1px rgb(255 255 255 / 0.55),
+    inset 0 -1px 1px rgb(255 255 255 / 0.25),
+    inset 0 0 0 1px rgb(255 255 255 / 0.14),
+    inset 0 0 10px rgb(255 255 255 / 0.08),
+    0 0 0 0.5px rgb(0 0 0 / 0.4),
+    0 8px 18px -4px rgb(0 0 0 / 0.6);
+}
+
+.thumb[data-active] .lens,
+.thumb[data-active]::after {
+  opacity: 1;
+}
+
+.range:focus-visible ~ .thumb {
+  outline: 2px solid var(--orbit);
+  outline-offset: 2px;
+}
+
+/* Просьба системы убрать прозрачность: сплошные кнопка и бегунок без линзы */
 @media (prefers-reduced-transparency: reduce) {
   .play {
-    background: var(--sat);
+    background: var(--bg-3);
     backdrop-filter: none;
-    color: #1d1300;
   }
-  .play::before,
-  .play::after {
-    display: none;
+  .thumb[data-active] {
+    background: linear-gradient(180deg, #ffffff, #dde3ea);
+    backdrop-filter: none;
   }
-  .play svg {
-    filter: none;
-  }
-  .range::-webkit-slider-thumb {
-    background: var(--sat);
-  }
-  .range::-moz-range-thumb {
-    background: var(--sat);
+  .thumb[data-active] .lens,
+  .thumb[data-active]::after {
+    opacity: 0;
   }
 }
 
 /* Сенсорные экраны: ползунок выше видимой дорожки и с широким бегунком */
 @media (pointer: coarse) {
+  .track {
+    --tw: 30px;
+  }
+
   .range {
     inset: -10px 0;
     height: 40px;
-  }
-
-  .range::-webkit-slider-thumb {
-    width: 22px;
-    border-radius: 10px;
-  }
-
-  .range::-moz-range-thumb {
-    width: 22px;
-    border-radius: 10px;
   }
 }
 
