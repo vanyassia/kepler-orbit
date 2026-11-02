@@ -6,7 +6,8 @@ import { ErrorBoundary } from './ErrorBoundary';
 import styles from './Workspace.module.css';
 import { rovingKeyDown, rovingTabIndex } from './roving';
 
-const GlobeView = lazy(() => import('../views/globe3d/GlobeView'));
+const loadGlobeView = () => import('../views/globe3d/GlobeView');
+const GlobeView = lazy(loadGlobeView);
 const loadMapView = () => import('../views/map2d/MapView');
 const MapView = lazy(loadMapView);
 
@@ -40,9 +41,9 @@ export function Workspace() {
   opened.current.map ||= shownView !== '3d';
   const { globe: globeOpened, map: mapOpened } = opened.current;
 
-  // Карта открывается не сразу, но к первому нажатию её код уже готов
+  // Второй вид открывается не сразу, но к первому нажатию его код уже готов
   useEffect(() => {
-    const timer = setTimeout(() => void loadMapView(), 3000);
+    const timer = setTimeout(() => void (useAppStore.getState().view === '2d' ? loadGlobeView() : loadMapView()), 3000);
     return () => clearTimeout(timer);
   }, []);
 

@@ -111,7 +111,7 @@ export const useAppStore = create<AppState>()(
   anchorSim: Date.now(),
   anchorReal: performance.now(),
 
-  view: '3d',
+  view: '2d',
   camera: 'free',
   quality: 'standard',
   layers: {
@@ -192,7 +192,7 @@ export const useAppStore = create<AppState>()(
       // Настройки интерфейса запоминаются в браузере; данные спутника — нет (они в кэше CelesTrak)
       name: 'kepler:prefs',
       version: 3,
-      // v2: вид и последний спутник больше не запоминаются (по умолчанию — МКС на глобусе)
+      // v2: вид и последний спутник больше не запоминаются (по умолчанию — МКС на карте)
       // v3: новые слои по умолчанию (вспомогательная геометрия выключена) — сохранённые слои сбрасываются
       migrate: (persisted, version) => {
         const p = persisted as Partial<AppState>;
