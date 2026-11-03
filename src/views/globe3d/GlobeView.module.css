@@ -46,7 +46,8 @@
   color: var(--text-0);
 }
 
-.segmented button[aria-checked='true'] {
+.segmented button[aria-checked='true'],
+.segmented button[aria-pressed='true'] {
   background: var(--bg-3);
   color: var(--text-0);
 }
@@ -148,6 +149,13 @@
   font-family: var(--font-data);
   font-size: var(--fs-note);
   text-shadow: 0 0 4px #04080f, 0 0 2px #04080f;
+}
+
+/* Значения углов схемы элементов: цвет — как у дуги */
+:global(.globe-label.angle) {
+  font-size: var(--fs-caption);
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
 }
 
 /* Начала витков — цвета совпадают с цветами трасс (trackCache.ts) */

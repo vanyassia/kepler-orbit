@@ -1,5 +1,5 @@
 import { Canvas } from '@react-three/fiber';
-import { Earth, Move3d, Satellite } from 'lucide-react';
+import { DraftingCompass, Earth, Move3d, Satellite } from 'lucide-react';
 import { Suspense, useRef, useState } from 'react';
 import { ACESFilmicToneMapping } from 'three';
 import type { CameraMode } from '../../state/store';
@@ -25,6 +25,8 @@ export default function GlobeView() {
   const quality = useAppStore((s) => s.quality);
   const setQuality = useAppStore((s) => s.setQuality);
   const body = useAppStore((s) => s.body);
+  const elementsOn = useAppStore((s) => s.layers.helpers);
+  const toggleLayer = useAppStore((s) => s.toggleLayer);
   const withBody = { earth: 'С Землёй', moon: 'С Луной', mars: 'С Марсом' }[body];
   const overlay = useRef<HTMLDivElement>(null);
   const [ready, setReady] = useState(false);
@@ -75,6 +77,19 @@ export default function GlobeView() {
               <span className={styles.camLabel}>{m.id === 'earth' ? withBody : m.label}</span>
             </button>
           ))}
+        </div>
+        {/* Схема элементов орбиты: дуги и значения Ω, i, ω, ν — тот же слой, что «Элементы орбиты» в меню слоёв */}
+        <div className={styles.segmented}>
+          <button
+            type="button"
+            aria-pressed={elementsOn}
+            onClick={() => toggleLayer('helpers')}
+            title="Схема элементов орбиты: Ω, i, ω, ν, узлы и апсиды"
+            aria-label="Элементы орбиты"
+          >
+            <DraftingCompass size={14} className={styles.camIcon} />
+            <span className={styles.camLabel}>Элементы</span>
+          </button>
         </div>
         <LayersMenu keys={body === 'earth' ? ['night', 'clouds', 'helpers', 'cities'] : ['regions', 'night', 'helpers', 'cities']}>
           <RevsControl />
