@@ -40,9 +40,6 @@ import type { LabelSpec } from './LabelLayer';
 import { LabelLayer, OFFSET } from './LabelLayer';
 import { atmosphereShader, cloudsShader, earthShader } from './shaders';
 import { useEarthTextures } from './textures';
-import { equatorArc, inclinationArc, inOrbitPlane, midpoint, nodeTangents, orbitArc } from './elementArcs';
-import { RAD } from '../../physics/constants';
-import type { Vec3 } from '../../physics/math';
 
 const TRACK_R = 1.0025;
 /** Угол обзора камеры по вертикали, градусы. */
@@ -113,13 +110,6 @@ function orientationOf(body: CentralBody, t: number, out: Quaternion): Quaternio
   axisToScene(body.toInertial({ x: 0, y: -1, z: 0 }, t), _ez);
   return out.setFromRotationMatrix(_m.makeBasis(_ex, _ey, _ez));
 }
-
-/** Цвета дуг схемы элементов орбиты и их подписей. */
-const ELEMENT_COLOR = { raan: '#ffd27a', i: '#ff8fb1', omega: '#8fe388', anomaly: SAT_COLOR } as const;
-/** Угол, рад → «123,4°» в диапазоне [0°, 360°). */
-const fmtAngle = (rad: number) => `${fmt((((rad * RAD) % 360) + 360) % 360, 1)}°`;
-/** Наибольшее число точек дуги ν (или u): до 360° через 3°. */
-const ANOMALY_POINTS = 130;
 
 function lineMaterial(color: string, width: number, opacity: number, dashed = false) {
   const m = new LineMaterial({ color: new Color(color).getHex(), linewidth: width, transparent: opacity < 1, opacity, dashed });
@@ -230,7 +220,6 @@ export function GlobeScene({ overlay, onReady }: { overlay: React.RefObject<HTML
       past: new DynamicLine(MAX_WINDOW_POINTS, lineMaterial(ORBIT_COLOR, 1.6, 0.95)),
       future: new DynamicLine(MAX_WINDOW_POINTS, lineMaterial(ORBIT_COLOR, 1.8, 0.95, true)),
       radius: new DynamicLine(2, lineMaterial(SAT_COLOR, 1, 0.45)),
-      anomaly: new DynamicLine(ANOMALY_POINTS, lineMaterial(ELEMENT_COLOR.anomaly, 2.2, 0.95)),
     }),
     [],
   );
@@ -288,41 +277,6 @@ export function GlobeScene({ overlay, onReady }: { overlay: React.RefObject<HTML
       normal: new Vector3(Math.sin(orbit.raan) * Math.sin(orbit.i), Math.cos(orbit.i), Math.cos(orbit.raan) * Math.sin(orbit.i)).normalize(),
     };
   }, [orbit]);
-
-  // Схема элементов орбиты: дуги Ω, i и ω постоянны для орбиты; дуга ν (у почти круговой — u) — в кадре
-  const elements = useMemo(() => {
-    if (!orbit || !geometry) return null;
-    const plane = { raan: orbit.raan, i: orbit.i };
-    const scene = (p: Vec3) => axisToScene(p, new Vector3());
-    const node = geometry.ascNode.length();
-    // Дуги — снаружи тела, но ближе к нему, чем далёкий апоцентр: так они не теряются на высоких орбитах
-    const r = Math.min(3.2, Math.max(1.2, node * 0.55));
-    const a = Math.max(0.18, node * 0.3);
-    const { E, T } = nodeTangents(plane);
-    const leg = (d: Vec3) => [geometry.ascNode.clone(), geometry.ascNode.clone().add(scene(d).multiplyScalar(a * 1.35))];
-    const elliptic = orbit.e > 0.01;
-    const raanArc = equatorArc(orbit.raan, r).map(scene);
-    const incArc = inclinationArc(plane, inOrbitPlane(plane, 0, node), a).map(scene);
-    const omegaArc = elliptic ? orbitArc(plane, 0, orbit.omega, r * 1.12).map(scene) : null;
-    return {
-      plane,
-      elliptic,
-      /** Радиус дуги ν (продолжает дугу ω) или u (от узла). */
-      anomalyRadius: r * (elliptic ? 1.24 : 1.12),
-      raanArc,
-      incArc,
-      omegaArc,
-      eqLeg: leg(E),
-      orbitLeg: leg(T),
-      label: {
-        raan: midpoint(raanArc).clone().multiplyScalar(1.08),
-        i: midpoint(incArc).clone(),
-        omega: omegaArc ? midpoint(omegaArc).clone().multiplyScalar(1.08) : null,
-      },
-    };
-  }, [orbit, geometry]);
-  /** Место подписи дуги ν (u): меняется вместе со спутником. */
-  const anomalyLabel = useRef(new Vector3());
 
   const equator = useMemo(() => Array.from({ length: 181 }, (_, k) => new Vector3(Math.cos((k * 2 * Math.PI) / 180) * 1.0015, 0, Math.sin((k * 2 * Math.PI) / 180) * 1.0015)), []);
 
@@ -409,19 +363,10 @@ export function GlobeScene({ overlay, onReady }: { overlay: React.RefObject<HTML
         helper('peri', 'перигей', geometry.perigee);
         helper('apo', 'апогей', geometry.apogee);
       }
-      if (elements) {
-        const angle = (id: string, text: string, color: string, anchor: LabelSpec['anchor']) =>
-          specs.push({ id, text, className: 'globe-label helper angle', color, anchor, priority: 3 });
-        angle('el-raan', `Ω = ${fmtAngle(orbit.raan)}`, ELEMENT_COLOR.raan, fixed(elements.label.raan));
-        angle('el-i', `i = ${fmtAngle(orbit.i)}`, ELEMENT_COLOR.i, fixed(elements.label.i));
-        if (elements.label.omega) angle('el-omega', `ω = ${fmtAngle(orbit.omega)}`, ELEMENT_COLOR.omega, fixed(elements.label.omega));
-        // Текст ν (u) обновляется в кадре
-        angle('el-anomaly', '', ELEMENT_COLOR.anomaly, (out) => out.copy(anomalyLabel.current));
-      }
     }
     labelSpecs.current = specs;
     labelLayer.current?.setSpecs(specs);
-  }, [orbit, record, geometry, elements, layers.cities, layers.helpers, revsBack, revsForward, bodyId, regionsOn]);
+  }, [orbit, record, geometry, layers.cities, layers.helpers, revsBack, revsForward, bodyId, regionsOn]);
 
   // Клавиатура (альтернатива перетаскиванию): стрелки вращают камеру вокруг тела, «+» и «−» приближают.
   // Работает, когда фокус на области глобуса (Tab до неё); событие помечается, чтобы стрелки не сдвигали время.
@@ -485,7 +430,6 @@ export function GlobeScene({ overlay, onReady }: { overlay: React.RefObject<HTML
       pastRgb: new Float32Array(MAX_WINDOW_POINTS * 3),
       futureRgb: new Float32Array(MAX_WINDOW_POINTS * 3),
       radius: new Float32Array(6),
-      anomaly: new Float32Array(ANOMALY_POINTS * 3),
     }),
     [],
   );
@@ -571,22 +515,6 @@ export function GlobeScene({ overlay, onReady }: { overlay: React.RefObject<HTML
       buf.radius[4] = satPos.y;
       buf.radius[5] = satPos.z;
       lines.radius.setPoints(buf.radius, 2);
-
-      // Дуга ν — от перицентра до спутника (у почти круговой орбиты — дуга u от узла)
-      lines.anomaly.visible = st.layers.helpers && !!elements;
-      if (lines.anomaly.visible && elements) {
-        const from = elements.elliptic ? o.omega : 0;
-        const arc = orbitArc(elements.plane, from, elements.elliptic ? s.theta : s.u, elements.anomalyRadius);
-        const n = Math.min(arc.length, ANOMALY_POINTS);
-        for (let k = 0; k < n; k++) {
-          buf.anomaly[k * 3] = arc[k].x;
-          buf.anomaly[k * 3 + 1] = arc[k].z;
-          buf.anomaly[k * 3 + 2] = -arc[k].y;
-        }
-        lines.anomaly.setPoints(buf.anomaly, n);
-        axisToScene(midpoint(arc), anomalyLabel.current).multiplyScalar(1.08);
-        labelLayer.current?.setText('el-anomaly', `${elements.elliptic ? 'ν' : 'u'} = ${fmtAngle(elements.elliptic ? s.theta : s.u)}`);
-      }
 
       // Трасса (в ГСК, внутри группы Земли), цвет — по номеру витка. Пересобирается, когда окно
       // сдвинулось на шаг сетки; в остальных кадрах меняется только точка под спутником
@@ -734,15 +662,6 @@ export function GlobeScene({ overlay, onReady }: { overlay: React.RefObject<HTML
               {orbit && orbit.e > 0.01 && (
                 <Line points={[geometry.perigee, geometry.apogee]} color={SAT_COLOR} lineWidth={1} transparent opacity={0.4} dashed dashSize={0.04} gapSize={0.04} />
               )}
-              {elements && (
-                <>
-                  <Line points={elements.raanArc} color={ELEMENT_COLOR.raan} lineWidth={2.2} transparent opacity={0.95} />
-                  <Line points={elements.eqLeg} color="#c8dcff" lineWidth={1} transparent opacity={0.6} />
-                  <Line points={elements.orbitLeg} color={ORBIT_COLOR} lineWidth={1} transparent opacity={0.7} />
-                  <Line points={elements.incArc} color={ELEMENT_COLOR.i} lineWidth={2.2} transparent opacity={0.95} />
-                  {elements.omegaArc && <Line points={elements.omegaArc} color={ELEMENT_COLOR.omega} lineWidth={2.2} transparent opacity={0.95} />}
-                </>
-              )}
             </>
           )}
         </>
@@ -752,7 +671,6 @@ export function GlobeScene({ overlay, onReady }: { overlay: React.RefObject<HTML
       {orbit && (
         <>
           <primitive object={lines.radius} />
-          <primitive object={lines.anomaly} />
           <group ref={satGroup}>
             <mesh>
               <sphereGeometry args={[0.012, 16, 12]} />
