@@ -20,6 +20,7 @@ import { pickLevel } from '../imageChunks';
 import { orbitSource, Revolutions, revolutionColor, TrackCache } from '../trackCache';
 import type { BorderPaths } from './geo';
 import { loadBorders } from './geo';
+import { followStep, lonStep } from './follow';
 import { createNightMasks, updateNightMasks } from './nightMask';
 import type { MapScene, View } from './renderMap';
 import { renderBase, renderLines, renderMap, smoothingFor, toScreen, toWorldLonLat } from './renderMap';
@@ -54,6 +55,10 @@ export default function MapView() {
   const dirtyRef = useRef(true);
   /** Пока пользователь сам не двигал карту, она подгоняется под панель (на телефоне — по высоте, к спутнику). */
   const autoFitRef = useRef(true);
+  /** Шаг слежения за спутником (на телефоне и в узкой панели), вызывается из цикла кадров. */
+  const followRef = useRef<((nowMs: number) => void) | null>(null);
+  /** До этого момента слежение не вмешивается: идёт анимация «К спутнику». */
+  const followHoldRef = useRef(0);
   const [borders, setBorders] = useState<BorderPaths | null>(null);
 
   const body = useAppStore((s) => s.body);
@@ -157,6 +162,59 @@ export default function MapView() {
       const { w, h } = sizeRef.current;
       return z.constrain()(t, [[0, 0], [w, h]], z.translateExtent());
     };
+    // Слежение: пока карту не трогали, спутник у края кадра плавно возвращается к середине.
+    // Положение запоминается в градусах, поэтому сдвиг самой карты не путается со скоростью спутника
+    const reducedMotion = matchMedia('(prefers-reduced-motion: reduce)');
+    let prev: { orbit: unknown; lon: number; lat: number; ms: number } | null = null;
+    let activeX = false;
+    let activeY = false;
+    // Сглаженная скорость спутника по карте, px/с: время модели меняется не в каждом кадре
+    let speedX = 0;
+    let speedY = 0;
+    followRef.current = (nowMs) => {
+      const { w, h } = sizeRef.current;
+      const st = useAppStore.getState();
+      const p = autoFitRef.current && fitByHeight(w) && nowMs >= followHoldRef.current && st.orbit ? orbitSource(st.orbit).at(st.simTime) : null;
+      if (!p) {
+        prev = null;
+        activeX = activeY = false;
+        return;
+      }
+      const t = transformRef.current;
+      const { s0, ox0, oy0 } = baseFit(w, h);
+      const s = s0 * t.k;
+      const x = t.x + t.k * ox0 + s * (p.lon + 180);
+      const y = t.y + t.k * oy0 + s * (90 - p.lat);
+      const dt = prev ? (nowMs - prev.ms) / 1000 : 0;
+      let jump = !prev || prev.orbit !== st.orbit || dt <= 0;
+      let movedX = 0;
+      let movedY = 0;
+      if (prev && !jump) {
+        // Переход через ±180° и скачки времени — без плавного проезда через всю карту
+        const { delta, wrapped } = lonStep(prev.lon, p.lon);
+        movedX = delta * s;
+        movedY = (prev.lat - p.lat) * s;
+        jump = wrapped || Math.abs(movedX) > w / 2 || Math.abs(movedY) > h / 2;
+      }
+      prev = { orbit: st.orbit, lon: p.lon, lat: p.lat, ms: nowMs };
+      if (jump) {
+        movedX = movedY = speedX = speedY = 0;
+      } else {
+        const a = 1 - Math.exp(-dt / 0.5);
+        speedX += (Math.abs(movedX) / dt - speedX) * a;
+        speedY += (Math.abs(movedY) / dt - speedY) * a;
+      }
+      const smooth = !jump && !reducedMotion.matches;
+      const fx = followStep({ x, moved: movedX, speed: speedX, size: w, dt, active: activeX, smooth });
+      const fy = followStep({ x: y, moved: movedY, speed: speedY, size: h, dt, active: activeY, smooth });
+      activeX = fx.active;
+      activeY = fy.active;
+      if (fx.shift === 0 && fy.shift === 0) return;
+      const next = clamp(zoomIdentity.translate(t.x + fx.shift, t.y + fy.shift).scale(t.k));
+      // У края карты сдвигать некуда — не перерисовывать кадр впустую
+      if (Math.abs(next.x - t.x) < 0.01 && Math.abs(next.y - t.y) < 0.01) return;
+      select(canvas).call(z.transform, next);
+    };
     const unsubscribe = useAppStore.subscribe((s, p) => {
       if (s.orbit !== p.orbit && autoFitRef.current && sizeRef.current.w > 0) select(canvas).call(z.transform, clamp(fitted()));
     });
@@ -175,6 +233,7 @@ export default function MapView() {
     ro.observe(wrap);
     select(canvas).call(z).on('dblclick.zoom', null);
     return () => {
+      followRef.current = null;
       ro.disconnect();
       unsubscribe();
       select(canvas).on('.zoom', null);
@@ -215,6 +274,8 @@ export default function MapView() {
       const st = useAppStore.getState();
       const { w, h, dpr } = sizeRef.current;
       if (w === 0 || h === 0 || st.view === '3d') return;
+      // Сдвиг за спутником (если нужен) помечает кадр к перерисовке
+      followRef.current?.(performance.now());
       if (st.simTime === lastTime && !dirtyRef.current) return;
       // Ход времени: одна карта — на каждый кадр экрана, вместе с глобусом — через кадр, ровно по 33 мс при 60 Гц
       // (порог ниже периода: при пороге 33 мс кадры чередовались через 34 и 51 мс). Масштаб, слои и наведение — сразу
@@ -401,11 +462,14 @@ export default function MapView() {
     if (zoomRef.current) select(canvas).transition().duration(300).call(zoomRef.current.transform, zoomIdentity);
   };
   const centerOnSatellite = () => {
-    autoFitRef.current = false;
     const st = useAppStore.getState();
     if (!st.orbit || !zoomRef.current) return;
     const tr = orbitSource(st.orbit).at(st.simTime)!;
     const { w, h } = sizeRef.current;
+    // На телефоне и в узкой панели карта снова следит за спутником (после анимации наведения);
+    // на компьютере с широкой картой — как раньше, без слежения
+    autoFitRef.current = fitByHeight(w);
+    followHoldRef.current = performance.now() + 450;
     const { s0, ox0, oy0 } = baseFit(w, h);
     const k = Math.max(3, transformRef.current.k);
     const bx = ox0 + s0 * (tr.lon + 180);
