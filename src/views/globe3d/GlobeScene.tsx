@@ -6,7 +6,7 @@
 import { Line, OrbitControls } from '@react-three/drei';
 import { useFrame, useThree } from '@react-three/fiber';
 import { useEffect, useMemo, useRef } from 'react';
-import type { Group, Mesh, PerspectiveCamera, Sprite } from 'three';
+import type { DirectionalLight, Group, Mesh, PerspectiveCamera, Sprite } from 'three';
 import {
   AdditiveBlending,
   BackSide,
@@ -40,6 +40,7 @@ import type { LabelSpec } from './LabelLayer';
 import { LabelLayer, OFFSET } from './LabelLayer';
 import { atmosphereShader, cloudsShader, earthShader } from './shaders';
 import { useEarthTextures } from './textures';
+import { createSatelliteModel, SATELLITE_SPAN } from './satelliteModel';
 
 const TRACK_R = 1.0025;
 /** Угол обзора камеры по вертикали, градусы. */
@@ -172,6 +173,9 @@ export function GlobeScene({ overlay, onReady }: { overlay: React.RefObject<HTML
 
   const earthGroup = useRef<Group>(null!);
   const satGroup = useRef<Group>(null!);
+  /** Модель аппарата (satelliteModel.ts) и свет Солнца для неё; Земля и линии светом не освещаются. */
+  const satModel = useMemo(() => createSatelliteModel(), []);
+  const sunLight = useRef<DirectionalLight>(null!);
   const sunSprite = useRef<Sprite>(null!);
   const subMarker = useRef<Mesh>(null!);
   const startMarker = useRef<Mesh>(null!);
@@ -443,7 +447,7 @@ export function GlobeScene({ overlay, onReady }: { overlay: React.RefObject<HTML
       return c;
     };
   }, []);
-  const tmp = useMemo(() => ({ v: new Vector3(), w: new Vector3(), q: new Quaternion(), q2: new Quaternion(), q3: new Quaternion() }), []);
+  const tmp = useMemo(() => ({ v: new Vector3(), w: new Vector3(), f: new Vector3(), n: new Vector3(), m: new Matrix4(), q: new Quaternion(), q2: new Quaternion(), q3: new Quaternion() }), []);
 
   useFrame(() => {
     const st = useAppStore.getState();
@@ -459,6 +463,7 @@ export function GlobeScene({ overlay, onReady }: { overlay: React.RefObject<HTML
     mats.earth.uniforms.sunDir.value.set(sd.x, sd.z, -sd.y);
     mats.earth.uniforms.cloudShift.value = -((t / 86_400_000) * 0.02) % 1;
     sunSprite.current.position.set(sd.x * 420, sd.z * 420, -sd.y * 420);
+    sunLight.current.position.set(sd.x * 10, sd.z * 10, -sd.y * 10);
 
     // Анимация камеры к новому спутнику
     const anim = camAnim.current;
@@ -480,6 +485,15 @@ export function GlobeScene({ overlay, onReady }: { overlay: React.RefObject<HTML
       const satPos = toScene(s.eci, tmp.v, b.radius);
       satGroup.current.position.copy(satPos);
       const dir = tmp.w.copy(satPos).normalize();
+
+      // Модель аппарата: вперёд — по скорости, верх — от центра тела, панели — вдоль нормали к орбите.
+      // На экране она одного размера (около 44 пикселей) при любом приближении камеры
+      const fwd = axisToScene(s.vEci, tmp.f);
+      fwd.addScaledVector(dir, -fwd.dot(dir)).normalize();
+      const side = tmp.n.crossVectors(fwd, dir);
+      satModel.quaternion.setFromRotationMatrix(tmp.m.makeBasis(fwd, dir, side));
+      const ppu = pixelsPerUnit(size.height, (camera as PerspectiveCamera).fov, Math.max(0.05, camera.position.distanceTo(satPos)));
+      satModel.scale.setScalar(44 / SATELLITE_SPAN / ppu);
       // Быстрее всего на экране движется спутник или поверхность под ним — считаем по ближнему из них
       const nearest = Math.max(0.15, Math.min(camera.position.length() - 1, camera.position.distanceTo(satPos)));
       drawn.current.stepMs = simMsPerShift((s.V / b.radius) * pixelsPerUnit(size.height, (camera as PerspectiveCamera).fov, nearest));
@@ -667,16 +681,17 @@ export function GlobeScene({ overlay, onReady }: { overlay: React.RefObject<HTML
         </>
       )}
 
+      {/* Свет для модели аппарата: Солнце и слабая подсветка ночной стороны */}
+      <directionalLight ref={sunLight} intensity={2.6} />
+      <ambientLight intensity={0.55} />
+
       {/* Спутник и радиус-вектор */}
       {orbit && (
         <>
           <primitive object={lines.radius} />
           <group ref={satGroup}>
-            <mesh>
-              <sphereGeometry args={[0.012, 16, 12]} />
-              <meshBasicMaterial color={SAT_COLOR} toneMapped={false} />
-            </mesh>
-            <sprite scale={[0.07, 0.07, 1]}>
+            <primitive object={satModel} />
+            <sprite scale={[0.05, 0.05, 1]}>
               <spriteMaterial map={sprites.sat} blending={AdditiveBlending} depthWrite={false} sizeAttenuation={false} toneMapped={false} />
             </sprite>
           </group>
