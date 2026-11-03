@@ -76,6 +76,8 @@ export interface MapScene {
   subsolar: { lat: number; lon: number };
   track: TrackWindow | null;
   satLabel: string;
+  /** Выбрана сама Луна: вместо значка аппарата — диск Луны. */
+  satIsMoon: boolean;
   /** Витки нашей модели: цвет трассы и подписи начала витков. */
   revs: Revolutions | null;
   /** Моменты узлов (начал витков) с точными подспутниковыми точками — для подписей. */
@@ -213,7 +215,7 @@ export function renderMap(ctx: CanvasRenderingContext2D, sc: MapScene): void {
   if (sc.regions.length) drawRegionLabels(ctx, v, sc.regions, sc.bodyRadius, placed);
   if (sc.track) drawNodeLabels(ctx, v, sc.nodePoints, placed);
   if (sc.track) drawTrackEnds(ctx, v, sc.track, placed);
-  if (satBox && sc.track) drawSatellite(ctx, satBox, sc.satLabel, sc.labelBg, trackHeading(sc.track));
+  if (satBox && sc.track) drawSatellite(ctx, satBox, sc.satLabel, sc.labelBg, sc.satIsMoon ? null : trackHeading(sc.track));
 }
 
 function hexToRgb(hex: string): [number, number, number] {
@@ -538,12 +540,74 @@ function solarPanel(ctx: CanvasRenderingContext2D, y0: number, y1: number) {
   ctx.strokeRect(-w / 2, Math.min(y0, y1), w, Math.abs(y1 - y0));
 }
 
+/** Моря видимой стороны Луны: центр (доли радиуса, x — на восток, y — вниз) и полуоси. */
+const MOON_MARIA: [number, number, number, number][] = [
+  [-0.38, -0.3, 0.3, 0.22], // Море Дождей
+  [0.12, -0.32, 0.2, 0.17], // Море Ясности
+  [0.42, -0.08, 0.17, 0.2], // Море Кризисов
+  [0.2, 0.08, 0.22, 0.15], // Море Спокойствия
+  [-0.55, 0.12, 0.28, 0.38], // Океан Бурь
+  [0.3, 0.42, 0.18, 0.14], // Море Нектара
+  [-0.18, 0.42, 0.18, 0.13], // Море Облаков
+];
+
+/** Диск Луны вместо значка аппарата: серый шар с тёмными морями, не поворачивается. */
+function drawMoonDisc(ctx: CanvasRenderingContext2D, x: number, y: number) {
+  const r = 9;
+  ctx.save();
+  ctx.shadowColor = 'rgba(0, 0, 0, 0.55)';
+  ctx.shadowBlur = 4;
+  ctx.shadowOffsetY = 1.5;
+  const g = ctx.createRadialGradient(x - r * 0.35, y - r * 0.35, r * 0.1, x, y, r);
+  g.addColorStop(0, '#f1eee6');
+  g.addColorStop(0.7, '#c9c4b8');
+  g.addColorStop(1, '#8f8a80');
+  ctx.beginPath();
+  ctx.arc(x, y, r, 0, Math.PI * 2);
+  ctx.fillStyle = g;
+  ctx.fill();
+  ctx.shadowColor = 'transparent';
+  ctx.clip();
+  ctx.fillStyle = 'rgba(92, 90, 86, 0.55)';
+  for (const [mx, my, ax, ay] of MOON_MARIA) {
+    ctx.beginPath();
+    ctx.ellipse(x + mx * r, y + my * r, ax * r, ay * r, 0, 0, Math.PI * 2);
+    ctx.fill();
+  }
+  ctx.restore();
+  ctx.beginPath();
+  ctx.arc(x, y, r, 0, Math.PI * 2);
+  ctx.strokeStyle = 'rgba(30, 28, 24, 0.8)';
+  ctx.lineWidth = 0.9;
+  ctx.stroke();
+}
+
+/** Значок спутника с подписью; heading = null — это сама Луна, рисуется её диск. */
+function drawSatellite(ctx: CanvasRenderingContext2D, box: ReturnType<typeof satelliteLabelBox>, label: string, labelBg: string, heading: number | null) {
+  const { x, y, w, lx, ly } = box;
+  if (heading === null) drawMoonDisc(ctx, x, y);
+  else drawSpacecraft(ctx, x, y, heading);
+
+  // Подпись
+  ctx.font = '600 12px "IBM Plex Mono", monospace';
+  ctx.fillStyle = labelBg;
+  ctx.strokeStyle = 'rgba(255, 181, 71, 0.6)';
+  ctx.lineWidth = 1;
+  ctx.beginPath();
+  ctx.roundRect(lx, ly, w, 22, 6);
+  ctx.fill();
+  ctx.stroke();
+  ctx.fillStyle = COLORS.sat;
+  ctx.textAlign = 'left';
+  ctx.textBaseline = 'middle';
+  ctx.fillText(label, lx + 8, ly + 11.5);
+}
+
 /**
  * Значок аппарата: корпус в золотистой теплоизоляции, две солнечные панели на штангах и антенна
  * по ходу полёта. Значок повёрнут по направлению движения по трассе.
  */
-function drawSatellite(ctx: CanvasRenderingContext2D, box: ReturnType<typeof satelliteLabelBox>, label: string, labelBg: string, heading: number) {
-  const { x, y, w, lx, ly } = box;
+function drawSpacecraft(ctx: CanvasRenderingContext2D, x: number, y: number, heading: number) {
   ctx.save();
   // Ореол
   const g = ctx.createRadialGradient(x, y, 0, x, y, 22);
@@ -606,18 +670,4 @@ function drawSatellite(ctx: CanvasRenderingContext2D, box: ReturnType<typeof sat
   ctx.lineWidth = 0.8;
   ctx.stroke();
   ctx.restore();
-
-  // Подпись
-  ctx.font = '600 12px "IBM Plex Mono", monospace';
-  ctx.fillStyle = labelBg;
-  ctx.strokeStyle = 'rgba(255, 181, 71, 0.6)';
-  ctx.lineWidth = 1;
-  ctx.beginPath();
-  ctx.roundRect(lx, ly, w, 22, 6);
-  ctx.fill();
-  ctx.stroke();
-  ctx.fillStyle = COLORS.sat;
-  ctx.textAlign = 'left';
-  ctx.textBaseline = 'middle';
-  ctx.fillText(label, lx + 8, ly + 11.5);
 }

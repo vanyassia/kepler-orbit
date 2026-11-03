@@ -6,6 +6,7 @@ import { zoom, zoomIdentity } from 'd3-zoom';
 import { useEffect, useRef, useState } from 'react';
 import { cityShown, type City } from '../../data/cities';
 import { PLACES } from '../../data/landmarks';
+import { isMoon } from '../../data/popular';
 import { REGIONS } from '../../data/regions';
 import { BODIES } from '../../physics/bodies';
 import { greenwichToGeo } from '../../physics/frames';
@@ -382,6 +383,7 @@ export default function MapView() {
         subsolar: sub,
         track,
         satLabel: track ? `${title}, ${fmt(track.current.h, 0)} км` : '',
+        satIsMoon: st.record ? isMoon(st.record.elements) : false,
         revs,
         nodePoints,
         cities: PLACES[st.body],

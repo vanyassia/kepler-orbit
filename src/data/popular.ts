@@ -23,6 +23,9 @@ export interface PopularGroup {
  */
 export const MOON_NAIF_ID = 301;
 
+/** Выбрана сама Луна (как спутник Земли): вместо значка аппарата рисуется шарик Луны. */
+export const isMoon = (el: { noradId: number; body?: string }) => el.noradId === MOON_NAIF_ID && (el.body ?? 'earth') === 'earth';
+
 export const POPULAR_GROUPS: PopularGroup[] = [
   {
     label: 'Станции и телескопы',

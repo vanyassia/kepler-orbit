@@ -25,6 +25,7 @@ import {
 import { LineMaterial } from 'three/examples/jsm/lines/LineMaterial.js';
 import type { OrbitControls as OrbitControlsImpl } from 'three-stdlib';
 import { PLACES } from '../../data/landmarks';
+import { isMoon } from '../../data/popular';
 import { REGIONS } from '../../data/regions';
 import type { BodyId, CentralBody } from '../../physics/bodies';
 import { BODIES } from '../../physics/bodies';
@@ -42,6 +43,7 @@ import type { LabelSpec } from './LabelLayer';
 import { LabelLayer, OFFSET } from './LabelLayer';
 import { atmosphereShader, cloudsShader, earthShader } from './shaders';
 import { useEarthTextures } from './textures';
+import { createMoonModel, loadMoonSurface, MOON_MIN_RADIUS_PX, orientMoon } from './moonModel';
 import { createSatelliteModel, SATELLITE_SPAN } from './satelliteModel';
 
 const TRACK_R = 1.0025;
@@ -174,6 +176,9 @@ export function GlobeScene({ overlay, onReady }: { overlay: React.RefObject<HTML
   const satGroup = useRef<Group>(null!);
   /** Модель аппарата (satelliteModel.ts) и свет Солнца для неё; Земля и линии светом не освещаются. */
   const satModel = useMemo(() => createSatelliteModel(), []);
+  /** Сама Луна как спутник Земли — шар со снимком вместо модели аппарата (moonModel.ts). */
+  const moonModel = useMemo(() => createMoonModel(), []);
+  const satGlow = useRef<Sprite>(null!);
   const sunLight = useRef<DirectionalLight>(null!);
   const sunSprite = useRef<Sprite>(null!);
   const subMarker = useRef<Mesh>(null!);
@@ -493,6 +498,16 @@ export function GlobeScene({ overlay, onReady }: { overlay: React.RefObject<HTML
       satModel.quaternion.setFromRotationMatrix(tmp.m.makeBasis(fwd, dir, side));
       const ppu = pixelsPerUnit(size.height, (camera as PerspectiveCamera).fov, Math.max(0.05, camera.position.distanceTo(satPos)));
       satModel.scale.setScalar(44 / SATELLITE_SPAN / ppu);
+      // Луна: настоящий размер, но не меньше 18 пикселей радиуса — иначе издали её не видно
+      const moon = st.record ? isMoon(st.record.elements) : false;
+      satModel.visible = !moon;
+      satGlow.current.visible = !moon;
+      moonModel.visible = moon;
+      if (moon) {
+        loadMoonSurface(moonModel, invalidate);
+        orientMoon(moonModel, dir, side);
+        moonModel.scale.setScalar(Math.max(BODIES.moon.radius / b.radius, MOON_MIN_RADIUS_PX / ppu));
+      }
       // Быстрее всего на экране движется спутник или поверхность под ним — считаем по ближнему из них
       const nearest = Math.max(0.15, Math.min(camera.position.length() - 1, camera.position.distanceTo(satPos)));
       drawn.current.stepMs = simMsPerShift((s.V / b.radius) * pixelsPerUnit(size.height, (camera as PerspectiveCamera).fov, nearest));
@@ -691,7 +706,8 @@ export function GlobeScene({ overlay, onReady }: { overlay: React.RefObject<HTML
           <primitive object={lines.radius} />
           <group ref={satGroup}>
             <primitive object={satModel} />
-            <sprite scale={[0.05, 0.05, 1]}>
+            <primitive object={moonModel} />
+            <sprite ref={satGlow} scale={[0.05, 0.05, 1]}>
               <spriteMaterial map={sprites.sat} blending={AdditiveBlending} depthWrite={false} sizeAttenuation={false} toneMapped={false} />
             </sprite>
           </group>
