@@ -11,11 +11,17 @@ export interface City {
   highlight?: boolean;
   /** С какой стороны от точки подпись (по умолчанию справа). */
   labelSide?: 'left' | 'right';
+  /** На 2D-карте город виден, только когда градус занимает не меньше стольких пикселей экрана. */
+  minPxPerDeg?: number;
 }
+
+/** Виден ли город на 2D-карте при масштабе pxPerDeg (пикселей экрана на градус). */
+export const cityShown = (c: City, pxPerDeg: number) => pxPerDeg >= (c.minPxPerDeg ?? 0);
 
 export const CITIES: City[] = [
   { name: 'Москва', lat: 55.7558, lon: 37.6173, highlight: true },
-  { name: 'Смоленск', lat: 54.7826, lon: 32.0453, highlight: true, labelSide: 'left' },
+  // Рядом с Москвой: на мелком масштабе только мешает, поэтому появляется при приближении
+  { name: 'Смоленск', lat: 54.7826, lon: 32.0453, highlight: true, labelSide: 'left', minPxPerDeg: 6 },
 
   { name: 'Минск', lat: 53.9006, lon: 27.559, labelSide: 'left' },
   { name: 'Киев', lat: 50.4501, lon: 30.5234 },

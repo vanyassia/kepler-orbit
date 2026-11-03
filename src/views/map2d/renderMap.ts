@@ -3,7 +3,7 @@
  * снимок (или схема) → ночь и огни городов → сетка → границы →
  * трасса → подсолнечная точка → города → начала витков → спутник.
  */
-import type { City } from '../../data/cities';
+import { cityShown, type City } from '../../data/cities';
 import type { Region } from '../../data/regions';
 import { REGION_COLOR } from '../../data/regions';
 import type { TrackPoint } from '../../physics/groundTrack';
@@ -440,6 +440,7 @@ const overlaps = (placed: Rect[], r: Rect) => placed.some((q) => r[0] < q[2] && 
 function drawCities(ctx: CanvasRenderingContext2D, v: View, cities: City[], hover: City | null, placed: Rect[]) {
   const showCapitalLabels = v.k >= 1.8;
   const visible = cities.filter((c) => {
+    if (!cityShown(c, v.s)) return false;
     const [x, y] = toScreen(v, c.lon, c.lat);
     return !(x < -20 || y < -20 || x > v.w + 20 || y > v.h + 20);
   });

@@ -4,7 +4,7 @@ import 'd3-transition';
 import type { ZoomBehavior, ZoomTransform } from 'd3-zoom';
 import { zoom, zoomIdentity } from 'd3-zoom';
 import { useEffect, useRef, useState } from 'react';
-import type { City } from '../../data/cities';
+import { cityShown, type City } from '../../data/cities';
 import { PLACES } from '../../data/landmarks';
 import { REGIONS } from '../../data/regions';
 import { BODIES } from '../../physics/bodies';
@@ -421,6 +421,7 @@ export default function MapView() {
     let best: City | null = null;
     let bestD = 10;
     for (const c of PLACES[useAppStore.getState().body]) {
+      if (!cityShown(c, view.s)) continue;
       const [cx, cy] = toScreen(view, c.lon, c.lat);
       const d = Math.hypot(cx - sx, cy - sy);
       if (d < bestD) {
