@@ -111,6 +111,8 @@ function orientationOf(body: CentralBody, t: number, out: Quaternion): Quaternio
 
 function lineMaterial(color: string, width: number, opacity: number, dashed = false) {
   const m = new LineMaterial({ color: new Color(color).getHex(), linewidth: width, transparent: opacity < 1, opacity, dashed });
+  // Без тональной коррекции сцены: она выбеливает цвета витков, а они должны совпадать с картой и легендой
+  m.toneMapped = false;
   if (dashed) {
     m.dashSize = 0.022;
     m.gapSize = 0.016;
