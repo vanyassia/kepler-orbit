@@ -17,7 +17,7 @@ import { satelliteTitle } from '../../ui/satelliteTitle';
 import { ensureFullImage, LIGHT_DEVICE, NIGHT_LIGHTS, SURFACE, SURFACE_CREDIT, useProgressiveImage } from '../assets';
 import { frameDue, peakAngularRateDeg, simMsPerShift } from '../frameRate';
 import { pickLevel } from '../imageChunks';
-import { orbitSource, Revolutions, revolutionColor, TrackCache } from '../trackCache';
+import { orbitSource, Revolutions, revolutionColor, TrackCache, trackSpan } from '../trackCache';
 import type { BorderPaths } from './geo';
 import { loadBorders } from './geo';
 import { followStep, lonStep } from './follow';
@@ -359,13 +359,14 @@ export default function MapView() {
       }
 
       const o = st.orbit;
-      const track = o ? trackCache.get(orbitSource(o), st.simTime, st.revsBack, st.revsForward) : null;
+      const span = o ? trackSpan(o, st.revsBack, st.revsForward) : null;
+      const track = o && span ? trackCache.get(orbitSource(o), st.simTime, span.back, span.forward) : null;
       // Витки: границы — восходящие узлы; подписи ставятся в начале каждого следующего витка.
       // Считаются заново, когда окно трассы сдвинулось на шаг сетки
-      if (o && track && track.revision !== revsRevision) {
+      if (o && span && track && track.revision !== revsRevision) {
         revsRevision = track.revision;
-        const r = new Revolutions(o, st.simTime, st.revsBack, st.revsForward);
-        const windowEnd = st.simTime + st.revsForward * o.T * 1000;
+        const r = new Revolutions(o, st.simTime, span.back, span.forward);
+        const windowEnd = st.simTime + span.forward * o.T * 1000;
         revs = r;
         nodePoints = r.nodes.filter((n) => n > st.simTime && n <= windowEnd).map((n) => ({ offset: r.offsetAt(n), point: orbitSource(o).at(n)! }));
       }
@@ -528,7 +529,10 @@ export default function MapView() {
 
 /** Условные обозначения: цвета витков (сколько показано вперёд), прочие значки. */
 function Legend({ listRef }: { listRef: React.Ref<HTMLUListElement> }) {
-  const forward = useAppStore((s) => s.revsForward);
+  const chosen = useAppStore((s) => s.revsForward);
+  const orbit = useAppStore((s) => s.orbit);
+  // У очень долгих орбит (Луна) окно короче витка: следующих витков на трассе нет
+  const forward = orbit ? Math.floor(trackSpan(orbit, 0, chosen).forward) : chosen;
   const revs = Array.from({ length: Math.min(forward, 3) }, (_, k) => k + 1);
   const line = (color: string, dashed: boolean, opacity = 1) => (
     <svg width="22" height="8" aria-hidden="true">

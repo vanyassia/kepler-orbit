@@ -1,11 +1,12 @@
 #!/usr/bin/env node
 /**
- * Снимок элементов орбит спутников Луны и Марса из JPL Horizons → public/data/orbiters.json.
+ * Снимок элементов орбит спутников Луны и Марса (и самой Луны вокруг Земли) из JPL Horizons → public/data/orbiters.json.
  *
  * Запрашиваются оскулирующие элементы (EPHEM_TYPE=ELEMENTS) относительно центра тела
  * в системе «экватор тела и узел даты» (REF_PLANE=BODY) на текущий час; если эфемериды аппарата
  * уже закончились — за сутки до их конца.
  * Время Horizons — TDB; переводим в UTC: UTC = TDB − 69,184 с (TT − UTC при 37 високосных секундах).
+ * У Земли «узел» этой системы — не точка весны, поэтому Ω пересчитывается (см. earthRaan).
  *
  * Запуск: npm run update:orbiters
  * С флагом --fixture дополнительно сохраняет контрольные точки (подспутниковая и подсолнечная
@@ -16,8 +17,8 @@ import { join, resolve } from 'node:path';
 
 const ROOT = resolve(import.meta.dirname, '..');
 const API = 'https://ssd.jpl.nasa.gov/api/horizons.api';
-const CENTER = { moon: '500@301', mars: '500@499' };
-const TARGET = { moon: '301', mars: '499' };
+const CENTER = { earth: '500@399', moon: '500@301', mars: '500@499' };
+const TARGET = { earth: '399', moon: '301', mars: '499' };
 const TDB_MINUS_UTC_MS = 69_184;
 
 const src = readFileSync(join(ROOT, 'src', 'data', 'orbiters.ts'), 'utf8');
@@ -33,6 +34,17 @@ const MONTHS = ['JAN', 'FEB', 'MAR', 'APR', 'MAY', 'JUN', 'JUL', 'AUG', 'SEP', '
 function ephemerisEnd(message) {
   const m = /after A\.D\. (\d{4})-([A-Z]{3})-(\d{2}) (\d{2}):/.exec(message);
   return m ? Date.UTC(Number(m[1]), MONTHS.indexOf(m[2]), Number(m[3]), Number(m[4])) : null;
+}
+
+/**
+ * Ω Луны от точки весны даты. В системе REF_PLANE=BODY для Земли Ω отсчитывается от узла экватора даты
+ * на экваторе ICRF, а он отстоит от точки весны даты на 90° + z_A (z_A — угол прецессии, Lieske 1977).
+ * Проверено по подлунной точке Horizons: без поправки расхождение 90,2°, с ней — меньше 0,01°.
+ */
+function earthRaan(omDeg, jdTdb) {
+  const T = (jdTdb - 2451545) / 36525;
+  const zA = (2306.2181 * T + 1.09468 * T * T + 0.018203 * T ** 3) / 3600;
+  return (omDeg + 90 + zA) % 360;
 }
 
 async function horizons(params) {
@@ -75,7 +87,7 @@ for (const { id, body } of list) {
       epoch: new Date(epochMs).toISOString(),
       eccentricity: Number(EC),
       inclinationDeg: Number(IN),
-      raanDeg: Number(OM),
+      raanDeg: body === 'earth' ? earthRaan(Number(OM), Number(jdTdb)) : Number(OM),
       argPerigeeDeg: Number(W),
       meanAnomalyDeg: Number(MA),
       meanMotionDegPerSec: Number(N),

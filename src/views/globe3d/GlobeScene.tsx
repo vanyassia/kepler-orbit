@@ -35,7 +35,7 @@ import { satelliteTitle } from '../../ui/satelliteTitle';
 import type { TrackWindow } from '../trackCache';
 import { frameDue, pixelsPerUnit, simMsPerShift } from '../frameRate';
 import { glowPixels, type Rgba } from '../glowPixels';
-import { MAX_WINDOW_POINTS, ORBIT_COLOR, orbitSource, Revolutions, revolutionColor, SAT_COLOR, TrackCache } from '../trackCache';
+import { MAX_WINDOW_POINTS, ORBIT_COLOR, orbitSource, Revolutions, revolutionColor, SAT_COLOR, TrackCache, trackSpan } from '../trackCache';
 import { axisToScene, geoToLocal, toScene } from './coords';
 import { DynamicLine } from './DynamicLine';
 import type { LabelSpec } from './LabelLayer';
@@ -531,14 +531,15 @@ export function GlobeScene({ overlay, onReady }: { overlay: React.RefObject<HTML
 
       // Трасса (в ГСК, внутри группы Земли), цвет — по номеру витка. Пересобирается, когда окно
       // сдвинулось на шаг сетки; в остальных кадрах меняется только точка под спутником
-      const w = trackCache.get(orbitSource(o), t, st.revsBack, st.revsForward)!;
+      const span = trackSpan(o, st.revsBack, st.revsForward);
+      const w = trackCache.get(orbitSource(o), t, span.back, span.forward)!;
       if (w.revision === shownRevision.current) {
         geoToLocal(w.current.lat, w.current.lon, TRACK_R, tmp.v);
         lines.past.moveLast(tmp.v.x, tmp.v.y, tmp.v.z);
         lines.future.moveFirst(tmp.v.x, tmp.v.y, tmp.v.z);
       } else {
         shownRevision.current = w.revision;
-        const revs = new Revolutions(o, t, st.revsBack, st.revsForward);
+        const revs = new Revolutions(o, t, span.back, span.forward);
         const fill = (pts: TrackWindow['past'], arr: Float32Array, rgb: Float32Array) => {
           const n = Math.min(pts.length, MAX_WINDOW_POINTS);
           for (let k = 0; k < n; k++) {
@@ -562,7 +563,7 @@ export function GlobeScene({ overlay, onReady }: { overlay: React.RefObject<HTML
         startMarker.current.visible = st.revsBack > 0;
 
         // Начала следующих витков: точные подспутниковые точки в моменты восходящих узлов
-        const windowEnd = t + st.revsForward * o.T * 1000;
+        const windowEnd = t + span.forward * o.T * 1000;
         nodeLocal.current = [];
         for (const n of revs.nodes) {
           if (n <= t || n > windowEnd) continue;

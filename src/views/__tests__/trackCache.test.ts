@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { prepareOrbit, propagate } from '../../physics/propagate';
 import { RAD } from '../../physics/constants';
-import { MAX_WINDOW_POINTS, orbitSource, TrackCache } from '../trackCache';
+import { MAX_WINDOW_POINTS, orbitSource, TrackCache, trackSpan } from '../trackCache';
 
 const T0 = Date.UTC(2026, 9, 31, 12);
 const elements = (meanMotion: number, eccentricity = 0.001) => ({
@@ -70,5 +70,20 @@ describe('Скользящий кэш трассы', () => {
     expect(w.future.length).toBeLessThanOrEqual(MAX_WINDOW_POINTS);
     // Окно дотягивается до конца восьмого витка
     expect(w.future[w.future.length - 1].timeMs).toBeGreaterThan(T0 + 7.99 * long.periodSec * 1000);
+  });
+});
+
+describe('Окно трассы очень долгих орбит', () => {
+  it('у обычных орбит — выбранное число витков', () => {
+    expect(trackSpan(prepareOrbit(elements(15.5)), 1, 2)).toEqual({ back: 1, forward: 2 });
+    // Чандра, T ≈ 64 ч: целые витки, как раньше
+    expect(trackSpan(prepareOrbit(elements(0.378, 0.76)), 1, 2)).toEqual({ back: 1, forward: 2 });
+  });
+
+  it('у Луны виток трассы — оборот подлунной точки, ≈ 24 ч 50 мин', () => {
+    const moon = prepareOrbit(elements(1 / 27.32, 0.055));
+    const { back, forward } = trackSpan(moon, 1, 2);
+    expect((back * moon.T) / 3600).toBeCloseTo(24.84, 1);
+    expect(forward).toBeCloseTo(2 * back, 10);
   });
 });

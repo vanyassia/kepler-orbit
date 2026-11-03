@@ -2,6 +2,7 @@
  * Скользящий кэш трассы: точки считаются с запасом в четверть витка с каждой стороны
  * и пересчитываются, только когда окно отображения выходит за пределы кэша.
  */
+import { ROTATION_PERIOD } from '../physics/bodies';
 import { RAD } from '../physics/constants';
 import type { TrackPoint } from '../physics/groundTrack';
 import { trackStepSeconds } from '../physics/groundTrack';
@@ -40,6 +41,21 @@ export function orbitSource(orbit: PreparedOrbit): TrackSource {
     sources.set(orbit, s);
   }
   return s;
+}
+
+/** Виток длиннее двух недель (Луна вокруг Земли): за целые витки трасса — десятки оборотов сплошными полосами. */
+const LONG_PERIOD_SEC = 14 * 86400;
+
+/**
+ * Сколько витков трассы показывать назад и вперёд. У обычных орбит — сколько выбрано в настройках.
+ * У очень долгих тот же счёт идёт оборотами трассы вокруг тела: подспутниковая точка обходит тело
+ * за 1 / |1/T_вращ − 1/T| (у Луны ≈ 24 ч 50 мин), и окно «1 назад, 2 вперёд» — это 1 и 2 таких оборота.
+ */
+export function trackSpan(orbit: PreparedOrbit, revsBack: number, revsForward: number): { back: number; forward: number } {
+  if (orbit.T <= LONG_PERIOD_SEC) return { back: revsBack, forward: revsForward };
+  const lap = 1 / Math.abs(1 / ROTATION_PERIOD[orbit.body.id] - 1 / orbit.T);
+  const k = lap / orbit.T;
+  return { back: revsBack * k, forward: revsForward * k };
 }
 
 export interface TrackWindow {

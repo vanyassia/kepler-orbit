@@ -17,6 +17,12 @@ export interface PopularGroup {
   satellites: PopularSatellite[];
 }
 
+/**
+ * Луна — номер NAIF, а не NORAD: её элементы берутся из снимка JPL Horizons (orbiters.ts).
+ * Записан константой, чтобы npm run update:fallback не запрашивал этот номер у CelesTrak.
+ */
+export const MOON_NAIF_ID = 301;
+
 export const POPULAR_GROUPS: PopularGroup[] = [
   {
     label: 'Станции и телескопы',
@@ -28,6 +34,10 @@ export const POPULAR_GROUPS: PopularGroup[] = [
       { noradId: 25989, title: 'XMM-Newton', note: 'Рентгеновский телескоп, e ≈ 0,46' },
       { noradId: 33053, title: 'Ферми', note: 'Гамма-телескоп, i ≈ 25,6°' },
     ],
+  },
+  {
+    label: 'Естественный спутник',
+    satellites: [{ noradId: MOON_NAIF_ID, title: 'Луна', note: 'Орбита ≈ 384 000 км, T ≈ 27,3 сут', featured: true }],
   },
   {
     label: 'Россия: Земля и погода',

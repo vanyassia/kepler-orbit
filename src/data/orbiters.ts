@@ -1,5 +1,5 @@
 /**
- * Спутники Луны и Марса: аппараты, а у Марса ещё Фобос и Деймос. Элементы орбит берутся из JPL Horizons
+ * Спутники Луны и Марса: аппараты, а у Марса ещё Фобос и Деймос. Сюда же — сама Луна как спутник Земли. Элементы орбит берутся из JPL Horizons
  * (оскулирующие элементы в системе «экватор тела и узел») и хранятся снимком
  * в public/data/orbiters.json — у Horizons нет CORS, браузер не может запросить его напрямую.
  * Обновление: npm run update:orbiters.
@@ -11,12 +11,14 @@ import { HISTORIC_ORBITERS, historicRecord } from './historicOrbiters';
 export interface Orbiter {
   /** Идентификатор NAIF (у космических аппаратов — отрицательный, у естественных спутников — положительный). */
   naifId: number;
-  body: Exclude<BodyId, 'earth'>;
+  body: BodyId;
   title: string;
   note: string;
 }
 
 export const ORBITERS: Orbiter[] = [
+  // Луна вокруг Земли; в списке Земли она стоит в popular.ts (MOON_NAIF_ID)
+  { naifId: 301, body: 'earth', title: 'Луна', note: 'Естественный спутник Земли, T ≈ 27,3 сут' },
   { naifId: -85, body: 'moon', title: 'LRO', note: 'Картографирование Луны, полярная орбита' },
   { naifId: -152, body: 'moon', title: 'Чандраян-2', note: 'Индийский орбитальный модуль' },
   { naifId: -155, body: 'moon', title: 'Danuri', note: 'Корейский лунный орбитер' },
@@ -45,7 +47,7 @@ export const DEFAULT_SATELLITE: Record<BodyId, number> = { earth: 25544, moon: -
 
 interface OrbiterSnapshotItem {
   naifId: number;
-  body: 'moon' | 'mars';
+  body: BodyId;
   name: string;
   epoch: string;
   eccentricity: number;

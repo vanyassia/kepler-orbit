@@ -53,7 +53,8 @@ src/physics/   чистые функции модели, без React и DOM; у
   time.ts, sun.ts, frames.ts, groundTrack.ts, bodies.ts (Земля, Луна, Марс: μ, R, вращение, полюс)
 src/data/      источники элементов орбит и справочники
   celestrak.ts   CelesTrak GP API → кэш localStorage (2 ч) → встроенный снимок → ручной TLE
-  orbiters.ts    спутники Луны и Марса из снимка JPL Horizons (у Horizons нет CORS)
+  orbiters.ts    спутники Луны и Марса и сама Луна вокруг Земли (NAIF 301) из снимка JPL Horizons (у Horizons нет CORS);
+                 у Земли Ω из Horizons сдвигается на 90° + прецессия (scripts/update-orbiters.mjs, earthRaan)
   historicOrbiters.ts  Марс-2, -3, -5, Фобос-2 по опубликованным параметрам (Ω, ω, M₀ условные)
   popular.ts     52 спутника Земли по группам; custom.ts — свои спутники; tle.ts, omm.ts — форматы
   cities.ts, landmarks.ts, regions.ts — города, места посадок, регионы Луны и Марса
@@ -71,7 +72,7 @@ src/views/map2d/    2D-карта: Canvas 2D + d3-zoom
   renderMap.ts       слои карты и значок спутника (повёрнут по ходу полёта)
   nightMask.ts, geo.ts (границы Natural Earth), follow.ts (слежение за спутником)
 src/views/      общее для обоих видов
-  trackCache.ts      скользящее окно трассы, цвета витков
+  trackCache.ts      скользящее окно трассы, цвета витков; у витков длиннее 2 недель (Луна) окно — обороты подлунной точки
   frameRate.ts       на ×1 кадры реже (экономия), при ускорении — каждый кадр
   assets.ts, imageWorker.ts, imageClient.ts, imageChunks.ts   загрузка снимков в отдельном потоке
 src/styles/tokens.css   цвета и размеры; у Луны и Марса свои оттенки (data-body на <html>)
