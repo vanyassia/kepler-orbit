@@ -50,7 +50,7 @@ src/physics/   чистые функции модели, без React и DOM; у
   kepler.ts      a, T, уравнение Кеплера (метод Ньютона), ν
   orbit.ts       положение и скорость в АГЭСК (формулы 9, 10)
   subpoint.ts    подспутниковая точка через сферический треугольник (шаги 5.5–5.8)
-  time.ts, sun.ts, frames.ts, groundTrack.ts, bodies.ts (Земля, Луна, Марс: μ, R, вращение, полюс)
+  time.ts, sun.ts, frames.ts, groundTrack.ts, bodies.ts (Земля, Луна, Марс: μ, R, вращение, полюс; вращение Луны и Марса — по TDB = UTC + 69,184 с)
 src/data/      источники элементов орбит и справочники
   celestrak.ts   CelesTrak GP API → кэш localStorage (2 ч) → встроенный снимок → ручной TLE
   orbiters.ts    спутники Луны и Марса и сама Луна вокруг Земли (NAIF 301) из снимка JPL Horizons (у Horizons нет CORS);
@@ -66,7 +66,7 @@ src/views/globe3d/  3D-глобус: three.js + react-three-fiber
   GlobeScene.tsx     сцена в АГЭСК: тело, облака, атмосфера, орбита, трасса, подписи, модель аппарата
   textures.ts + streamTexture.ts   снимки уходят в видеокарту порциями (без остановки кадров)
   satelliteModel.ts  модель аппарата: постоянные 44 px на экране, панели вдоль нормали к орбите
-  moonModel.ts       Луна как спутник Земли: шар со снимком, видимой стороной к Земле, радиус не меньше 18 px
+  naturalModel.ts    Луна, Фобос, Деймос вместо модели аппарата: одной стороной к планете, не меньше 10–18 px
   LabelLayer.ts (подписи DOM поверх холста), DynamicLine.ts (линии с частичной загрузкой), shaders.ts
 src/views/map2d/    2D-карта: Canvas 2D + d3-zoom
   MapView.tsx        цикл кадров, масштаб, подгонка по высоте на телефоне, слежение за спутником

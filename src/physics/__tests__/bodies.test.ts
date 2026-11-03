@@ -69,6 +69,15 @@ describe('Центральные тела: проверка по JPL Horizons �
       expect(arc(s.lat * RAD, s.lon * RAD, c.subLat, eastLon(c.subLon, c.body))).toBeLessThan(0.5);
     });
 
+    // Фобос и Деймос далеко от Марса: короткий прогноз почти не портится сжатием планеты,
+    // поэтому сверка строже — так нашлась ошибка вращения Марса на 69 с (время UTC вместо TDB)
+    if (c.naifId === 401 || c.naifId === 402) {
+      it(`${c.body} / NAIF ${c.naifId}: естественный спутник — точнее 0,05°`, () => {
+        const s = propagate(orbit, t);
+        expect(arc(s.lat * RAD, s.lon * RAD, c.subLat, eastLon(c.subLon, c.body))).toBeLessThan(0.05);
+      });
+    }
+
     it(`${c.body}: подсолнечная точка — в пределах 0,5° от Horizons`, () => {
       const sun = greenwichToGeo(body.toFixed(body.sunDirection(t), t), 0);
       expect(arc(sun.lat * RAD, sun.lon * RAD, c.sunLat, eastLon(c.sunLon, c.body))).toBeLessThan(0.5);

@@ -4,6 +4,7 @@
  * трасса → подсолнечная точка → города → начала витков → спутник.
  */
 import { cityShown, type City } from '../../data/cities';
+import type { NaturalSatellite } from '../../data/orbiters';
 import type { Region } from '../../data/regions';
 import { REGION_COLOR } from '../../data/regions';
 import type { TrackPoint } from '../../physics/groundTrack';
@@ -76,8 +77,8 @@ export interface MapScene {
   subsolar: { lat: number; lon: number };
   track: TrackWindow | null;
   satLabel: string;
-  /** Выбрана сама Луна: вместо значка аппарата — диск Луны. */
-  satIsMoon: boolean;
+  /** Естественный спутник: вместо значка аппарата — его тело. */
+  satNatural: NaturalSatellite | null;
   /** Витки нашей модели: цвет трассы и подписи начала витков. */
   revs: Revolutions | null;
   /** Моменты узлов (начал витков) с точными подспутниковыми точками — для подписей. */
@@ -215,7 +216,7 @@ export function renderMap(ctx: CanvasRenderingContext2D, sc: MapScene): void {
   if (sc.regions.length) drawRegionLabels(ctx, v, sc.regions, sc.bodyRadius, placed);
   if (sc.track) drawNodeLabels(ctx, v, sc.nodePoints, placed);
   if (sc.track) drawTrackEnds(ctx, v, sc.track, placed);
-  if (satBox && sc.track) drawSatellite(ctx, satBox, sc.satLabel, sc.labelBg, sc.satIsMoon ? null : trackHeading(sc.track));
+  if (satBox && sc.track) drawSatellite(ctx, satBox, sc.satLabel, sc.labelBg, sc.satNatural ?? trackHeading(sc.track));
 }
 
 function hexToRgb(hex: string): [number, number, number] {
@@ -582,11 +583,65 @@ function drawMoonDisc(ctx: CanvasRenderingContext2D, x: number, y: number) {
   ctx.stroke();
 }
 
-/** Значок спутника с подписью; heading = null — это сама Луна, рисуется её диск. */
-function drawSatellite(ctx: CanvasRenderingContext2D, box: ReturnType<typeof satelliteLabelBox>, label: string, labelBg: string, heading: number | null) {
+/**
+ * Фобос и Деймос: неровный контур (радиус по углу — несколько гармоник), кратеры.
+ * Значок не поворачивается: спутник повёрнут к Марсу, а не по ходу трассы.
+ */
+function drawMarsMoon(ctx: CanvasRenderingContext2D, x: number, y: number, kind: 'phobos' | 'deimos') {
+  const r = kind === 'phobos' ? 8 : 6.5;
+  const phase = kind === 'phobos' ? 0 : 2.1;
+  ctx.save();
+  ctx.shadowColor = 'rgba(0, 0, 0, 0.55)';
+  ctx.shadowBlur = 4;
+  ctx.shadowOffsetY = 1.5;
+  ctx.beginPath();
+  for (let k = 0; k <= 48; k++) {
+    const a = (k / 48) * Math.PI * 2;
+    // Вытянут по горизонтали, как Фобос (26 × 18 км)
+    const rr = r * (1 + 0.1 * Math.sin(3 * a + phase) + 0.06 * Math.sin(5 * a + 2 * phase));
+    const px = x + rr * 1.18 * Math.cos(a);
+    const py = y + rr * 0.85 * Math.sin(a);
+    if (k === 0) ctx.moveTo(px, py);
+    else ctx.lineTo(px, py);
+  }
+  ctx.closePath();
+  const g = ctx.createRadialGradient(x - r * 0.4, y - r * 0.35, r * 0.1, x, y, r * 1.2);
+  g.addColorStop(0, kind === 'phobos' ? '#bdb1a3' : '#c9bdaf');
+  g.addColorStop(1, kind === 'phobos' ? '#5f554c' : '#6c6157');
+  ctx.fillStyle = g;
+  ctx.fill();
+  ctx.shadowColor = 'transparent';
+  ctx.strokeStyle = 'rgba(25, 20, 16, 0.85)';
+  ctx.lineWidth = 0.9;
+  ctx.stroke();
+  ctx.clip();
+  // Кратеры; у Фобоса крупный — Стикни
+  const craters: [number, number, number][] =
+    kind === 'phobos'
+      ? [
+          [-0.45, 0.05, 0.38],
+          [0.45, -0.3, 0.17],
+          [0.25, 0.4, 0.14],
+        ]
+      : [
+          [0.2, -0.15, 0.25],
+          [-0.4, 0.3, 0.15],
+        ];
+  for (const [cx, cy, cr] of craters) {
+    ctx.beginPath();
+    ctx.arc(x + cx * r, y + cy * r, cr * r, 0, Math.PI * 2);
+    ctx.fillStyle = 'rgba(40, 34, 28, 0.45)';
+    ctx.fill();
+  }
+  ctx.restore();
+}
+
+/** Значок спутника с подписью: аппарат, повёрнутый по ходу (look — угол курса), или тело естественного спутника. */
+function drawSatellite(ctx: CanvasRenderingContext2D, box: ReturnType<typeof satelliteLabelBox>, label: string, labelBg: string, look: number | NaturalSatellite) {
   const { x, y, w, lx, ly } = box;
-  if (heading === null) drawMoonDisc(ctx, x, y);
-  else drawSpacecraft(ctx, x, y, heading);
+  if (look === 'moon') drawMoonDisc(ctx, x, y);
+  else if (typeof look === 'string') drawMarsMoon(ctx, x, y, look);
+  else drawSpacecraft(ctx, x, y, look);
 
   // Подпись
   ctx.font = '600 12px "IBM Plex Mono", monospace';

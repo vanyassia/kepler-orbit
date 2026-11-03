@@ -46,8 +46,15 @@ export interface CentralBody {
   rotationSymbol: 'S' | 'W';
 }
 
-/** Дни от J2000.0 и юлианские столетия (TDB ≈ UTC — разница 69 с несущественна для модели). */
-const days = (t: number) => julianDate(t) - JD_J2000;
+/**
+ * TDB − UTC, с: 32,184 с (TT − TAI) + 37 високосных секунд. Формулы IAU для Луны и Марса записаны
+ * во времени TDB; без поправки Марс повёрнут на 69 с назад — подспутниковые точки сдвинуты на 0,28°
+ * к востоку (найдено по Фобосу и Деймосу). Звёздное время Земли по листку считается по UT — его это не касается.
+ */
+const TDB_MINUS_UTC_SEC = 69.184;
+
+/** Дни от J2000.0 в шкале TDB. */
+const days = (t: number) => julianDate(t) - JD_J2000 + TDB_MINUS_UTC_SEC / 86400;
 
 const unit = (ra: number, dec: number): Vec3 => ({
   x: Math.cos(dec) * Math.cos(ra),

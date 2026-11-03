@@ -25,7 +25,7 @@ import {
 import { LineMaterial } from 'three/examples/jsm/lines/LineMaterial.js';
 import type { OrbitControls as OrbitControlsImpl } from 'three-stdlib';
 import { PLACES } from '../../data/landmarks';
-import { isMoon } from '../../data/popular';
+import { naturalSatellite } from '../../data/orbiters';
 import { REGIONS } from '../../data/regions';
 import type { BodyId, CentralBody } from '../../physics/bodies';
 import { BODIES } from '../../physics/bodies';
@@ -43,7 +43,7 @@ import type { LabelSpec } from './LabelLayer';
 import { LabelLayer, OFFSET } from './LabelLayer';
 import { atmosphereShader, cloudsShader, earthShader } from './shaders';
 import { useEarthTextures } from './textures';
-import { createMoonModel, loadMoonSurface, MOON_MIN_RADIUS_PX, orientMoon } from './moonModel';
+import { createNaturalModels, loadMoonSurface, placeNatural } from './naturalModel';
 import { createSatelliteModel, SATELLITE_SPAN } from './satelliteModel';
 
 const TRACK_R = 1.0025;
@@ -176,8 +176,8 @@ export function GlobeScene({ overlay, onReady }: { overlay: React.RefObject<HTML
   const satGroup = useRef<Group>(null!);
   /** Модель аппарата (satelliteModel.ts) и свет Солнца для неё; Земля и линии светом не освещаются. */
   const satModel = useMemo(() => createSatelliteModel(), []);
-  /** Сама Луна как спутник Земли — шар со снимком вместо модели аппарата (moonModel.ts). */
-  const moonModel = useMemo(() => createMoonModel(), []);
+  /** Естественные спутники (Луна, Фобос, Деймос) — тела вместо модели аппарата (naturalModel.ts). */
+  const naturalModels = useMemo(() => createNaturalModels(), []);
   const satGlow = useRef<Sprite>(null!);
   const sunLight = useRef<DirectionalLight>(null!);
   const sunSprite = useRef<Sprite>(null!);
@@ -498,15 +498,14 @@ export function GlobeScene({ overlay, onReady }: { overlay: React.RefObject<HTML
       satModel.quaternion.setFromRotationMatrix(tmp.m.makeBasis(fwd, dir, side));
       const ppu = pixelsPerUnit(size.height, (camera as PerspectiveCamera).fov, Math.max(0.05, camera.position.distanceTo(satPos)));
       satModel.scale.setScalar(44 / SATELLITE_SPAN / ppu);
-      // Луна: настоящий размер, но не меньше 18 пикселей радиуса — иначе издали её не видно
-      const moon = st.record ? isMoon(st.record.elements) : false;
-      satModel.visible = !moon;
-      satGlow.current.visible = !moon;
-      moonModel.visible = moon;
-      if (moon) {
-        loadMoonSurface(moonModel, invalidate);
-        orientMoon(moonModel, dir, side);
-        moonModel.scale.setScalar(Math.max(BODIES.moon.radius / b.radius, MOON_MIN_RADIUS_PX / ppu));
+      // Естественный спутник: настоящий размер, но не меньше нескольких пикселей — иначе издали его не видно
+      const natural = st.record ? naturalSatellite(st.record.elements) : null;
+      satModel.visible = !natural;
+      satGlow.current.visible = !natural;
+      for (const [kind, mesh] of Object.entries(naturalModels)) mesh.visible = kind === natural;
+      if (natural) {
+        if (natural === 'moon') loadMoonSurface(naturalModels.moon, invalidate);
+        placeNatural(naturalModels[natural], natural, dir, side, 1 / b.radius, ppu);
       }
       // Быстрее всего на экране движется спутник или поверхность под ним — считаем по ближнему из них
       const nearest = Math.max(0.15, Math.min(camera.position.length() - 1, camera.position.distanceTo(satPos)));
@@ -706,7 +705,9 @@ export function GlobeScene({ overlay, onReady }: { overlay: React.RefObject<HTML
           <primitive object={lines.radius} />
           <group ref={satGroup}>
             <primitive object={satModel} />
-            <primitive object={moonModel} />
+            <primitive object={naturalModels.moon} />
+            <primitive object={naturalModels.phobos} />
+            <primitive object={naturalModels.deimos} />
             <sprite ref={satGlow} scale={[0.05, 0.05, 1]}>
               <spriteMaterial map={sprites.sat} blending={AdditiveBlending} depthWrite={false} sizeAttenuation={false} toneMapped={false} />
             </sprite>

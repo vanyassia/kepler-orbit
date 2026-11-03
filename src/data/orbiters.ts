@@ -7,6 +7,7 @@
 import type { BodyId } from '../physics/bodies';
 import type { SatelliteRecord } from './celestrak';
 import { HISTORIC_ORBITERS, historicRecord } from './historicOrbiters';
+import { MOON_NAIF_ID } from './popular';
 
 export interface Orbiter {
   /** Идентификатор NAIF (у космических аппаратов — отрицательный, у естественных спутников — положительный). */
@@ -39,6 +40,17 @@ export const ORBITERS: Orbiter[] = [
 
 /** Спутник из снимка JPL Horizons, а не из каталога CelesTrak. */
 export const isOrbiterId = (id: number) => id < 0 || ORBITERS.some((o) => o.naifId === id);
+
+export type NaturalSatellite = 'moon' | 'phobos' | 'deimos';
+
+/** Естественный спутник — рисуется телом (шар, «картофелина»), а не значком аппарата; иначе null. */
+export function naturalSatellite(el: { noradId: number; body?: BodyId }): NaturalSatellite | null {
+  const body = el.body ?? 'earth';
+  if (el.noradId === MOON_NAIF_ID && body === 'earth') return 'moon';
+  if (el.noradId === 401 && body === 'mars') return 'phobos';
+  if (el.noradId === 402 && body === 'mars') return 'deimos';
+  return null;
+}
 
 /** Спутник по умолчанию для каждого тела. */
 export const DEFAULT_SATELLITE: Record<BodyId, number> = { earth: 25544, moon: -85, mars: -74 };
