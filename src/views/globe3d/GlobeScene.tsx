@@ -10,9 +10,10 @@ import type { DirectionalLight, Group, Mesh, PerspectiveCamera, Sprite } from 't
 import {
   AdditiveBlending,
   BackSide,
-  CanvasTexture,
   Color,
   DataTexture,
+  LinearFilter,
+  LinearMipmapLinearFilter,
   Matrix4,
   Quaternion,
   RGBAFormat,
@@ -33,6 +34,7 @@ import { fmt } from '../../ui/format';
 import { satelliteTitle } from '../../ui/satelliteTitle';
 import type { TrackWindow } from '../trackCache';
 import { frameDue, pixelsPerUnit, simMsPerShift } from '../frameRate';
+import { glowPixels, type Rgba } from '../glowPixels';
 import { MAX_WINDOW_POINTS, ORBIT_COLOR, orbitSource, Revolutions, revolutionColor, SAT_COLOR, TrackCache } from '../trackCache';
 import { axisToScene, geoToLocal, toScene } from './coords';
 import { DynamicLine } from './DynamicLine';
@@ -71,20 +73,15 @@ function solid(r: number, g: number, b: number) {
   return t;
 }
 
-/** Мягкое круглое пятно для спрайтов (спутник, Солнце). */
-function glowTexture(inner: string, outer: string) {
-  const c = document.createElement('canvas');
-  c.width = c.height = 128;
-  const ctx = c.getContext('2d')!;
-  const g = ctx.createRadialGradient(64, 64, 0, 64, 64, 64);
-  g.addColorStop(0, inner);
-  g.addColorStop(0.18, inner);
-  g.addColorStop(0.45, outer);
-  g.addColorStop(1, 'rgba(0,0,0,0)');
-  ctx.fillStyle = g;
-  ctx.fillRect(0, 0, 128, 128);
-  const t = new CanvasTexture(c);
+/** Мягкое круглое пятно для спрайтов (спутник, Солнце): пиксели считаются сами, без градиента canvas. */
+function glowTexture(inner: Rgba, outer: Rgba) {
+  const size = 256;
+  const t = new DataTexture(glowPixels(size, inner, outer), size, size, RGBAFormat);
   t.colorSpace = SRGBColorSpace;
+  t.magFilter = LinearFilter;
+  t.minFilter = LinearMipmapLinearFilter;
+  t.generateMipmaps = true;
+  t.needsUpdate = true;
   return t;
 }
 
@@ -229,8 +226,8 @@ export function GlobeScene({ overlay, onReady }: { overlay: React.RefObject<HTML
   );
   const sprites = useMemo(
     () => ({
-      sat: glowTexture('rgba(255,236,200,1)', 'rgba(255,181,71,0.45)'),
-      sun: glowTexture('rgba(255,250,235,1)', 'rgba(255,200,110,0.35)'),
+      sat: glowTexture([255, 236, 200, 1], [255, 181, 71, 0.45]),
+      sun: glowTexture([255, 250, 235, 1], [255, 200, 110, 0.35]),
     }),
     [],
   );
