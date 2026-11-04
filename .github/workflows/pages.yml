@@ -1,0 +1,43 @@
+# Публикация сайта на GitHub Pages из ветки gh-pages.
+#
+# Раньше страницу публиковал встроенный механизм GitHub («pages build and deployment»), но 2026-11-04
+# его задачи намертво встали в очередь: ни отменить, ни удалить. Теперь публикует это задание.
+# scripts/deploy.sh и робот «Обновление данных» кладут копию этого файла в ветку gh-pages,
+# поэтому каждая выкладка запускает его сама. Вручную: вкладка Actions → «Публикация сайта» → Run workflow.
+name: Публикация сайта
+
+on:
+  push:
+    branches: [gh-pages]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+# Новая выкладка отменяет недоделанную предыдущую
+concurrency:
+  group: pages-deploy
+  cancel-in-progress: true
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          ref: gh-pages
+
+      - uses: actions/configure-pages@v5
+
+      - uses: actions/upload-pages-artifact@v4
+        with:
+          path: .
+
+      - id: deployment
+        uses: actions/deploy-pages@v4
