@@ -1,5 +1,7 @@
 # Кеплер — трасса спутника в 2D и 3D
 
+[![Кеплер — трасса спутника](public/og-cover.jpg)](https://vanyassia.github.io/kepler-orbit/)
+
 **Сайт:** https://vanyassia.github.io/kepler-orbit/
 
 Веб-приложение показывает движение искусственных спутников Земли, Луны и Марса

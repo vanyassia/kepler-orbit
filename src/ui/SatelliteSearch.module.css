@@ -97,10 +97,29 @@
 }
 
 .empty {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--sp-2) var(--sp-3);
   padding: var(--sp-3);
   color: var(--text-1);
   font-size: var(--fs-caption);
   text-wrap: pretty;
+}
+
+/* Нарисована на чёрном: «экран» убирает чёрный фон */
+.emptyArt {
+  flex: none;
+  width: 72px;
+  height: 72px;
+  margin: calc(-1 * var(--sp-2)) 0;
+  mix-blend-mode: screen;
+  pointer-events: none;
+}
+
+/* В узком списке (телефон) текст переносится под картинку, а не сжимается рядом с ней */
+.empty > span {
+  flex: 1 1 160px;
 }
 
 .list {

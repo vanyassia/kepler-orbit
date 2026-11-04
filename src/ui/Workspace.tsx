@@ -1,8 +1,10 @@
-import { Columns2, Globe2, Map, MonitorX, RotateCw, SatelliteDish } from 'lucide-react';
+import { Columns2, Globe2, Map, RotateCw, SatelliteDish } from 'lucide-react';
 import { lazy, Suspense, useDeferredValue, useEffect, useRef, ViewTransition } from 'react';
 import type { ViewMode } from '../state/store';
 import { useAppStore } from '../state/store';
 import { ErrorBoundary } from './ErrorBoundary';
+import noSignalArt from './illustrations/no-signal.webp';
+import viewFailedArt from './illustrations/view-failed.webp';
 import styles from './Workspace.module.css';
 import { rovingKeyDown, rovingTabIndex } from './roving';
 
@@ -107,7 +109,7 @@ function ViewFailed({ title, hint, showMap = false }: { title: string; hint: str
   return (
     <div className={styles.empty} role="alert">
       <div className={styles.emptyCard}>
-        <MonitorX size={28} aria-hidden="true" />
+        <img className={styles.art} src={viewFailedArt} alt="" width={160} height={160} />
         <h2>{title}</h2>
         <p className={styles.emptyHint}>{hint}</p>
         <div className={styles.actions}>
@@ -134,9 +136,9 @@ function EmptyState({ error }: { error: string | null }) {
   return (
     <div className={styles.empty} role={error ? 'alert' : 'status'}>
       <div className={styles.emptyCard}>
-        <SatelliteDish size={28} aria-hidden="true" />
         {error ? (
           <>
+            <img className={styles.art} src={noSignalArt} alt="" width={160} height={160} />
             <h2>Не удалось получить элементы орбиты</h2>
             <p>{error}</p>
             <p className={styles.emptyHint}>
@@ -147,7 +149,10 @@ function EmptyState({ error }: { error: string | null }) {
             </button>
           </>
         ) : (
-          <h2>Загрузка элементов орбиты…</h2>
+          <>
+            <SatelliteDish size={28} aria-hidden="true" />
+            <h2>Загрузка элементов орбиты…</h2>
+          </>
         )}
       </div>
     </div>

@@ -103,6 +103,24 @@
   text-align: start;
 }
 
+/* Иллюстрация ошибки: нарисована на чёрном, «экран» убирает чёрный фон на любой тёмной карточке */
+.art {
+  display: block;
+  width: 160px;
+  height: 160px;
+  margin: calc(-1 * var(--sp-3)) auto 0;
+  mix-blend-mode: screen;
+  user-select: none;
+  pointer-events: none;
+}
+
+@media (max-height: 560px) {
+  .art {
+    width: 112px;
+    height: 112px;
+  }
+}
+
 .emptyCard h2 {
   margin: var(--sp-3) 0 var(--sp-2);
   color: var(--text-0);

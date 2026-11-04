@@ -6,6 +6,7 @@ import { ORBITERS } from '../data/orbiters';
 import { POPULAR_GROUPS } from '../data/popular';
 import { BODIES } from '../physics/bodies';
 import { useAppStore } from '../state/store';
+import notFoundArt from './illustrations/not-found.webp';
 import styles from './SatelliteSearch.module.css';
 import { CustomOrbitDialog } from './CustomOrbitDialog';
 import { TleDialog } from './TleDialog';
@@ -152,7 +153,8 @@ export function SatelliteSearch() {
           {notice && <div className={styles.notice}>{notice}</div>}
           {needle && items.length === 0 && !busy && (
             <div className={styles.empty}>
-              Ничего не найдено. Названия в каталоге CelesTrak — латиницей: ISS, HST, METEOR, GLONASS.
+              <img className={styles.emptyArt} src={notFoundArt} alt="" width={72} height={72} />
+              <span>Ничего не найдено. Названия в каталоге CelesTrak — латиницей: ISS, HST, METEOR, GLONASS.</span>
             </div>
           )}
           <ul id={listId} role="listbox" className={styles.list}>
