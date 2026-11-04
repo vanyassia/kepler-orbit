@@ -11,7 +11,6 @@ on:
 
 permissions:
   contents: write
-  actions: write # запуск задания «Публикация сайта»
 
 concurrency:
   group: update-data
@@ -59,18 +58,9 @@ jobs:
         run: |
           npm run build
           touch dist/.nojekyll
-          mkdir -p dist/.github/workflows
-          cp .github/workflows/pages.yml dist/.github/workflows/
           cd dist
           git init -q -b gh-pages
           git add -A
           git -c user.name="github-actions[bot]" -c user.email="41898341+github-actions[bot]@users.noreply.github.com" \
             commit -q -m "Публикация сайта"
           git push -q -f "https://x-access-token:${GITHUB_TOKEN}@github.com/${GITHUB_REPOSITORY}.git" gh-pages
-
-      # Пуш с GITHUB_TOKEN сам задания не запускает — публикацию вызываем явно
-      - name: Опубликовать
-        if: steps.save.outputs.changed == 'true'
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: gh workflow run pages.yml --ref gh-pages

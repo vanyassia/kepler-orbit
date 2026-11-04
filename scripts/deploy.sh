@@ -6,9 +6,6 @@ cd "$(dirname "$0")/.."
 REMOTE=$(git remote get-url origin)
 npm run build
 touch dist/.nojekyll
-# Задание публикации (.github/workflows/pages.yml) должно лежать и в gh-pages: пуш ветки запускает его
-mkdir -p dist/.github/workflows
-cp .github/workflows/pages.yml dist/.github/workflows/
 cd dist
 rm -rf .git
 git init -q -b gh-pages
