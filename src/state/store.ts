@@ -11,6 +11,7 @@ import type { SatelliteRecord } from '../data/celestrak';
 import { loadByNorad } from '../data/celestrak';
 import type { CustomSatellite } from '../data/custom';
 import { CUSTOM_ID_BASE, customToRecord, isCustomId } from '../data/custom';
+import { PLACES } from '../data/landmarks';
 import { DEFAULT_SATELLITE, isOrbiterId, loadOrbiter } from '../data/orbiters';
 import type { BodyId } from '../physics/bodies';
 import type { PreparedOrbit } from '../physics/propagate';
@@ -35,6 +36,36 @@ export interface Layers {
 
 export const SPEEDS = [1, 10, 60, 300, 1000, 5000] as const;
 
+/** Место для поиска пролётов: город (name) или точка, выбранная на карте (name = null). Градусы. */
+export interface PassTarget {
+  name: string | null;
+  lat: number;
+  lon: number;
+}
+
+/** Расстояния для поиска пролётов, км: у Луны и Марса тела меньше — и круги меньше. */
+export const PASS_RADIUS_OPTIONS: Record<BodyId, number[]> = {
+  earth: [250, 500, 1000, 2000],
+  moon: [50, 100, 250, 500],
+  mars: [100, 250, 500, 1000],
+};
+const DEFAULT_PASS_RADIUS: Record<BodyId, number> = { earth: 1000, moon: 250, mars: 500 };
+/** Насколько вперёд искать пролёты, сутки. */
+export const PASS_DAYS_OPTIONS = [1, 3, 7] as const;
+
+/** Место поиска пролётов на теле: выбранное или первое выделенное (Москва, Луна-9, Марс-3). */
+export function passTargetOf(s: { passTargets: Partial<Record<BodyId, PassTarget>> }, body: BodyId): PassTarget {
+  const saved = s.passTargets[body];
+  if (saved) return saved;
+  const c = PLACES[body].find((x) => x.highlight) ?? PLACES[body][0];
+  return { name: c.name, lat: c.lat, lon: c.lon };
+}
+
+export function passRadiusOf(s: { passRadius: Partial<Record<BodyId, number>> }, body: BodyId): number {
+  const r = s.passRadius[body];
+  return r && PASS_RADIUS_OPTIONS[body].includes(r) ? r : DEFAULT_PASS_RADIUS[body];
+}
+
 interface AppState {
   /** Центральное тело: Земля, Луна или Марс. */
   body: BodyId;
@@ -50,6 +81,17 @@ interface AppState {
   sidebarOpen: boolean;
   /** Окно «Выгрузка данных». */
   exportOpen: boolean;
+
+  /** Пролёты над точкой: место, расстояние и интервал поиска для каждого тела (сохраняются в браузере). */
+  passTargets: Partial<Record<BodyId, PassTarget>>;
+  passRadius: Partial<Record<BodyId, number>>;
+  passDays: number;
+  /** Ждём щелчка по карте, чтобы выбрать место. */
+  pickingTarget: boolean;
+  setPassTarget: (t: PassTarget) => void;
+  setPassRadius: (km: number) => void;
+  setPassDays: (days: number) => void;
+  setPickingTarget: (on: boolean) => void;
 
   simTime: number;
   playing: boolean;
@@ -108,6 +150,14 @@ export const useAppStore = create<AppState>()(
   lastNorad: null,
   sidebarOpen: false,
   exportOpen: false,
+  passTargets: {},
+  passRadius: {},
+  passDays: 3,
+  pickingTarget: false,
+  setPassTarget: (t) => set((s) => ({ passTargets: { ...s.passTargets, [s.body]: t }, pickingTarget: false })),
+  setPassRadius: (km) => set((s) => ({ passRadius: { ...s.passRadius, [s.body]: km } })),
+  setPassDays: (days) => set({ passDays: days }),
+  setPickingTarget: (on) => set({ pickingTarget: on }),
 
   simTime: Date.now(),
   playing: true,
@@ -211,6 +261,9 @@ export const useAppStore = create<AppState>()(
         revsBack: s.revsBack,
         revsForward: s.revsForward,
         customSats: s.customSats,
+        passTargets: s.passTargets,
+        passRadius: s.passRadius,
+        passDays: s.passDays,
       }),
       merge: (persisted, current) => {
         const p = (persisted ?? {}) as Partial<AppState>;

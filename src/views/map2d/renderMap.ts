@@ -92,6 +92,17 @@ export interface MapScene {
   labelBg: string;
   /** Высота, занятая снизу легендой и строкой источников, px: подписи долгот ставятся выше. */
   bottomInset: number;
+  /** Место поиска пролётов: отметка и круг заданного радиуса (точки [широта, долгота], °). */
+  passZone: PassZone | null;
+}
+
+export interface PassZone {
+  lat: number;
+  lon: number;
+  /** Своя точка (не город): подписывается «Точка». */
+  custom: boolean;
+  circle: [number, number][];
+  radiusLabel: string;
 }
 
 /** Обрезка по прямоугольнику карты, дальше — мировые координаты. */
@@ -196,6 +207,9 @@ export function renderMap(ctx: CanvasRenderingContext2D, sc: MapScene): void {
 
   const px = 1 / v.s; // один CSS-пиксель в мировых единицах
 
+  // Круг поиска пролётов — под трассой: трасса главнее
+  if (sc.passZone) drawPassCircle(ctx, sc.passZone.circle, px);
+
   // Трасса (граница дня и ночи видна по затенению — отдельной линией не рисуется) с цветом по виткам — во всю яркость по всему окну
   if (sc.track) {
     const color = (tau: number) => revolutionColor(sc.revs ? sc.revs.offsetAt(tau) : 0);
@@ -212,6 +226,7 @@ export function renderMap(ctx: CanvasRenderingContext2D, sc: MapScene): void {
   const placed: Rect[] = [];
   const satBox = sc.track ? satelliteLabelBox(ctx, v, sc.track.current, sc.satLabel) : null;
   if (satBox) placed.push([satBox.x - 18, satBox.y - 18, satBox.x + 18, satBox.y + 18], [satBox.lx - 3, satBox.ly - 3, satBox.lx + satBox.w + 3, satBox.ly + 25]);
+  if (sc.passZone) drawPassTarget(ctx, v, sc.passZone, placed);
   if (layers.cities) drawCities(ctx, v, sc.cities, sc.hoverCity, placed);
   if (sc.regions.length) drawRegionLabels(ctx, v, sc.regions, sc.bodyRadius, placed);
   if (sc.track) drawNodeLabels(ctx, v, sc.nodePoints, placed);
@@ -439,6 +454,76 @@ function drawSun(ctx: CanvasRenderingContext2D, v: View, sub: { lat: number; lon
 
 type Rect = [number, number, number, number];
 const overlaps = (placed: Rect[], r: Rect) => placed.some((q) => r[0] < q[2] && r[2] > q[0] && r[1] < q[3] && r[3] > q[1]);
+
+/** Круг поиска пролётов: пунктир по поверхности; через линию перемены дат линия разрывается. */
+function drawPassCircle(ctx: CanvasRenderingContext2D, circle: [number, number][], px: number) {
+  ctx.beginPath();
+  for (let k = 0; k < circle.length; k++) {
+    const [lat, lon] = circle[k];
+    const x = lon + 180;
+    const y = 90 - lat;
+    if (k === 0 || Math.abs(lon - circle[k - 1][1]) > 180) ctx.moveTo(x, y);
+    else ctx.lineTo(x, y);
+  }
+  ctx.setLineDash([4 * px, 4 * px]);
+  ctx.lineWidth = 3 * px;
+  ctx.strokeStyle = COLORS.halo;
+  ctx.stroke();
+  ctx.lineWidth = 1.3 * px;
+  ctx.strokeStyle = 'rgba(255, 255, 255, 0.85)';
+  ctx.stroke();
+  ctx.setLineDash([]);
+}
+
+/** Отметка места поиска пролётов: кольцо с перекрестьем; у своей точки — подпись. Радиус круга — подписью у верхнего края. */
+function drawPassTarget(ctx: CanvasRenderingContext2D, v: View, z: PassZone, placed: Rect[]) {
+  const [x, y] = toScreen(v, z.lon, z.lat);
+  ctx.lineCap = 'round';
+  for (const [w, color] of [
+    [3.5, COLORS.halo],
+    [1.5, '#ffffff'],
+  ] as const) {
+    ctx.lineWidth = w;
+    ctx.strokeStyle = color;
+    ctx.beginPath();
+    ctx.arc(x, y, 9, 0, Math.PI * 2);
+    for (const [dx, dy] of [
+      [1, 0],
+      [-1, 0],
+      [0, 1],
+      [0, -1],
+    ]) {
+      ctx.moveTo(x + dx * 6, y + dy * 6);
+      ctx.lineTo(x + dx * 13, y + dy * 13);
+    }
+    ctx.stroke();
+  }
+  ctx.lineCap = 'butt';
+  // У города отметка не занимает место подписи: подпись города остаётся на своём месте
+  if (z.custom) placed.push([x - 13, y - 13, x + 13, y + 13]);
+  ctx.font = '500 11px "IBM Plex Mono", monospace';
+  ctx.fillStyle = COLORS.text;
+  ctx.textBaseline = 'middle';
+  if (z.custom) {
+    ctx.textAlign = 'left';
+    const tw = ctx.measureText('Точка').width;
+    placed.push([x + 16, y - 7, x + 16 + tw, y + 7]);
+    textWithHalo(ctx, 'Точка', x + 16, y);
+  }
+  // Подпись радиуса — у самой северной точки круга (если круг не накрыл полюс)
+  const top = z.circle.reduce((a, b) => (b[0] > a[0] ? b : a));
+  if (top[0] < 89) {
+    const [tx, ty] = toScreen(v, top[1], top[0]);
+    const tw = ctx.measureText(z.radiusLabel).width;
+    const rect: Rect = [tx - tw / 2 - 2, ty - 16, tx + tw / 2 + 2, ty - 2];
+    if (!overlaps(placed, rect)) {
+      ctx.textAlign = 'center';
+      ctx.fillStyle = COLORS.textDim;
+      textWithHalo(ctx, z.radiusLabel, tx, ty - 9);
+      placed.push(rect);
+    }
+  }
+}
 
 function drawCities(ctx: CanvasRenderingContext2D, v: View, cities: City[], hover: City | null, placed: Rect[]) {
   const showCapitalLabels = v.k >= 1.8;

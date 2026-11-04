@@ -66,11 +66,15 @@ export function fmtTime(ms: number, zone: Zone = 'UTC'): string {
 
 /** Длительность: «1 ч 32 мин», «2 сут 4 ч», «45 с». */
 export function fmtDuration(seconds: number): string {
+  // Сначала округляем до младшей единицы, потом делим: иначе выходит «5 ч 60 мин»
   const s = Math.abs(seconds);
-  if (s < 60) return `${Math.round(s)} с`;
-  if (s < 3600) return `${Math.floor(s / 60)} мин ${Math.round(s % 60)} с`;
-  if (s < 86400) return `${Math.floor(s / 3600)} ч ${Math.round((s % 3600) / 60)} мин`;
-  return `${Math.floor(s / 86400)} сут ${Math.round((s % 86400) / 3600)} ч`;
+  const sec = Math.round(s);
+  if (sec < 60) return `${sec} с`;
+  if (sec < 3600) return `${Math.floor(sec / 60)} мин ${sec % 60} с`;
+  const min = Math.round(s / 60);
+  if (min < 1440) return `${Math.floor(min / 60)} ч ${min % 60} мин`;
+  const hrs = Math.round(s / 3600);
+  return `${Math.floor(hrs / 24)} сут ${hrs % 24} ч`;
 }
 
 /** Возраст данных: «5 мин назад», «3 ч назад», «2 сут назад». */

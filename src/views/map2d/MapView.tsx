@@ -1,4 +1,4 @@
-import { Crosshair, Maximize, Minus, Plus } from 'lucide-react';
+import { Crosshair, Maximize, Minus, Plus, X } from 'lucide-react';
 import { select } from 'd3-selection';
 import 'd3-transition';
 import type { ZoomBehavior, ZoomTransform } from 'd3-zoom';
@@ -11,7 +11,8 @@ import { REGIONS } from '../../data/regions';
 import { BODIES } from '../../physics/bodies';
 import { greenwichToGeo } from '../../physics/frames';
 import { RAD } from '../../physics/constants';
-import { useAppStore } from '../../state/store';
+import { circleAround } from '../../physics/passes';
+import { passRadiusOf, passTargetOf, useAppStore } from '../../state/store';
 import { LayersMenu, RevsControl } from '../../ui/LayersMenu';
 import { fmt, fmtLat, fmtLon } from '../../ui/format';
 import { satelliteTitle } from '../../ui/satelliteTitle';
@@ -24,11 +25,27 @@ import type { BorderPaths } from './geo';
 import { loadBorders } from './geo';
 import { followStep, lonStep } from './follow';
 import { createNightMasks, updateNightMasks } from './nightMask';
-import type { MapScene, View } from './renderMap';
+import type { MapScene, PassZone, View } from './renderMap';
 import { renderBase, renderLines, renderMap, smoothingFor, toScreen, toWorldLonLat } from './renderMap';
 import styles from './MapView.module.css';
 
 const MAX_ZOOM = 20;
+
+/** Ближайший видимый город (место) не дальше maxPx пикселей экрана от точки (sx, sy). */
+function nearestCity(view: View, sx: number, sy: number, maxPx: number): City | null {
+  let best: City | null = null;
+  let bestD = maxPx;
+  for (const c of PLACES[useAppStore.getState().body]) {
+    if (!cityShown(c, view.s)) continue;
+    const [cx, cy] = toScreen(view, c.lon, c.lat);
+    const d = Math.hypot(cx - sx, cy - sy);
+    if (d < bestD) {
+      bestD = d;
+      best = c;
+    }
+  }
+  return best;
+}
 /**
  * Подгонять карту по высоте: на сенсорном экране (телефон, планшет) и в узкой панели. На компьютере
  * широкая колонка «Обоих видов» остаётся целой картой мира.
@@ -64,6 +81,7 @@ export default function MapView() {
   const [borders, setBorders] = useState<BorderPaths | null>(null);
 
   const body = useAppStore((s) => s.body);
+  const picking = useAppStore((s) => s.pickingTarget);
   const day = useProgressiveImage(SURFACE[body]);
   // Ночные огни и границы государств — только у Земли
   const night = useProgressiveImage(body === 'earth' ? NIGHT_LIGHTS : []);
@@ -102,7 +120,16 @@ export default function MapView() {
   useEffect(
     () =>
       useAppStore.subscribe((s, p) => {
-        if (s.body !== p.body || s.layers !== p.layers || s.orbit !== p.orbit || s.revsBack !== p.revsBack || s.revsForward !== p.revsForward) dirtyRef.current = true;
+        if (
+          s.body !== p.body ||
+          s.layers !== p.layers ||
+          s.orbit !== p.orbit ||
+          s.revsBack !== p.revsBack ||
+          s.revsForward !== p.revsForward ||
+          s.passTargets !== p.passTargets ||
+          s.passRadius !== p.passRadius
+        )
+          dirtyRef.current = true;
       }),
     [],
   );
@@ -280,6 +307,9 @@ export default function MapView() {
     // Фон метки спутника — цвет панелей темы (--bg-1), перечитывается при смене тела
     let labelBg = 'rgba(12, 24, 41, 0.9)';
     let labelBgBody = '';
+    // Круг поиска пролётов пересчитывается только при смене места, радиуса или тела
+    let passZone: PassZone | null = null;
+    let passKey = '';
     let raf = 0;
 
     const frame = () => {
@@ -383,6 +413,19 @@ export default function MapView() {
         revs = r;
         nodePoints = r.nodes.filter((n) => n > st.simTime && n <= windowEnd).map((n) => ({ offset: r.offsetAt(n), point: orbitSource(o).at(n)! }));
       }
+      const target = passTargetOf(st, st.body);
+      const radiusKm = passRadiusOf(st, st.body);
+      const nextPassKey = `${st.body}|${target.lat}|${target.lon}|${target.name}|${radiusKm}`;
+      if (nextPassKey !== passKey) {
+        passKey = nextPassKey;
+        passZone = {
+          lat: target.lat,
+          lon: target.lon,
+          custom: target.name === null,
+          circle: circleAround(target, radiusKm, b.radius),
+          radiusLabel: `${fmt(radiusKm)} км`,
+        };
+      }
       const title = st.record ? satelliteTitle(st.record.elements).title : '';
       renderMap(ctx, {
         view,
@@ -414,6 +457,7 @@ export default function MapView() {
         })(),
         bottomInset: bottomInsetRef.current,
         hoverCity: hoverRef.current,
+        passZone,
       });
     };
     raf = requestAnimationFrame(frame);
@@ -433,22 +477,36 @@ export default function MapView() {
     if (coordsRef.current) {
       coordsRef.current.textContent = Math.abs(lat) <= 90 && Math.abs(lon) <= 180 ? `${fmtLat(lat, 2)}   ${fmtLon(lon, 2)}` : '';
     }
-    let best: City | null = null;
-    let bestD = 10;
-    for (const c of PLACES[useAppStore.getState().body]) {
-      if (!cityShown(c, view.s)) continue;
-      const [cx, cy] = toScreen(view, c.lon, c.lat);
-      const d = Math.hypot(cx - sx, cy - sy);
-      if (d < bestD) {
-        bestD = d;
-        best = c;
-      }
-    }
+    const best = nearestCity(view, sx, sy, 10);
     if (best !== hoverRef.current) {
       hoverRef.current = best;
       dirtyRef.current = true;
     }
   };
+
+  // Выбор места для поиска пролётов: щелчок по карте (по городу — сам город)
+  const onClick = (e: React.MouseEvent<HTMLCanvasElement>) => {
+    const st = useAppStore.getState();
+    if (!st.pickingTarget) return;
+    const rect = e.currentTarget.getBoundingClientRect();
+    const { w, h } = sizeRef.current;
+    const t = transformRef.current;
+    const { s0, ox0, oy0 } = baseFit(w, h);
+    const view = { s: s0 * t.k, ox: t.x + t.k * ox0, oy: t.y + t.k * oy0 } as View;
+    const [lon, lat] = toWorldLonLat(view, e.clientX - rect.left, e.clientY - rect.top);
+    if (Math.abs(lat) > 90 || Math.abs(lon) > 180) return;
+    // На сенсорном экране наведения нет — ищем город рядом с местом касания, с запасом на палец
+    const city = nearestCity(view, e.clientX - rect.left, e.clientY - rect.top, matchMedia('(pointer: coarse)').matches ? 18 : 10);
+    st.setPassTarget(city ? { name: city.name, lat: city.lat, lon: city.lon } : { name: null, lat: Math.round(lat * 1e4) / 1e4, lon: Math.round(lon * 1e4) / 1e4 });
+    // На телефоне и планшете — обратно к списку пролётов
+    if (matchMedia('(max-width: 1100px)').matches) st.setSidebarOpen(true);
+  };
+  useEffect(() => {
+    if (!picking) return;
+    const onKey = (e: KeyboardEvent) => e.key === 'Escape' && useAppStore.getState().setPickingTarget(false);
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [picking]);
 
   const zoomBy = (factor: number) => {
     autoFitRef.current = false;
@@ -501,6 +559,8 @@ export default function MapView() {
       <canvas
         ref={canvasRef}
         className={styles.canvas}
+        data-picking={picking || undefined}
+        onClick={onClick}
         onPointerMove={onPointerMove}
         onPointerLeave={() => {
           hoverRef.current = null;
@@ -513,6 +573,14 @@ export default function MapView() {
         tabIndex={0}
         onKeyDown={onKeyDown}
       />
+      {picking && (
+        <div className={styles.pickBanner} role="status">
+          <span>{matchMedia('(pointer: coarse)').matches ? 'Коснитесь карты' : 'Щёлкните по карте'}, чтобы выбрать место</span>
+          <button type="button" onClick={() => useAppStore.getState().setPickingTarget(false)} aria-label="Отменить выбор места" title="Отмена">
+            <X size={15} />
+          </button>
+        </div>
+      )}
       <div className={styles.toolbar}>
         <LayersMenu keys={body === 'earth' ? ['imagery', 'night', 'borders', 'grid', 'cities'] : ['regions', 'imagery', 'night', 'grid', 'cities']}>
           <RevsControl />

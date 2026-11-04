@@ -20,7 +20,7 @@
 ```bash
 npm run dev               # сервер разработки http://localhost:5173 (во встроенном браузере: preview_start с именем kepler-dev)
 npx tsc -b                # проверка типов
-npx vitest run            # все тесты (сейчас около 260)
+npx vitest run            # все тесты (сейчас около 270)
 npm run build             # сборка в dist/
 npm run deploy            # сборка и выкладка на GitHub Pages (scripts/deploy.sh, ветка gh-pages)
 npm run update:fallback   # свежий снимок элементов спутников Земли → public/data/fallback-gp.json
@@ -50,6 +50,7 @@ src/physics/   чистые функции модели, без React и DOM; у
   kepler.ts      a, T, уравнение Кеплера (метод Ньютона), ν
   orbit.ts       положение и скорость в АГЭСК (формулы 9, 10)
   subpoint.ts    подспутниковая точка через сферический треугольник (шаги 5.5–5.8)
+  passes.ts      пролёты над точкой: минимумы расстояния от подспутниковой точки до места (золотое сечение), круг поиска
   time.ts, sun.ts, frames.ts, groundTrack.ts, bodies.ts (Земля, Луна, Марс: μ, R, вращение, полюс; вращение Луны и Марса — по TDB = UTC + 69,184 с)
 src/data/      источники элементов орбит и справочники
   celestrak.ts   CelesTrak GP API → кэш localStorage (2 ч) → встроенный снимок → ручной TLE
@@ -62,6 +63,7 @@ src/data/      источники элементов орбит и справо�
 src/state/store.ts   zustand: спутник, время, скорость, вид, слои; настройки в localStorage «kepler:prefs»
 src/hooks/useSimClock.ts   часы симуляции
 src/ui/        шапка (TopBar, BodySwitcher, SatelliteSearch), боковая панель (Sidebar, FormulaSteps),
+               «Пролёты над точкой» (PassFinder: город или точка щелчком по карте, список с переходом к моменту),
                нижняя панель времени (Timeline), рабочая область (Workspace), диалоги TLE и своей орбиты,
                окно «Выгрузка данных» (ExportDialog; кнопка в шапке, на телефоне — в боковой панели; download.ts)
 src/views/globe3d/  3D-глобус: three.js + react-three-fiber

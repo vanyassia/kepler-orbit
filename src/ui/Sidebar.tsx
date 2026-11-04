@@ -10,6 +10,7 @@ import { propagate } from '../physics/propagate';
 import { useAppStore } from '../state/store';
 import { CustomOrbitDialog } from './CustomOrbitDialog';
 import { FormulaSteps } from './FormulaSteps';
+import { PassFinder } from './PassFinder';
 import styles from './Sidebar.module.css';
 import { fmt, fmtDateTime, fmtLat, fmtLon } from './format';
 import { satelliteTitle } from './satelliteTitle';
@@ -32,6 +33,7 @@ export function Sidebar() {
       <SatelliteCard />
       <QuickPicks />
       <Telemetry />
+      <PassFinder />
       <OrbitElements />
       <FormulaSteps />
     </aside>

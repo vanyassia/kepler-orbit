@@ -121,3 +121,61 @@
     border-top: 0;
   }
 }
+
+/* Выбор места для поиска пролётов */
+.canvas[data-picking] {
+  cursor: crosshair;
+}
+
+.pickBanner {
+  position: absolute;
+  z-index: 11;
+  /* Под переключателем видов */
+  top: calc(var(--sp-3) + 52px);
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+  max-width: calc(100% - 2 * var(--sp-3));
+  padding: 4px 4px 4px var(--sp-3);
+  border: 1px solid var(--sat);
+  border-radius: var(--r-control);
+  background: var(--surface-overlay);
+  color: var(--text-0);
+  font-size: var(--fs-caption);
+  pointer-events: auto;
+}
+
+.pickBanner button {
+  display: grid;
+  place-items: center;
+  flex: none;
+  width: 28px;
+  height: 28px;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--text-1);
+}
+
+.pickBanner button:hover {
+  color: var(--text-0);
+  background: var(--bg-3);
+}
+
+/* Узкая карта: справа столбец кнопок масштаба — плашка встаёт слева от него */
+@media (max-width: 700px) {
+  .pickBanner {
+    left: var(--sp-3);
+    transform: none;
+    max-width: calc(100% - 2 * var(--sp-3) - 56px);
+  }
+}
+
+@media (pointer: coarse) {
+  .pickBanner button {
+    width: 36px;
+    height: 36px;
+  }
+}
