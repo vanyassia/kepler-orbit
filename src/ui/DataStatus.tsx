@@ -3,7 +3,7 @@ import { useAppStore } from '../state/store';
 import styles from './DataStatus.module.css';
 import { fmtAge } from './format';
 
-const LABELS = {
+export const SOURCE_LABELS = {
   online: 'CelesTrak, онлайн',
   cache: 'CelesTrak, из кэша',
   fallback: 'Встроенный пример',
@@ -47,7 +47,7 @@ export function DataStatus() {
       <span className={styles.dot} />
       {/* Одна строка: источник; когда получены данные — во всплывающей подсказке и для читалки */}
       <span className={styles.text} role="status" aria-live="polite">
-        {loading ? 'Загрузка…' : LABELS[record.source]}
+        {loading ? 'Загрузка…' : SOURCE_LABELS[record.source]}
       </span>
       {detail && <span className="visually-hidden">, {detail}</span>}
       {stale && <span className={styles.warn}>эпоха {Math.round(epochAgeDays)}&nbsp;сут</span>}

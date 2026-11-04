@@ -1,8 +1,9 @@
-import { PanelLeft } from 'lucide-react';
+import { Download, PanelLeft } from 'lucide-react';
 import { useWallClock } from '../hooks/useSimClock';
 import { useAppStore } from '../state/store';
 import { BodySwitcher } from './BodySwitcher';
 import { DataStatus } from './DataStatus';
+import { ExportDialog } from './ExportDialog';
 import { SatelliteSearch } from './SatelliteSearch';
 import styles from './TopBar.module.css';
 import { fmtTime } from './format';
@@ -11,6 +12,9 @@ export function TopBar() {
   const now = useWallClock();
   const sidebarOpen = useAppStore((s) => s.sidebarOpen);
   const setSidebarOpen = useAppStore((s) => s.setSidebarOpen);
+  const hasOrbit = useAppStore((s) => !!s.orbit);
+  const exportOpen = useAppStore((s) => s.exportOpen);
+  const setExportOpen = useAppStore((s) => s.setExportOpen);
 
   return (
     <header className={styles.bar}>
@@ -34,6 +38,17 @@ export function TopBar() {
       <SatelliteSearch />
       <div className={styles.right}>
         <DataStatus />
+        <button
+          type="button"
+          className={`${styles.iconBtn} ${styles.exportBtn}`}
+          onClick={() => setExportOpen(true)}
+          disabled={!hasOrbit}
+          aria-label="Выгрузка данных"
+          title="Выгрузка данных: таблица трассы, элементы орбиты, картинка"
+        >
+          <Download size={16} aria-hidden="true" />
+          <span className={styles.exportLabel}>Выгрузка</span>
+        </button>
         <div className={styles.clocks} role="group" aria-label="Текущее время">
           <span>
             <span className={styles.zone}>UTC</span> <span className="num">{fmtTime(now)}</span>
@@ -43,6 +58,7 @@ export function TopBar() {
           </span>
         </div>
       </div>
+      <ExportDialog open={exportOpen} onClose={() => setExportOpen(false)} />
     </header>
   );
 }

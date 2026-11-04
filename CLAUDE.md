@@ -20,7 +20,7 @@
 ```bash
 npm run dev               # сервер разработки http://localhost:5173 (во встроенном браузере: preview_start с именем kepler-dev)
 npx tsc -b                # проверка типов
-npx vitest run            # все тесты (сейчас около 230)
+npx vitest run            # все тесты (сейчас около 260)
 npm run build             # сборка в dist/
 npm run deploy            # сборка и выкладка на GitHub Pages (scripts/deploy.sh, ветка gh-pages)
 npm run update:fallback   # свежий снимок элементов спутников Земли → public/data/fallback-gp.json
@@ -58,10 +58,12 @@ src/data/      источники элементов орбит и справо�
   historicOrbiters.ts  Марс-2, -3, -5, Фобос-2 по опубликованным параметрам (Ω, ω, M₀ условные)
   popular.ts     52 спутника Земли по группам; custom.ts — свои спутники; tle.ts, omm.ts — форматы
   cities.ts, landmarks.ts, regions.ts — города, места посадок, регионы Луны и Марса
+  exportData.ts  выгрузка: таблица трассы и элементы орбиты в CSV для Excel («;», запятая, BOM), CSV, TSV, JSON
 src/state/store.ts   zustand: спутник, время, скорость, вид, слои; настройки в localStorage «kepler:prefs»
 src/hooks/useSimClock.ts   часы симуляции
 src/ui/        шапка (TopBar, BodySwitcher, SatelliteSearch), боковая панель (Sidebar, FormulaSteps),
-               нижняя панель времени (Timeline), рабочая область (Workspace), диалоги TLE и своей орбиты
+               нижняя панель времени (Timeline), рабочая область (Workspace), диалоги TLE и своей орбиты,
+               окно «Выгрузка данных» (ExportDialog; кнопка в шапке, на телефоне — в боковой панели; download.ts)
 src/views/globe3d/  3D-глобус: three.js + react-three-fiber
   GlobeScene.tsx     сцена в АГЭСК: тело, облака, атмосфера, орбита, трасса, подписи, модель аппарата
   textures.ts + streamTexture.ts   снимки уходят в видеокарту порциями (без остановки кадров)
@@ -73,6 +75,7 @@ src/views/map2d/    2D-карта: Canvas 2D + d3-zoom
   renderMap.ts       слои карты и значок спутника (повёрнут по ходу полёта)
   nightMask.ts, geo.ts (границы Natural Earth), follow.ts (слежение за спутником)
 src/views/      общее для обоих видов
+  snapshot.ts        картинка вида (PNG): карта и глобус регистрируют свой холст; подписи глобуса дорисовываются из DOM
   trackCache.ts      скользящее окно трассы, цвета витков; у витков длиннее 2 недель (Луна) окно — обороты подлунной точки
   frameRate.ts       на ×1 кадры реже (экономия), при ускорении — каждый кадр
   assets.ts, imageWorker.ts, imageClient.ts, imageChunks.ts   загрузка снимков в отдельном потоке

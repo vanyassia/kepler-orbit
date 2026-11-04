@@ -68,6 +68,19 @@
   display: none;
 }
 
+.exportBtn {
+  display: inline-flex;
+  gap: 6px;
+  width: auto;
+  padding: 0 var(--sp-3);
+  font-size: var(--fs-caption);
+}
+
+.exportBtn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
 .panelToggle[aria-expanded='true'] {
   color: var(--sat);
   border-color: rgb(255 181 71 / 0.5);
@@ -108,6 +121,10 @@
     display: none;
   }
   .clocks {
+    display: none;
+  }
+  /* На телефоне место в шапке нужнее полю поиска: выгрузка — в боковой панели */
+  .exportBtn {
     display: none;
   }
 }

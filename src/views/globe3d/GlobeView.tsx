@@ -1,12 +1,14 @@
 import { Canvas } from '@react-three/fiber';
 import { Earth, Move3d, Satellite } from 'lucide-react';
-import { Suspense, useRef, useState } from 'react';
+import { Suspense, useEffect, useRef, useState } from 'react';
+import type { RootState } from '@react-three/fiber';
 import { ACESFilmicToneMapping } from 'three';
 import type { CameraMode } from '../../state/store';
 import { useAppStore } from '../../state/store';
 import { LayersMenu, RevsControl } from '../../ui/LayersMenu';
 import { rovingKeyDown, rovingTabIndex } from '../../ui/roving';
 import { LIGHT_DEVICE } from '../assets';
+import { registerSnapshot } from '../snapshot';
 import { CAMERA_FOV, GlobeScene } from './GlobeScene';
 import styles from './GlobeView.module.css';
 
@@ -30,6 +32,22 @@ export default function GlobeView() {
   const [ready, setReady] = useState(false);
   // На отдельной карте глобус скрыт, но не закрывается: снимки в видеокарте остаются, а кадры не рисуются
   const hidden = useAppStore((s) => s.view === '2d');
+  // Картинка для выгрузки: кадр перерисовывается и копируется сразу, пока браузер его не стёр
+  const three = useRef<RootState | null>(null);
+  useEffect(
+    () =>
+      registerSnapshot('globe', {
+        canvas: () => {
+          const st = three.current;
+          if (!st || useAppStore.getState().view === '2d') return null;
+          st.gl.render(st.scene, st.camera);
+          return st.gl.domElement;
+        },
+        labels: () => overlay.current,
+        background: '#04060a',
+      }),
+    [],
+  );
 
   return (
     <div className={styles.wrap}>
@@ -47,6 +65,7 @@ export default function GlobeView() {
         aria-label="Центральное тело, орбита и трасса спутника. Стрелки — вращение, плюс и минус — приближение"
         tabIndex={0}
         data-globe-keys=""
+        onCreated={(st) => (three.current = st)}
       >
         <Suspense fallback={null}>
           <GlobeScene overlay={overlay} onReady={() => setReady(true)} />

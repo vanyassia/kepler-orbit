@@ -1,4 +1,4 @@
-import { Plus, X } from 'lucide-react';
+import { Download, Plus, X } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
 import { customToRecord } from '../data/custom';
 import { isOrbiterId, ORBITERS } from '../data/orbiters';
@@ -40,6 +40,7 @@ export function Sidebar() {
 
 function SatelliteCard() {
   const record = useAppStore((s) => s.record);
+  const setExportOpen = useAppStore((s) => s.setExportOpen);
   const error = useAppStore((s) => s.error);
   const loading = useAppStore((s) => s.loading);
 
@@ -97,6 +98,9 @@ function SatelliteCard() {
           <dd className="num">{fmtDateTime(el.epochMs)}</dd>
         </div>
       </dl>
+      <button type="button" className={styles.exportBtn} onClick={() => setExportOpen(true)}>
+        <Download size={14} aria-hidden="true" /> Выгрузка данных
+      </button>
       {record.source === 'historic' && <p className={styles.satNote}>Форма орбиты по опубликованным данным. Углы Ω и ω и положение на орбите условные.</p>}
       {error && (
         <p className={styles.error} role="alert">

@@ -16,6 +16,7 @@ import { LayersMenu, RevsControl } from '../../ui/LayersMenu';
 import { fmt, fmtLat, fmtLon } from '../../ui/format';
 import { satelliteTitle } from '../../ui/satelliteTitle';
 import { ensureFullImage, LIGHT_DEVICE, NIGHT_LIGHTS, SURFACE, SURFACE_CREDIT, useProgressiveImage } from '../assets';
+import { registerSnapshot } from '../snapshot';
 import { frameDue, peakAngularRateDeg, simMsPerShift } from '../frameRate';
 import { pickLevel } from '../imageChunks';
 import { orbitSource, Revolutions, revolutionColor, TrackCache, trackSpan } from '../trackCache';
@@ -102,6 +103,17 @@ export default function MapView() {
     () =>
       useAppStore.subscribe((s, p) => {
         if (s.body !== p.body || s.layers !== p.layers || s.orbit !== p.orbit || s.revsBack !== p.revsBack || s.revsForward !== p.revsForward) dirtyRef.current = true;
+      }),
+    [],
+  );
+
+  // Картинка для выгрузки: холст карты хранит последний кадр, его можно копировать в любой момент
+  useEffect(
+    () =>
+      registerSnapshot('map', {
+        // Пока холст не получил размер панели, карты на нём ещё нет
+        canvas: () => (useAppStore.getState().view === '3d' || sizeRef.current.w === 0 ? null : canvasRef.current),
+        background: '#081120',
       }),
     [],
   );

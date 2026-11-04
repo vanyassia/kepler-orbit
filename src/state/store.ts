@@ -48,6 +48,8 @@ interface AppState {
   lastNorad: number | null;
   /** Боковая панель на узких экранах. */
   sidebarOpen: boolean;
+  /** Окно «Выгрузка данных». */
+  exportOpen: boolean;
 
   simTime: number;
   playing: boolean;
@@ -88,6 +90,7 @@ interface AppState {
   toggleLayer: (k: keyof Layers) => void;
   setRevs: (back: number, forward: number) => void;
   setSidebarOpen: (open: boolean) => void;
+  setExportOpen: (open: boolean) => void;
   stepTime: (deltaMs: number) => void;
 }
 
@@ -104,6 +107,7 @@ export const useAppStore = create<AppState>()(
   pendingNorad: null,
   lastNorad: null,
   sidebarOpen: false,
+  exportOpen: false,
 
   simTime: Date.now(),
   playing: true,
@@ -178,6 +182,7 @@ export const useAppStore = create<AppState>()(
   toggleLayer: (k) => set((s) => ({ layers: { ...s.layers, [k]: !s.layers[k] } })),
   setRevs: (back, forward) => set({ revsBack: back, revsForward: forward }),
   setSidebarOpen: (open) => set({ sidebarOpen: open }),
+  setExportOpen: (open) => set({ exportOpen: open }),
   selectBody: (body) => {
     if (get().body === body && get().record) return;
     set({ body });
