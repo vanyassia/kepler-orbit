@@ -11,21 +11,36 @@
   line-height: 1.3;
 }
 
-.srOnly {
-  position: absolute;
-  width: 1px;
-  height: 1px;
-  overflow: hidden;
-  clip-path: inset(50%);
-  white-space: nowrap;
-}
-
-.placeRow {
+.head {
   display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
   gap: var(--sp-2);
 }
 
-.placeRow .select {
+.head .h2 {
+  margin-bottom: 0;
+}
+
+.remove {
+  display: grid;
+  place-items: center;
+  flex: none;
+  width: 28px;
+  height: 28px;
+  margin: -4px -4px 0 0;
+  border: 0;
+  border-radius: var(--r-control);
+  background: transparent;
+  color: var(--text-2);
+  transition: color var(--dur) var(--ease);
+}
+
+.remove:hover {
+  color: var(--text-0);
+}
+
+.select {
   flex: 1;
 }
 
@@ -47,43 +62,10 @@
   border-color: var(--orbit);
 }
 
-.pickBtn {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  height: 32px;
-  padding: 0 var(--sp-3);
-  border: 1px solid var(--line-strong);
-  border-radius: var(--r-control);
-  background: transparent;
-  color: var(--text-1);
-  font-size: var(--fs-caption);
-  white-space: nowrap;
-  transition:
-    color var(--dur) var(--ease),
-    border-color var(--dur) var(--ease),
-    background var(--dur) var(--ease);
-}
-
-.pickBtn:hover {
-  color: var(--text-0);
-  border-color: var(--text-2);
-}
-
-.pickBtn[aria-pressed='true'] {
-  border-color: var(--sat);
-  background: var(--sat-dim);
-  color: var(--sat);
-}
-
 .coords {
   margin: var(--sp-2) 0 0;
   color: var(--text-2);
   font-size: var(--fs-caption);
-}
-
-.hint {
-  color: var(--sat);
 }
 
 .filters {
@@ -221,11 +203,91 @@ li:first-child .pass {
 
 @media (pointer: coarse) {
   .select,
-  .pickBtn {
+  .remove {
     height: 40px;
+  }
+
+  .remove {
+    width: 40px;
   }
 
   .pass {
     padding-block: 10px;
+  }
+}
+
+/* Плашка на карте: место и ближайший пролёт. Под переключателем видов */
+.chip {
+  position: absolute;
+  z-index: 11;
+  top: calc(var(--sp-3) + 52px);
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  align-items: center;
+  gap: var(--sp-1);
+  max-width: calc(100% - 2 * var(--sp-3));
+  padding: 3px 3px 3px var(--sp-3);
+  border: 1px solid var(--line-strong);
+  border-radius: var(--r-control);
+  background: var(--surface-overlay);
+  color: var(--text-1);
+  font-size: var(--fs-caption);
+}
+
+.chipPin {
+  flex: none;
+  color: var(--text-0);
+}
+
+.chipText {
+  min-width: 0;
+  margin-right: var(--sp-1);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.chipText b {
+  color: var(--text-0);
+  font-weight: 500;
+}
+
+.chip button {
+  display: grid;
+  place-items: center;
+  flex: none;
+  width: 28px;
+  height: 28px;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--text-1);
+}
+
+.chip button:hover {
+  color: var(--text-0);
+  background: var(--bg-3);
+}
+
+/* Узкая карта: справа столбец кнопок масштаба — плашка встаёт слева от него */
+@media (max-width: 700px) {
+  .chip {
+    left: var(--sp-3);
+    transform: none;
+    max-width: calc(100% - 2 * var(--sp-3) - 56px);
+  }
+
+  /* Узко: текст в две строки вместо обрезки */
+  .chipText {
+    white-space: normal;
+    line-height: 1.35;
+  }
+}
+
+@media (pointer: coarse) {
+  .chip button {
+    width: 36px;
+    height: 36px;
   }
 }

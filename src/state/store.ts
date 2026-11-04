@@ -11,7 +11,6 @@ import type { SatelliteRecord } from '../data/celestrak';
 import { loadByNorad } from '../data/celestrak';
 import type { CustomSatellite } from '../data/custom';
 import { CUSTOM_ID_BASE, customToRecord, isCustomId } from '../data/custom';
-import { PLACES } from '../data/landmarks';
 import { DEFAULT_SATELLITE, isOrbiterId, loadOrbiter } from '../data/orbiters';
 import type { BodyId } from '../physics/bodies';
 import type { PreparedOrbit } from '../physics/propagate';
@@ -53,12 +52,9 @@ const DEFAULT_PASS_RADIUS: Record<BodyId, number> = { earth: 1000, moon: 250, ma
 /** Насколько вперёд искать пролёты, сутки. */
 export const PASS_DAYS_OPTIONS = [1, 3, 7] as const;
 
-/** Место поиска пролётов на теле: выбранное или первое выделенное (Москва, Луна-9, Марс-3). */
-export function passTargetOf(s: { passTargets: Partial<Record<BodyId, PassTarget>> }, body: BodyId): PassTarget {
-  const saved = s.passTargets[body];
-  if (saved) return saved;
-  const c = PLACES[body].find((x) => x.highlight) ?? PLACES[body][0];
-  return { name: c.name, lat: c.lat, lon: c.lon };
+/** Место поиска пролётов на теле; null — точка не поставлена и функция выключена. */
+export function passTargetOf(s: { passTargets: Partial<Record<BodyId, PassTarget>> }, body: BodyId): PassTarget | null {
+  return s.passTargets[body] ?? null;
 }
 
 export function passRadiusOf(s: { passRadius: Partial<Record<BodyId, number>> }, body: BodyId): number {
@@ -82,16 +78,18 @@ interface AppState {
   /** Окно «Выгрузка данных». */
   exportOpen: boolean;
 
-  /** Пролёты над точкой: место, расстояние и интервал поиска для каждого тела (сохраняются в браузере). */
+  /**
+   * Пролёты над точкой: место (ставится щелчком по карте, по умолчанию нет — сайт прежде всего для трасс),
+   * расстояние и интервал поиска. Расстояние и интервал сохраняются в браузере, место — нет.
+   */
   passTargets: Partial<Record<BodyId, PassTarget>>;
   passRadius: Partial<Record<BodyId, number>>;
   passDays: number;
-  /** Ждём щелчка по карте, чтобы выбрать место. */
-  pickingTarget: boolean;
   setPassTarget: (t: PassTarget) => void;
+  /** Убрать точку — функция выключается. */
+  clearPassTarget: () => void;
   setPassRadius: (km: number) => void;
   setPassDays: (days: number) => void;
-  setPickingTarget: (on: boolean) => void;
 
   simTime: number;
   playing: boolean;
@@ -153,11 +151,15 @@ export const useAppStore = create<AppState>()(
   passTargets: {},
   passRadius: {},
   passDays: 3,
-  pickingTarget: false,
-  setPassTarget: (t) => set((s) => ({ passTargets: { ...s.passTargets, [s.body]: t }, pickingTarget: false })),
+  setPassTarget: (t) => set((s) => ({ passTargets: { ...s.passTargets, [s.body]: t } })),
+  clearPassTarget: () =>
+    set((s) => {
+      const next = { ...s.passTargets };
+      delete next[s.body];
+      return { passTargets: next };
+    }),
   setPassRadius: (km) => set((s) => ({ passRadius: { ...s.passRadius, [s.body]: km } })),
   setPassDays: (days) => set({ passDays: days }),
-  setPickingTarget: (on) => set({ pickingTarget: on }),
 
   simTime: Date.now(),
   playing: true,
@@ -261,7 +263,6 @@ export const useAppStore = create<AppState>()(
         revsBack: s.revsBack,
         revsForward: s.revsForward,
         customSats: s.customSats,
-        passTargets: s.passTargets,
         passRadius: s.passRadius,
         passDays: s.passDays,
       }),
@@ -272,7 +273,8 @@ export const useAppStore = create<AppState>()(
         const layers = { ...current.layers };
         // «День и ночь» при каждом запуске включены — сохранённое выключение не восстанавливается
         for (const k of Object.keys(layers) as (keyof Layers)[]) if (k !== 'night' && typeof saved[k] === 'boolean') layers[k] = saved[k];
-        return { ...current, ...p, layers };
+        // Место пролётов не восстанавливается (его сохраняла прошлая версия): при запуске — только трассы
+        return { ...current, ...p, layers, passTargets: {} };
       },
     },
   ),

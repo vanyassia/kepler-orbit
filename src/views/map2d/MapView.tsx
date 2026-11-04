@@ -1,4 +1,4 @@
-import { Crosshair, Maximize, Minus, Plus, X } from 'lucide-react';
+import { Crosshair, Maximize, Minus, Plus } from 'lucide-react';
 import { select } from 'd3-selection';
 import 'd3-transition';
 import type { ZoomBehavior, ZoomTransform } from 'd3-zoom';
@@ -14,6 +14,7 @@ import { RAD } from '../../physics/constants';
 import { circleAround } from '../../physics/passes';
 import { passRadiusOf, passTargetOf, useAppStore } from '../../state/store';
 import { LayersMenu, RevsControl } from '../../ui/LayersMenu';
+import { PassChip } from '../../ui/PassFinder';
 import { fmt, fmtLat, fmtLon } from '../../ui/format';
 import { satelliteTitle } from '../../ui/satelliteTitle';
 import { ensureFullImage, LIGHT_DEVICE, NIGHT_LIGHTS, SURFACE, SURFACE_CREDIT, useProgressiveImage } from '../assets';
@@ -81,7 +82,6 @@ export default function MapView() {
   const [borders, setBorders] = useState<BorderPaths | null>(null);
 
   const body = useAppStore((s) => s.body);
-  const picking = useAppStore((s) => s.pickingTarget);
   const day = useProgressiveImage(SURFACE[body]);
   // Ночные огни и границы государств — только у Земли
   const night = useProgressiveImage(body === 'earth' ? NIGHT_LIGHTS : []);
@@ -413,12 +413,13 @@ export default function MapView() {
         revs = r;
         nodePoints = r.nodes.filter((n) => n > st.simTime && n <= windowEnd).map((n) => ({ offset: r.offsetAt(n), point: orbitSource(o).at(n)! }));
       }
+      // Точка пролётов — только если пользователь поставил её щелчком по карте
       const target = passTargetOf(st, st.body);
       const radiusKm = passRadiusOf(st, st.body);
-      const nextPassKey = `${st.body}|${target.lat}|${target.lon}|${target.name}|${radiusKm}`;
+      const nextPassKey = target ? `${st.body}|${target.lat}|${target.lon}|${target.name}|${radiusKm}` : '';
       if (nextPassKey !== passKey) {
         passKey = nextPassKey;
-        passZone = {
+        passZone = target && {
           lat: target.lat,
           lon: target.lon,
           custom: target.name === null,
@@ -475,7 +476,7 @@ export default function MapView() {
     const view = { s: s0 * t.k, ox: t.x + t.k * ox0, oy: t.y + t.k * oy0 } as View;
     const [lon, lat] = toWorldLonLat(view, sx, sy);
     if (coordsRef.current) {
-      coordsRef.current.textContent = Math.abs(lat) <= 90 && Math.abs(lon) <= 180 ? `${fmtLat(lat, 2)}   ${fmtLon(lon, 2)}` : '';
+      coordsRef.current.textContent = Math.abs(lat) <= 90 && Math.abs(lon) <= 180 ? `${fmtLat(lat, 2)}   ${fmtLon(lon, 2)} · щелчок — пролёты над точкой` : '';
     }
     const best = nearestCity(view, sx, sy, 10);
     if (best !== hoverRef.current) {
@@ -484,10 +485,10 @@ export default function MapView() {
     }
   };
 
-  // Выбор места для поиска пролётов: щелчок по карте (по городу — сам город)
+  // Щелчок по карте ставит точку для поиска пролётов (рядом с городом — сам город).
+  // После перетаскивания карты щелчка нет: d3-zoom его гасит
   const onClick = (e: React.MouseEvent<HTMLCanvasElement>) => {
     const st = useAppStore.getState();
-    if (!st.pickingTarget) return;
     const rect = e.currentTarget.getBoundingClientRect();
     const { w, h } = sizeRef.current;
     const t = transformRef.current;
@@ -498,15 +499,7 @@ export default function MapView() {
     // На сенсорном экране наведения нет — ищем город рядом с местом касания, с запасом на палец
     const city = nearestCity(view, e.clientX - rect.left, e.clientY - rect.top, matchMedia('(pointer: coarse)').matches ? 18 : 10);
     st.setPassTarget(city ? { name: city.name, lat: city.lat, lon: city.lon } : { name: null, lat: Math.round(lat * 1e4) / 1e4, lon: Math.round(lon * 1e4) / 1e4 });
-    // На телефоне и планшете — обратно к списку пролётов
-    if (matchMedia('(max-width: 1100px)').matches) st.setSidebarOpen(true);
   };
-  useEffect(() => {
-    if (!picking) return;
-    const onKey = (e: KeyboardEvent) => e.key === 'Escape' && useAppStore.getState().setPickingTarget(false);
-    window.addEventListener('keydown', onKey);
-    return () => window.removeEventListener('keydown', onKey);
-  }, [picking]);
 
   const zoomBy = (factor: number) => {
     autoFitRef.current = false;
@@ -559,7 +552,6 @@ export default function MapView() {
       <canvas
         ref={canvasRef}
         className={styles.canvas}
-        data-picking={picking || undefined}
         onClick={onClick}
         onPointerMove={onPointerMove}
         onPointerLeave={() => {
@@ -573,14 +565,7 @@ export default function MapView() {
         tabIndex={0}
         onKeyDown={onKeyDown}
       />
-      {picking && (
-        <div className={styles.pickBanner} role="status">
-          <span>{matchMedia('(pointer: coarse)').matches ? 'Коснитесь карты' : 'Щёлкните по карте'}, чтобы выбрать место</span>
-          <button type="button" onClick={() => useAppStore.getState().setPickingTarget(false)} aria-label="Отменить выбор места" title="Отмена">
-            <X size={15} />
-          </button>
-        </div>
-      )}
+      <PassChip />
       <div className={styles.toolbar}>
         <LayersMenu keys={body === 'earth' ? ['imagery', 'night', 'borders', 'grid', 'cities'] : ['regions', 'imagery', 'night', 'grid', 'cities']}>
           <RevsControl />

@@ -63,7 +63,8 @@ src/data/      источники элементов орбит и справо�
 src/state/store.ts   zustand: спутник, время, скорость, вид, слои; настройки в localStorage «kepler:prefs»
 src/hooks/useSimClock.ts   часы симуляции
 src/ui/        шапка (TopBar, BodySwitcher, SatelliteSearch), боковая панель (Sidebar, FormulaSteps),
-               «Пролёты над точкой» (PassFinder: город или точка щелчком по карте, список с переходом к моменту),
+               «Пролёты над точкой» (PassFinder + плашка PassChip, расчёт — usePassSearch): по умолчанию выключено,
+               точку ставит щелчок по карте (рядом с городом — город), крестик убирает; список с переходом к моменту,
                нижняя панель времени (Timeline), рабочая область (Workspace), диалоги TLE и своей орбиты,
                окно «Выгрузка данных» (ExportDialog; кнопка в шапке, на телефоне — в боковой панели; download.ts)
 src/views/globe3d/  3D-глобус: three.js + react-three-fiber
