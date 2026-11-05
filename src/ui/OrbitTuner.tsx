@@ -2,6 +2,8 @@
  * «Изменить орбиту»: ползунки высоты перицентра, вытянутости (эксцентриситета) и наклонения
  * прямо в боковой панели. Трасса, орбита и графики пересчитываются сразу — видно, как каждый
  * элемент меняет картину. Пересчёт элементов — src/data/orbitTune.ts, состояние — tuneOrbit в store.
+ *
+ * Только для своих спутников: орбиты настоящих аппаратов не подменяем (решение пользователя).
  */
 import { RotateCcw } from 'lucide-react';
 import { useEffect, useId, useRef } from 'react';
@@ -35,7 +37,7 @@ export function OrbitTuner() {
     });
   };
 
-  if (!record) return null;
+  if (!record || !isCustomId(record.elements.noradId)) return null;
   const el = record.elements;
   const body = el.body ?? 'earth';
   const sh = shapeOf(el);
@@ -43,7 +45,6 @@ export function OrbitTuner() {
   const start = shapeOf((base?.record ?? record).elements);
   const hMin = Math.min(TUNE_HEIGHT[body].min, Math.max(1, start.hPeri));
   const hMax = Math.max(TUNE_HEIGHT[body].max, start.hPeri);
-  const custom = isCustomId(el.noradId);
 
   const row = (key: string, label: string, value: string, input: React.ReactNode) => (
     <div className={styles.row}>
@@ -124,11 +125,7 @@ export function OrbitTuner() {
         hа = {fmt(sh.hApo, 0)}&nbsp;км · T = {fmtDuration(sh.T)}
       </p>
       <p className={styles.note}>
-        {base
-          ? custom
-            ? 'Новая орбита сохранится в своём спутнике.'
-            : 'Это уже не настоящая орбита: при выборе другого спутника изменения пропадут.'
-          : 'Перицентр остаётся на месте, вытянутость поднимает апоцентр. Ω, ω и M₀ не меняются.'}
+        Перицентр остаётся на месте, вытянутость поднимает апоцентр. Ω, ω и M₀ не меняются. Новая орбита сохраняется в спутнике.
       </p>
     </section>
   );

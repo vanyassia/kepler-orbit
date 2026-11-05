@@ -35,10 +35,10 @@ export function Sidebar() {
       <SatelliteCard />
       <QuickPicks />
       <Telemetry />
-      <OrbitTuner />
-      <OrbitCharts />
-      <PassFinder />
       <OrbitElements />
+      <OrbitCharts />
+      <OrbitTuner />
+      <PassFinder />
       <FormulaSteps />
     </aside>
   );

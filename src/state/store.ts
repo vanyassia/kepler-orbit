@@ -122,11 +122,11 @@ interface AppState {
   selectBody: (body: BodyId) => void;
   setRecord: (rec: SatelliteRecord) => void;
   /**
-   * Орбита до изменения ползунками «Изменить орбиту» (null — орбиту не меняли).
-   * Для своего спутника — и его прежние параметры: изменения сохраняются в нём самом.
+   * Орбита своего спутника до изменения ползунками «Изменить орбиту» (null — орбиту не меняли)
+   * и его прежние параметры: изменения сохраняются в самом спутнике.
    */
   tuneBase: { record: SatelliteRecord; custom?: CustomSatellite } | null;
-  /** Изменить высоту перицентра, эксцентриситет или наклонение текущего спутника. */
+  /** Изменить высоту перицентра, эксцентриситет или наклонение своего спутника (настоящие не меняются). */
   tuneOrbit: (patch: TunePatch) => void;
   /** Вернуть орбиту, какой она была до изменений. */
   resetTune: () => void;
@@ -235,18 +235,17 @@ export const useAppStore = create<AppState>()(
     const s = get();
     if (!s.record) return;
     const id = s.record.elements.noradId;
+    // Менять можно только свои спутники: орбиты настоящих аппаратов не подменяем
     const custom = isCustomId(id) ? s.customSats.find((x) => x.id === id) : undefined;
+    if (!custom) return;
     const elements = tuneElements(s.record.elements, patch);
     const record = { ...s.record, elements };
     const tuneBase = s.tuneBase ?? { record: s.record, custom };
     loadSeq++; // загрузка другого спутника, начатая раньше, уже не нужна
     // Свой спутник запоминает новую орбиту (одним обновлением — без лишней перерисовки)
-    let customSats = s.customSats;
-    if (custom) {
-      const sh = shapeOf(elements);
-      const next = { ...custom, hPeri: sh.hPeri, hApo: sh.hApo, inclinationDeg: elements.inclinationDeg };
-      customSats = customSats.map((x) => (x.id === id ? next : x));
-    }
+    const sh = shapeOf(elements);
+    const next = { ...custom, hPeri: sh.hPeri, hApo: sh.hApo, inclinationDeg: elements.inclinationDeg };
+    const customSats = s.customSats.map((x) => (x.id === id ? next : x));
     set({ record, orbit: prepareOrbit(elements), tuneBase, customSats });
   },
   resetTune: () => {
