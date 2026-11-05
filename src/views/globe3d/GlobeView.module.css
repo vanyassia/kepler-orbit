@@ -101,6 +101,28 @@
   }
 }
 
+/* Вид с борта: прицел на подспутниковой точке (центр кадра) */
+.boardMark {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 80px;
+  height: 80px;
+  margin: -40px 0 0 -40px;
+  pointer-events: none;
+  fill: none;
+  stroke: var(--sat);
+  stroke-width: 1.5;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  opacity: 0.85;
+  filter: drop-shadow(0 0 2px #04060a);
+}
+
+.boardArrow {
+  stroke-width: 2;
+}
+
 /* Подписи на сцене: позицию (transform) задаёт LabelLayer каждый кадр */
 .labels {
   position: absolute;
@@ -195,8 +217,22 @@
   display: none;
 }
 
+/* Средняя ширина: четыре подписи не помещаются рядом с переключателем видов —
+   значками все режимы, кроме выбранного */
+@container (max-width: 1180px) {
+  .camIcon {
+    display: block;
+  }
+  .toolbar .segmented button[aria-checked='false'] .camLabel {
+    display: none;
+  }
+  .toolbar .segmented button[aria-checked='false'] {
+    padding: 0 9px;
+  }
+}
+
 /* Узкая рабочая область: режимы камеры — значками */
-@container (max-width: 900px) {
+@container (max-width: 960px) {
   .camIcon {
     display: block;
   }

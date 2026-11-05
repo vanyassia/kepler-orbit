@@ -34,6 +34,7 @@ import { useAppStore } from '../../state/store';
 import { fmt } from '../../ui/format';
 import { satelliteTitle } from '../../ui/satelliteTitle';
 import type { TrackWindow } from '../trackCache';
+import { boardFov, clampZoom } from '../boardView';
 import { frameDue, pixelsPerUnit, simMsPerShift } from '../frameRate';
 import { glowPixels, type Rgba } from '../glowPixels';
 import { MAX_WINDOW_POINTS, ORBIT_COLOR, orbitSource, Revolutions, revolutionColor, SAT_COLOR, TrackCache, trackSpan } from '../trackCache';
@@ -53,6 +54,23 @@ export const CAMERA_FOV = 38;
 const MAX_CAMERA_DISTANCE = 220;
 const WORLD_UP = new Vector3(0, 1, 0);
 const NO_ROTATION = new Quaternion();
+/** Радиус шара атмосферы, радиусов тела: камера «с борта» ниже него — шар не рисуется (иначе дымка закрывает весь кадр). */
+const ATMOSPHERE_R = 1.035;
+/** Длительность перелёта камеры на борт, мс. */
+const BOARD_FLIGHT_MS = 1400;
+
+/**
+ * Обзорное место камеры для спутника: сбоку от него, чуть выше плоскости экватора, чтобы
+ * в кадре были и тело, и вся орбита. Очень вытянутая орбита (Марс-3, e ≈ 0,96) уходит от тела
+ * почти в одну сторону: нужен запас, чтобы апоцентр попал в кадр.
+ */
+function overviewPosition(orbit: NonNullable<ReturnType<typeof useAppStore.getState>['orbit']>, t: number, out: Vector3): Vector3 {
+  const s = propagate(orbit, t);
+  const satDir = toScene(s.eci, out, orbit.body.radius).normalize();
+  const margin = orbit.e > 0.9 ? 3 : 2.3;
+  const dist = Math.min(MAX_CAMERA_DISTANCE, Math.max(3.4, (orbit.rApogee / orbit.body.radius) * margin + 0.8));
+  return satDir.add(new Vector3(0, 0.35, 0)).normalize().multiplyScalar(dist);
+}
 
 /** Позиции подписей (см. LabelLayer): спутник — над точкой, при наложении — в другие углы */
 const SAT_OFFSETS = [
@@ -128,6 +146,9 @@ export function GlobeScene({ overlay, onReady }: { overlay: React.RefObject<HTML
   const controls = useThree((s) => s.controls) as unknown as OrbitControlsImpl | null;
   const size = useThree((s) => s.size);
   const invalidate = useThree((s) => s.invalidate);
+  const camMode = useAppStore((s) => s.camera);
+  /** «Вид с борта»: камера на спутнике смотрит вниз, на подспутниковую точку. */
+  const board = camMode === 'board';
 
   // Режим «по требованию»: новый кадр — при изменении состояния (слои, спутник, скорость), когда ход времени
   // заметно сдвинул картинку (frameRate.ts), после каждой перерисовки компонента (загрузились текстуры)
@@ -135,14 +156,16 @@ export function GlobeScene({ overlay, onReady }: { overlay: React.RefObject<HTML
   const drawn = useRef({ time: Number.NaN, at: 0, stepMs: 0 });
 
   // Узкая высокая панель (телефон): угол обзора задан по горизонтали, иначе тело не помещается по ширине
+  // В виде с борта угол обзора задаёт цикл кадра (boardView.ts); после выхода — снова обычный
   useEffect(() => {
+    if (board) return;
     const cam = camera as PerspectiveCamera;
     const aspect = size.width / size.height;
     const half = (CAMERA_FOV / 2) * (Math.PI / 180);
     cam.fov = aspect < 1 ? (2 * Math.atan(Math.tan(half) / aspect) * 180) / Math.PI : CAMERA_FOV;
     cam.updateProjectionMatrix();
     invalidate();
-  }, [camera, size.width, size.height, invalidate]);
+  }, [camera, size.width, size.height, invalidate, board]);
   useEffect(
     () =>
       useAppStore.subscribe((s, p) => {
@@ -182,6 +205,7 @@ export function GlobeScene({ overlay, onReady }: { overlay: React.RefObject<HTML
   const sunLight = useRef<DirectionalLight>(null!);
   const sunSprite = useRef<Sprite>(null!);
   const subMarker = useRef<Mesh>(null!);
+  const atmosphere = useRef<Mesh>(null!);
   const startMarker = useRef<Mesh>(null!);
   const endMarker = useRef<Mesh>(null!);
   const labelLayer = useRef<LabelLayer | null>(null);
@@ -311,7 +335,9 @@ export function GlobeScene({ overlay, onReady }: { overlay: React.RefObject<HTML
         id: 'sat',
         text: record ? satelliteTitle(record.elements).title : '',
         className: 'globe-label sat',
-        anchor: (out) => out.copy(satGroup.current.position),
+        // В виде с борта камера стоит на самом спутнике: подпись — у подспутниковой точки, в центре кадра
+        anchor: (out) =>
+          useAppStore.getState().camera === 'board' ? earthGroup.current.localToWorld(out.copy(subMarker.current.position)) : out.copy(satGroup.current.position),
         priority: 0,
         always: true,
         offsets: SAT_OFFSETS,
@@ -361,7 +387,7 @@ export function GlobeScene({ overlay, onReady }: { overlay: React.RefObject<HTML
         });
       }
     }
-    if (layers.helpers && geometry && orbit) {
+    if (layers.helpers && geometry && orbit && !board) {
       const helper = (id: string, text: string, at: Vector3) => specs.push({ id, text, className: 'globe-label helper', anchor: fixed(at), priority: 4 });
       helper('aries', bodyId === 'earth' ? '♈ ось x' : 'ось x — узел экватора', new Vector3(1.95, 0, 0));
       helper('pole', 'ось z', new Vector3(0, 1.5, 0));
@@ -374,7 +400,69 @@ export function GlobeScene({ overlay, onReady }: { overlay: React.RefObject<HTML
     }
     labelSpecs.current = specs;
     labelLayer.current?.setSpecs(specs);
-  }, [orbit, record, geometry, layers.cities, layers.helpers, revsBack, revsForward, bodyId, regionsOn]);
+  }, [orbit, record, geometry, layers.cities, layers.helpers, revsBack, revsForward, bodyId, regionsOn, board]);
+
+  // Приближение в виде с борта: множитель к углу обзора (колёсико, щипок, «+» и «−»)
+  const boardZoom = useRef(1);
+  const zoomBoard = useMemo(
+    () => (factor: number) => {
+      boardZoom.current = clampZoom(boardZoom.current * factor);
+      invalidate();
+    },
+    [invalidate],
+  );
+  useEffect(() => {
+    if (!board) return;
+    const el = gl.domElement;
+    const onWheel = (e: WheelEvent) => {
+      e.preventDefault();
+      // Щипок на трекпаде приходит колёсиком с ctrlKey — он чувствительнее, шаг крупнее
+      zoomBoard(Math.exp(e.deltaY * (e.ctrlKey ? 0.01 : 0.0015)));
+    };
+    // Щипок двумя пальцами на телефоне
+    let pinch: { dist: number; zoom: number } | null = null;
+    const spread = (t: TouchList) => Math.hypot(t[0].clientX - t[1].clientX, t[0].clientY - t[1].clientY);
+    const onTouchStart = (e: TouchEvent) => {
+      if (e.touches.length === 2) pinch = { dist: spread(e.touches), zoom: boardZoom.current };
+    };
+    const onTouchMove = (e: TouchEvent) => {
+      if (!pinch || e.touches.length !== 2) return;
+      e.preventDefault();
+      boardZoom.current = clampZoom((pinch.zoom * pinch.dist) / Math.max(1, spread(e.touches)));
+      invalidate();
+    };
+    const onTouchEnd = (e: TouchEvent) => {
+      if (e.touches.length < 2) pinch = null;
+    };
+    // Safari на Mac: щипок на трекпаде — отдельные события gesture*
+    let gestureZoom = 1;
+    const onGestureStart = (e: Event) => {
+      e.preventDefault();
+      gestureZoom = boardZoom.current;
+    };
+    const onGestureChange = (e: Event) => {
+      e.preventDefault();
+      const scale = (e as Event & { scale?: number }).scale ?? 1;
+      boardZoom.current = clampZoom(gestureZoom / Math.max(0.01, scale));
+      invalidate();
+    };
+    el.addEventListener('wheel', onWheel, { passive: false });
+    el.addEventListener('touchstart', onTouchStart, { passive: true });
+    el.addEventListener('touchmove', onTouchMove, { passive: false });
+    el.addEventListener('touchend', onTouchEnd);
+    el.addEventListener('touchcancel', onTouchEnd);
+    el.addEventListener('gesturestart', onGestureStart);
+    el.addEventListener('gesturechange', onGestureChange);
+    return () => {
+      el.removeEventListener('wheel', onWheel);
+      el.removeEventListener('touchstart', onTouchStart);
+      el.removeEventListener('touchmove', onTouchMove);
+      el.removeEventListener('touchend', onTouchEnd);
+      el.removeEventListener('touchcancel', onTouchEnd);
+      el.removeEventListener('gesturestart', onGestureStart);
+      el.removeEventListener('gesturechange', onGestureChange);
+    };
+  }, [board, gl, invalidate, zoomBoard]);
 
   // Клавиатура (альтернатива перетаскиванию): стрелки вращают камеру вокруг тела, «+» и «−» приближают.
   // Работает, когда фокус на области глобуса (Tab до неё); событие помечается, чтобы стрелки не сдвигали время.
@@ -385,6 +473,14 @@ export function GlobeScene({ overlay, onReady }: { overlay: React.RefObject<HTML
     if (!host) return;
     const onKey = (e: KeyboardEvent) => {
       if (e.metaKey || e.ctrlKey || e.altKey) return;
+      if (useAppStore.getState().camera === 'board') {
+        // С борта камера не вращается: «+» и «−» меняют угол обзора, стрелки остаются времени
+        if (e.key === '+' || e.key === '=') zoomBoard(0.8);
+        else if (e.key === '-' || e.key === '−') zoomBoard(1 / 0.8);
+        else return;
+        e.preventDefault();
+        return;
+      }
       // Сферические координаты — относительно «верха» камеры: при слежении он повёрнут
       const toUp = new Quaternion().setFromUnitVectors(camera.up, WORLD_UP);
       const sph = new Spherical().setFromVector3(camera.position.clone().applyQuaternion(toUp));
@@ -404,27 +500,66 @@ export function GlobeScene({ overlay, onReady }: { overlay: React.RefObject<HTML
     };
     host.addEventListener('keydown', onKey);
     return () => host.removeEventListener('keydown', onKey);
-  }, [camera, controls, gl, invalidate]);
+  }, [camera, controls, gl, invalidate, zoomBoard]);
 
   // Плавная перестановка камеры при выборе нового спутника
   const camAnim = useRef<{ from: Vector3; to: Vector3; start: number } | null>(null);
+  /** Перелёт камеры на борт: откуда начался; цель каждый кадр своя — спутник движется. */
+  const boardAnim = useRef<{ pos: Vector3; quat: Quaternion; fov: number; start: number } | null>(null);
+  const startBoardFlight = useMemo(
+    () => () => {
+      camAnim.current = null;
+      boardAnim.current = matchMedia('(prefers-reduced-motion: reduce)').matches
+        ? null
+        : { pos: camera.position.clone(), quat: camera.quaternion.clone(), fov: (camera as PerspectiveCamera).fov, start: performance.now() };
+      invalidate();
+    },
+    [camera, invalidate],
+  );
   useEffect(() => {
     if (!orbit || !geometry) return;
-    const s = propagate(orbit, useAppStore.getState().simTime);
-    const satDir = toScene(s.eci, new Vector3(), orbit.body.radius).normalize();
-    // Очень вытянутая орбита (Марс-3, e ≈ 0,96) уходит от тела почти в одну сторону: нужен запас, чтобы апоцентр попал в кадр
-    const margin = orbit.e > 0.9 ? 3 : 2.3;
-    const dist = Math.min(MAX_CAMERA_DISTANCE, Math.max(3.4, (orbit.rApogee / orbit.body.radius) * margin + 0.8));
+    // С борта камера перелетает на новый спутник и остаётся на нём
+    if (useAppStore.getState().camera === 'board') {
+      startBoardFlight();
+      return;
+    }
     // Камера сбоку от спутника, чуть выше плоскости экватора — видны и Земля, и плоскость орбиты
-    const dir = satDir.clone().add(new Vector3(0, 0.35, 0)).normalize();
-    const to = dir.multiplyScalar(dist);
+    const to = overviewPosition(orbit, useAppStore.getState().simTime, new Vector3());
     if (matchMedia('(prefers-reduced-motion: reduce)').matches) {
       camera.position.copy(to);
       camera.lookAt(0, 0, 0);
     } else {
       camAnim.current = { from: camera.position.clone(), to, start: performance.now() };
     }
-  }, [orbit, geometry, camera]);
+  }, [orbit, geometry, camera, startBoardFlight]);
+
+  // Вход в вид с борта и выход из него
+  const prevMode = useRef(camMode);
+  useEffect(() => {
+    const was = prevMode.current;
+    prevMode.current = camMode;
+    if (was === camMode) return;
+    if (camMode === 'board') {
+      boardZoom.current = 1;
+      startBoardFlight();
+      return;
+    }
+    if (was !== 'board') return;
+    boardAnim.current = null;
+    // «Верх» камеры — тот же, что был на экране (по ходу полёта): кадр не проворачивается рывком,
+    // дальше он сам плавно встанет вдоль оси тела. Камера отлетает на обзорное место
+    camera.up.set(0, 1, 0).applyQuaternion(camera.quaternion);
+    const o = useAppStore.getState().orbit;
+    if (!o) return;
+    const to = overviewPosition(o, useAppStore.getState().simTime, new Vector3());
+    if (matchMedia('(prefers-reduced-motion: reduce)').matches) {
+      camera.position.copy(to);
+      camera.lookAt(0, 0, 0);
+    } else {
+      camAnim.current = { from: camera.position.clone(), to, start: performance.now() };
+    }
+    invalidate();
+  }, [camMode, camera, startBoardFlight, invalidate]);
 
   const prevSatDir = useRef(new Vector3());
   const prevQ = useRef<Quaternion | null>(null);
@@ -452,6 +587,7 @@ export function GlobeScene({ overlay, onReady }: { overlay: React.RefObject<HTML
     };
   }, []);
   const tmp = useMemo(() => ({ v: new Vector3(), w: new Vector3(), f: new Vector3(), n: new Vector3(), m: new Matrix4(), q: new Quaternion(), q2: new Quaternion(), q3: new Quaternion() }), []);
+  const bt = useMemo(() => ({ q: new Quaternion(), m: new Matrix4(), a: new Vector3(), b: new Vector3() }), []);
 
   useFrame(() => {
     const st = useAppStore.getState();
@@ -500,19 +636,50 @@ export function GlobeScene({ overlay, onReady }: { overlay: React.RefObject<HTML
       satModel.scale.setScalar(44 / SATELLITE_SPAN / ppu);
       // Естественный спутник: настоящий размер, но не меньше нескольких пикселей — иначе издали его не видно
       const natural = st.record ? naturalSatellite(st.record.elements) : null;
-      satModel.visible = !natural;
-      satGlow.current.visible = !natural;
-      for (const [kind, mesh] of Object.entries(naturalModels)) mesh.visible = kind === natural;
+      // С борта камера стоит на самом аппарате: его модель, свечение и радиус-вектор не рисуются
+      const onBoard = st.camera === 'board';
+      satModel.visible = !natural && !onBoard;
+      satGlow.current.visible = !natural && !onBoard;
+      for (const [kind, mesh] of Object.entries(naturalModels)) mesh.visible = kind === natural && !onBoard;
+      lines.radius.visible = !onBoard;
+      subMarker.current.visible = !onBoard;
       if (natural) {
         if (natural === 'moon') loadMoonSurface(naturalModels.moon, invalidate);
         placeNatural(naturalModels[natural], natural, dir, side, 1 / b.radius, ppu);
       }
       // Быстрее всего на экране движется спутник или поверхность под ним — считаем по ближнему из них
-      const nearest = Math.max(0.15, Math.min(camera.position.length() - 1, camera.position.distanceTo(satPos)));
+      const nearest = onBoard
+        ? Math.max(0.002, camera.position.length() - 1)
+        : Math.max(0.15, Math.min(camera.position.length() - 1, camera.position.distanceTo(satPos)));
       drawn.current.stepMs = simMsPerShift((s.V / b.radius) * pixelsPerUnit(size.height, (camera as PerspectiveCamera).fov, nearest));
 
-      // Режимы камеры: за спутником / вместе с Землёй
-      if (!anim) {
+      if (onBoard) {
+        // Вид с борта: камера в точке спутника смотрит вниз (на подспутниковую точку),
+        // верх кадра — по ходу полёта, так что поверхность проплывает сверху вниз
+        const cam = camera as PerspectiveCamera;
+        const goal = bt.q.setFromRotationMatrix(bt.m.makeBasis(side, fwd, dir));
+        const goalFov = boardFov(satPos.length(), size.width / size.height, boardZoom.current);
+        const fl = boardAnim.current;
+        if (fl) {
+          const k = Math.min(1, (performance.now() - fl.start) / BOARD_FLIGHT_MS);
+          const e = k < 0.5 ? 4 * k * k * k : 1 - Math.pow(-2 * k + 2, 3) / 2;
+          // Перелёт по дуге вокруг тела (направление и расстояние отдельно), а не напрямик сквозь него
+          const fromLen = fl.pos.length();
+          const toLen = satPos.length();
+          bt.a.copy(fl.pos).normalize().lerp(bt.b.copy(satPos).normalize(), e).normalize();
+          camera.position.copy(bt.a.multiplyScalar(fromLen + (toLen - fromLen) * e));
+          camera.quaternion.slerpQuaternions(fl.quat, goal, e);
+          cam.fov = Math.exp(Math.log(fl.fov) + (Math.log(goalFov) - Math.log(fl.fov)) * e);
+          if (k >= 1) boardAnim.current = null;
+          else invalidate();
+        } else {
+          camera.position.copy(satPos);
+          camera.quaternion.copy(goal);
+          cam.fov = goalFov;
+        }
+        cam.updateProjectionMatrix();
+      } else if (!anim) {
+        // Режимы камеры: за спутником / вместе с Землёй
         if (st.camera === 'follow' && prevSatDir.current.lengthSq() > 0) {
           // Камера поворачивается вместе со своим «верхом», как одно целое со спутником.
           // Если «верх» оставить вдоль оси тела, картинка резко проворачивается у полюсов.
@@ -604,6 +771,12 @@ export function GlobeScene({ overlay, onReady }: { overlay: React.RefObject<HTML
       labelLayer.current = new LabelLayer(overlay.current);
       labelLayer.current.setSpecs(labelSpecs.current);
     }
+    // Атмосфера — шар вокруг тела; камера с борта низкого спутника оказывается внутри него
+    atmosphere.current.visible = !!LOOK[st.body].atmo && !(st.camera === 'board' && camera.position.length() < ATMOSPHERE_R);
+    // Подписи — по положению камеры и тела в этом кадре, а не в прошлом: с борта камера летит вместе
+    // со спутником, и при ускорении подпись иначе отстаёт от точки на десятки километров
+    camera.updateMatrixWorld();
+    earthGroup.current.updateMatrixWorld();
     labelLayer.current?.update(camera, size.width, size.height);
   });
 
@@ -612,7 +785,7 @@ export function GlobeScene({ overlay, onReady }: { overlay: React.RefObject<HTML
 
   return (
     <>
-      <OrbitControls makeDefault enableDamping dampingFactor={0.08} enablePan={false} minDistance={1.15} maxDistance={MAX_CAMERA_DISTANCE} rotateSpeed={0.5} zoomSpeed={0.8} />
+      <OrbitControls makeDefault enabled={!board} enableDamping dampingFactor={0.08} enablePan={false} minDistance={1.15} maxDistance={MAX_CAMERA_DISTANCE} rotateSpeed={0.5} zoomSpeed={0.8} />
 
       {/* Звёздное небо — неподвижно в АГЭСК */}
       {tex.stars && (
@@ -673,12 +846,12 @@ export function GlobeScene({ overlay, onReady }: { overlay: React.RefObject<HTML
       </group>
 
       {/* Атмосфера (в АГЭСК — сфера, поворот не важен) */}
-      <mesh material={mats.atmosphere} visible={!!LOOK[bodyId].atmo}>
-        <sphereGeometry args={[1.035, 96, 48]} />
+      <mesh ref={atmosphere} material={mats.atmosphere}>
+        <sphereGeometry args={[ATMOSPHERE_R, 96, 48]} />
       </mesh>
 
-      {/* Орбита и вспомогательные построения */}
-      {geometry && (
+      {/* Орбита и вспомогательные построения; с борта они проходят через саму камеру и не рисуются */}
+      {geometry && !board && (
         <>
           <Line points={geometry.ellipse} color={ORBIT_COLOR} lineWidth={1.5} transparent opacity={0.85} />
           {layers.helpers && (

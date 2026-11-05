@@ -1,5 +1,5 @@
 import { Canvas } from '@react-three/fiber';
-import { Earth, Move3d, Satellite } from 'lucide-react';
+import { Earth, Move3d, Satellite, ScanEye } from 'lucide-react';
 import { Suspense, useEffect, useRef, useState } from 'react';
 import type { RootState } from '@react-three/fiber';
 import { ACESFilmicToneMapping } from 'three';
@@ -16,6 +16,7 @@ const CAMERA_MODES: { id: CameraMode; label: string; hint: string; icon: typeof 
   { id: 'free', label: 'Свободно', hint: 'Камера неподвижна в инерциальной системе (АГЭСК)', icon: Move3d },
   { id: 'follow', label: 'За спутником', hint: 'Камера поворачивается вслед за спутником', icon: Satellite },
   { id: 'earth', label: 'С телом', hint: 'Камера вращается вместе с телом', icon: Earth },
+  { id: 'board', label: 'С борта', hint: 'Вид с борта: камера на спутнике смотрит вниз, на подспутниковую точку. Колёсико или щипок — приближение', icon: ScanEye },
 ];
 const CAMERA_IDS = CAMERA_MODES.map((m) => m.id);
 const QUALITIES = ['standard', 'ultra'] as const;
@@ -72,6 +73,14 @@ export default function GlobeView() {
         </Suspense>
       </Canvas>
       <div ref={overlay} className={styles.labels} aria-hidden="true" />
+      {/* Вид с борта: прицел в центре кадра — подспутниковая точка; стрелка — направление полёта */}
+      {camera === 'board' && (
+        <svg className={styles.boardMark} viewBox="-40 -40 80 80" aria-hidden="true">
+          <circle r="11" />
+          <path d="M0 -26 V -15 M0 15 V 26 M-26 0 H -15 M15 0 H 26" />
+          <path className={styles.boardArrow} d="M-5 -30 L0 -37 L5 -30" />
+        </svg>
+      )}
       <div className={styles.loader} data-done={ready} role={ready ? undefined : 'status'} aria-hidden={ready || undefined}>
         <span className={styles.spinner} aria-hidden="true" />
         Загрузка глобуса…

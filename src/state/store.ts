@@ -17,7 +17,8 @@ import type { PreparedOrbit } from '../physics/propagate';
 import { prepareOrbit } from '../physics/propagate';
 
 export type ViewMode = 'split' | '2d' | '3d';
-export type CameraMode = 'free' | 'follow' | 'earth';
+/** board — «Вид с борта»: камера на спутнике смотрит вниз, на подспутниковую точку. */
+export type CameraMode = 'free' | 'follow' | 'earth' | 'board';
 export type Quality = 'standard' | 'ultra';
 
 export interface Layers {
@@ -257,7 +258,8 @@ export const useAppStore = create<AppState>()(
       },
       storage: createJSONStorage(() => localStorage),
       partialize: (s) => ({
-        camera: s.camera,
+        // «Вид с борта» не запоминается: при запуске глобус открывается обычным видом
+        camera: s.camera === 'board' ? 'free' : s.camera,
         quality: s.quality,
         layers: s.layers,
         revsBack: s.revsBack,
