@@ -1,0 +1,56 @@
+/* Режим показа: всё, что помечено data-chrome (шапка, панели, кнопки видов), скрыто */
+:global(html[data-presenting]) :global([data-chrome]) {
+  display: none !important;
+}
+
+/* Мышь не двигается — указатель не мешает картинке */
+:global(html[data-presenting][data-idle]),
+:global(html[data-presenting][data-idle]) * {
+  cursor: none !important;
+}
+
+.exit {
+  position: fixed;
+  z-index: 70;
+  top: max(var(--sp-3), env(safe-area-inset-top));
+  right: max(var(--sp-3), env(safe-area-inset-right));
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 36px;
+  padding: 0 var(--sp-3);
+  border: 1px solid var(--line-strong);
+  border-radius: var(--r-control);
+  background: var(--surface-overlay);
+  color: var(--text-0);
+  font-size: var(--fs-caption);
+  touch-action: manipulation;
+  transition:
+    opacity 400ms var(--ease),
+    border-color var(--dur) var(--ease);
+}
+
+.exit:hover {
+  border-color: var(--text-2);
+}
+
+.exit[data-idle] {
+  opacity: 0;
+  pointer-events: none;
+}
+
+.exit:focus-visible {
+  opacity: 1;
+}
+
+@media (pointer: coarse) {
+  .exit {
+    height: 40px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .exit {
+    transition: none;
+  }
+}

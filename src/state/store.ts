@@ -80,6 +80,8 @@ interface AppState {
   sidebarOpen: boolean;
   /** Окно «Выгрузка данных». */
   exportOpen: boolean;
+  /** Режим показа: шапка и панели скрыты, на весь экран только карта или глобус. Не запоминается. */
+  presenting: boolean;
 
   /**
    * Пролёты над точкой: место (ставится щелчком по карте, по умолчанию нет — сайт прежде всего для трасс),
@@ -143,6 +145,7 @@ interface AppState {
   setRevs: (back: number, forward: number) => void;
   setSidebarOpen: (open: boolean) => void;
   setExportOpen: (open: boolean) => void;
+  setPresenting: (on: boolean) => void;
   stepTime: (deltaMs: number) => void;
 }
 
@@ -160,6 +163,7 @@ export const useAppStore = create<AppState>()(
   lastNorad: null,
   sidebarOpen: false,
   exportOpen: false,
+  presenting: false,
   passTargets: {},
   passRadius: {},
   passDays: 3,
@@ -272,6 +276,8 @@ export const useAppStore = create<AppState>()(
   setRevs: (back, forward) => set({ revsBack: back, revsForward: forward }),
   setSidebarOpen: (open) => set({ sidebarOpen: open }),
   setExportOpen: (open) => set({ exportOpen: open }),
+  // В показе выдвижная панель и окна закрыты: на экране только вид
+  setPresenting: (on) => set(on ? { presenting: true, sidebarOpen: false, exportOpen: false } : { presenting: false }),
   selectBody: (body) => {
     if (get().body === body && get().record) return;
     set({ body });

@@ -1,9 +1,10 @@
-import { Download, PanelLeft } from 'lucide-react';
+import { Download, PanelLeft, Presentation } from 'lucide-react';
 import { useWallClock } from '../hooks/useSimClock';
 import { useAppStore } from '../state/store';
 import { BodySwitcher } from './BodySwitcher';
 import { DataStatus } from './DataStatus';
 import { ExportDialog } from './ExportDialog';
+import { startPresentation } from './Presentation';
 import { SatelliteSearch } from './SatelliteSearch';
 import styles from './TopBar.module.css';
 import { fmtTime } from './format';
@@ -17,7 +18,7 @@ export function TopBar() {
   const setExportOpen = useAppStore((s) => s.setExportOpen);
 
   return (
-    <header className={styles.bar}>
+    <header className={styles.bar} data-chrome="">
       <button
         type="button"
         className={`${styles.iconBtn} ${styles.panelToggle}`}
@@ -41,10 +42,21 @@ export function TopBar() {
         <button
           type="button"
           className={`${styles.iconBtn} ${styles.exportBtn}`}
+          onClick={startPresentation}
+          disabled={!hasOrbit}
+          aria-label="Режим показа"
+          title="Режим показа: только карта или глобус на весь экран. Выход — Esc"
+        >
+          <Presentation size={16} aria-hidden="true" />
+          <span>Показ</span>
+        </button>
+        <button
+          type="button"
+          className={`${styles.iconBtn} ${styles.exportBtn}`}
           onClick={() => setExportOpen(true)}
           disabled={!hasOrbit}
           aria-label="Выгрузка данных"
-          title="Выгрузка данных: таблица трассы, элементы орбиты, картинка"
+          title="Выгрузка данных: таблица трассы, элементы орбиты, картинка, видео"
         >
           <Download size={16} aria-hidden="true" />
           <span className={styles.exportLabel}>Выгрузка</span>

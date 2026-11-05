@@ -148,7 +148,7 @@ export function PassChip() {
     setTimeout(() => document.getElementById(SECTION_ID)?.scrollIntoView({ block: 'start', behavior: 'smooth' }), drawer ? 240 : 0);
   };
   return (
-    <div className={styles.chip} role="status">
+    <div className={styles.chip} role="status" data-chrome="">
       <MapPin size={14} className={styles.chipPin} aria-hidden="true" />
       <span className={styles.chipText}>
         <b>{target.name ?? 'Точка'}</b>

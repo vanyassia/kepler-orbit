@@ -1,4 +1,4 @@
-import { Download, Plus, X } from 'lucide-react';
+import { Download, Plus, Presentation, X } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
 import { customToRecord } from '../data/custom';
 import { isOrbiterId, ORBITERS } from '../data/orbiters';
@@ -13,6 +13,7 @@ import { FormulaSteps } from './FormulaSteps';
 import { OrbitCharts } from './OrbitCharts';
 import { OrbitTuner } from './OrbitTuner';
 import { PassFinder } from './PassFinder';
+import { startPresentation } from './Presentation';
 import styles from './Sidebar.module.css';
 import { fmt, fmtDateTime, fmtLat, fmtLon } from './format';
 import { satelliteTitle } from './satelliteTitle';
@@ -28,7 +29,7 @@ export function Sidebar() {
   }, [open, setOpen]);
 
   return (
-    <aside id="sidebar" className={styles.sidebar} data-open={open} aria-label="Параметры спутника">
+    <aside id="sidebar" className={styles.sidebar} data-open={open} aria-label="Параметры спутника" data-chrome="">
       <button type="button" className={styles.close} onClick={() => setOpen(false)} aria-label="Закрыть панель">
         <X size={18} />
       </button>
@@ -106,9 +107,14 @@ function SatelliteCard() {
           <dd className="num">{fmtDateTime(el.epochMs)}</dd>
         </div>
       </dl>
-      <button type="button" className={styles.exportBtn} onClick={() => setExportOpen(true)}>
-        <Download size={14} aria-hidden="true" /> Выгрузка данных
-      </button>
+      <div className={styles.cardActions}>
+        <button type="button" className={styles.exportBtn} onClick={() => setExportOpen(true)}>
+          <Download size={14} aria-hidden="true" /> Выгрузка данных
+        </button>
+        <button type="button" className={styles.exportBtn} onClick={startPresentation} title="Только карта или глобус на весь экран. Выход — Esc или кнопка в углу">
+          <Presentation size={14} aria-hidden="true" /> Показ
+        </button>
+      </div>
       {tuned && <p className={styles.satNote}>Орбита изменена ползунками в разделе «Изменить орбиту».</p>}
       {record.source === 'historic' && <p className={styles.satNote}>Форма орбиты по опубликованным данным. Углы Ω и ω и положение на орбите условные.</p>}
       {error && (

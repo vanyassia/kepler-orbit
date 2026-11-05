@@ -54,7 +54,7 @@ export function Timeline() {
   const offsetH = (t - now) / 3_600_000;
 
   return (
-    <footer className={styles.bar}>
+    <footer className={styles.bar} data-chrome="">
       <button
         type="button"
         className={styles.play}

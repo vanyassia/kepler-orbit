@@ -489,6 +489,8 @@ export default function MapView() {
   // После перетаскивания карты щелчка нет: d3-zoom его гасит
   const onClick = (e: React.MouseEvent<HTMLCanvasElement>) => {
     const st = useAppStore.getState();
+    // В режиме показа касание только возвращает кнопку выхода, точку не ставит
+    if (st.presenting) return;
     const rect = e.currentTarget.getBoundingClientRect();
     const { w, h } = sizeRef.current;
     const t = transformRef.current;
@@ -566,7 +568,7 @@ export default function MapView() {
         onKeyDown={onKeyDown}
       />
       <PassChip />
-      <div className={styles.toolbar}>
+      <div className={styles.toolbar} data-chrome="">
         <LayersMenu keys={body === 'earth' ? ['imagery', 'night', 'borders', 'grid', 'cities'] : ['regions', 'imagery', 'night', 'grid', 'cities']}>
           <RevsControl />
         </LayersMenu>
@@ -587,7 +589,7 @@ export default function MapView() {
       </div>
       <Legend listRef={legendRef} />
       <div className={styles.footer} ref={footerRef}>
-        <span ref={coordsRef} className={`${styles.coords} num`} />
+        <span ref={coordsRef} className={`${styles.coords} num`} data-chrome="" />
         <span className={styles.credit}>{SURFACE_CREDIT[body]}</span>
       </div>
     </div>

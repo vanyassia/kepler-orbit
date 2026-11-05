@@ -37,21 +37,44 @@ export interface SnapshotCaption {
 
 /** Копия вида с подписями; null — вид ещё не открыт или холст пустой. */
 export function captureView(kind: SnapshotKind, caption: SnapshotCaption): HTMLCanvasElement | null {
+  const size = viewSize(kind);
+  if (!size) return null;
+  const out = document.createElement('canvas');
+  out.width = size.width;
+  out.height = size.height;
+  return drawView(kind, caption, out.getContext('2d')!) ? out : null;
+}
+
+/** Размер холста вида в пикселях; null — вид не открыт. Холст глобуса при этом перерисовывается. */
+export function viewSize(kind: SnapshotKind): { width: number; height: number } | null {
+  const from = sources.get(kind)?.canvas();
+  return from && from.width > 0 && from.height > 0 ? { width: from.width, height: from.height } : null;
+}
+
+/**
+ * Нарисовать вид с подписями на холст ctx (кадр видео, картинка). Вид вписывается целиком с сохранением
+ * пропорций: если размер панели изменился (поворот телефона), по краям остаются поля цвета фона.
+ * false — вид сейчас не открыт, холст не тронут.
+ */
+export function drawView(kind: SnapshotKind, caption: SnapshotCaption, ctx: CanvasRenderingContext2D): boolean {
   const src = sources.get(kind);
   const from = src?.canvas();
-  if (!src || !from || from.width === 0 || from.height === 0) return null;
-  const out = document.createElement('canvas');
-  out.width = from.width;
-  out.height = from.height;
-  const ctx = out.getContext('2d')!;
+  if (!src || !from || from.width === 0 || from.height === 0) return false;
+  const { width, height } = ctx.canvas;
+  const fit = Math.min(width / from.width, height / from.height);
+  ctx.save();
+  ctx.setTransform(1, 0, 0, 1, 0, 0);
   ctx.fillStyle = src.background ?? '#04060a';
-  ctx.fillRect(0, 0, out.width, out.height);
+  ctx.fillRect(0, 0, width, height);
+  // Дальше всё рисуется в пикселях исходного холста
+  ctx.setTransform(fit, 0, 0, fit, (width - from.width * fit) / 2, (height - from.height * fit) / 2);
   ctx.drawImage(from, 0, 0);
   const scale = from.width / Math.max(1, from.getBoundingClientRect().width);
   const labels = src.labels?.();
-  if (labels) drawDomLabels(ctx, labels, scale);
-  drawCaption(ctx, caption, scale);
-  return out;
+  if (labels) drawDomLabels(ctx, labels, scale, from.width, from.height);
+  drawCaption(ctx, caption, scale, from.width, from.height);
+  ctx.restore();
+  return true;
 }
 
 export function canvasToPng(canvas: HTMLCanvasElement): Promise<Blob | null> {
@@ -59,7 +82,7 @@ export function canvasToPng(canvas: HTMLCanvasElement): Promise<Blob | null> {
 }
 
 /** Подписи из DOM: плашка, рамка, текст и тень — по вычисленному стилю каждого элемента. */
-function drawDomLabels(ctx: CanvasRenderingContext2D, container: HTMLElement, scale: number) {
+function drawDomLabels(ctx: CanvasRenderingContext2D, container: HTMLElement, scale: number, width: number, height: number) {
   const box = container.getBoundingClientRect();
   const items = [...container.children].filter((el): el is HTMLElement => el instanceof HTMLElement && el.dataset.hidden !== 'true' && !!el.textContent);
   // Порядок наложения — как на экране (z-index)
@@ -72,7 +95,7 @@ function drawDomLabels(ctx: CanvasRenderingContext2D, container: HTMLElement, sc
     const y = (r.top - box.top) * scale;
     const w = r.width * scale;
     const h = r.height * scale;
-    if (x + w < 0 || y + h < 0 || x > ctx.canvas.width || y > ctx.canvas.height) continue;
+    if (x + w < 0 || y + h < 0 || x > width || y > height) continue;
     ctx.save();
     ctx.globalAlpha = Number(cs.opacity) || 1;
     const radius = (parseFloat(cs.borderTopLeftRadius) || 0) * scale;
@@ -110,8 +133,7 @@ function drawDomLabels(ctx: CanvasRenderingContext2D, container: HTMLElement, sc
 const isTransparent = (c: string) => c === 'transparent' || /^rgba\(.*,\s*0\)$/.test(c) || /\/\s*0\)$/.test(c);
 
 /** Подпись снимка: спутник и время слева сверху, источники снимков справа снизу. */
-function drawCaption(ctx: CanvasRenderingContext2D, caption: SnapshotCaption, scale: number) {
-  const { width, height } = ctx.canvas;
+function drawCaption(ctx: CanvasRenderingContext2D, caption: SnapshotCaption, scale: number, width: number, height: number) {
   const pad = 10 * scale;
   ctx.save();
   ctx.textBaseline = 'middle';

@@ -3,6 +3,7 @@ import styles from './App.module.css';
 import { useSimClock } from './hooks/useSimClock';
 import type { ViewMode } from './state/store';
 import { useAppStore } from './state/store';
+import { PresentationLayer } from './ui/Presentation';
 import { Sidebar } from './ui/Sidebar';
 import { Timeline } from './ui/Timeline';
 import { TopBar } from './ui/TopBar';
@@ -24,6 +25,7 @@ export function App() {
   const loadNorad = useAppStore((s) => s.loadNorad);
   const sidebarOpen = useAppStore((s) => s.sidebarOpen);
   const setSidebarOpen = useAppStore((s) => s.setSidebarOpen);
+  const presenting = useAppStore((s) => s.presenting);
 
   // Запуск: спутник и вид из адреса страницы, иначе — МКС на карте
   useEffect(() => {
@@ -56,8 +58,8 @@ export function App() {
   );
 
   return (
-    <div className={styles.app}>
-      <a href="#workspace" className={styles.skip}>
+    <div className={styles.app} data-presenting={presenting || undefined}>
+      <a href="#workspace" className={styles.skip} data-chrome="">
         К визуализации
       </a>
       <TopBar />
@@ -67,6 +69,7 @@ export function App() {
         <Workspace />
       </main>
       <Timeline />
+      <PresentationLayer />
     </div>
   );
 }

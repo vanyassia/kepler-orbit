@@ -1,0 +1,110 @@
+/* Плашка записи видео: внизу по центру вида, над легендой и подписью источников */
+.chip {
+  position: absolute;
+  z-index: 25;
+  bottom: calc(var(--sp-3) + 36px);
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+  max-width: calc(100% - 2 * var(--sp-3));
+  padding: 4px 4px 4px var(--sp-3);
+  border: 1px solid var(--line-strong);
+  border-radius: var(--r-control);
+  background: var(--surface-overlay);
+  color: var(--text-0);
+  font-size: var(--fs-caption);
+  white-space: nowrap;
+}
+
+.text {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* Красная точка записи мигает, как на камере */
+.dot {
+  flex: none;
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  background: var(--danger);
+  animation: blink 1s steps(2, jump-none) infinite;
+}
+
+@keyframes blink {
+  from {
+    opacity: 1;
+  }
+  to {
+    opacity: 0.25;
+  }
+}
+
+.btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  flex: none;
+  height: 30px;
+  padding: 0 var(--sp-3);
+  border: 1px solid var(--line-strong);
+  border-radius: 6px;
+  background: transparent;
+  color: var(--text-0);
+  font-size: var(--fs-caption);
+  transition:
+    border-color var(--dur) var(--ease),
+    background var(--dur) var(--ease);
+}
+
+.btn:hover {
+  border-color: var(--text-2);
+}
+
+.primary {
+  border-color: transparent;
+  background: var(--orbit);
+  color: #04121f;
+  font-weight: 500;
+}
+
+.primary:hover {
+  border-color: transparent;
+  filter: brightness(1.08);
+}
+
+.icon {
+  display: grid;
+  place-items: center;
+  flex: none;
+  width: 30px;
+  height: 30px;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--text-1);
+}
+
+.icon:hover {
+  color: var(--text-0);
+  background: var(--bg-3);
+}
+
+@media (pointer: coarse) {
+  .btn,
+  .icon {
+    height: 40px;
+  }
+  .icon {
+    width: 40px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .dot {
+    animation: none;
+  }
+}

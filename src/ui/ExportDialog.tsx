@@ -1,4 +1,4 @@
-import { Check, Copy, Download, Share, X } from 'lucide-react';
+import { Check, Copy, Download, Share, Video, X } from 'lucide-react';
 import { useEffect, useId, useMemo, useRef, useState } from 'react';
 import { isCustomId } from '../data/custom';
 import type { ColumnGroup, ExportFormat, ExportMeta } from '../data/exportData';
@@ -22,6 +22,7 @@ import type { PreparedOrbit } from '../physics/propagate';
 import { useAppStore } from '../state/store';
 import { SURFACE_CREDIT } from '../views/assets';
 import type { SnapshotKind } from '../views/snapshot';
+import { canRecordVideo, startRecording, useRecorder } from '../views/recorder';
 import { canSnapshot, canvasToPng, captureView } from '../views/snapshot';
 import { trackSpan } from '../views/trackCache';
 import { SOURCE_LABELS } from './DataStatus';
@@ -32,14 +33,19 @@ import { rovingKeyDown, rovingTabIndex } from './roving';
 import base from './TleDialog.module.css';
 import { satelliteTitle } from './satelliteTitle';
 
-type Tab = 'track' | 'elements' | 'image';
+type Tab = 'track' | 'elements' | 'image' | 'video';
 type RangePreset = 'shown' | 'rev' | 'day' | 'custom';
 
 const TABS: { id: Tab; label: string }[] = [
   { id: 'track', label: 'Трасса' },
   { id: 'elements', label: 'Элементы орбиты' },
   { id: 'image', label: 'Картинка' },
+  { id: 'video', label: 'Видео' },
 ];
+
+/** Длительность записи, с, и ускорение времени на время записи. */
+const VIDEO_SECONDS = ['5', '10', '20', '30'] as const;
+const VIDEO_SPEEDS = ['10', '60', '300', '1000', '5000'] as const;
 const TAB_IDS = TABS.map((t) => t.id);
 
 const FORMATS: { id: Exclude<ExportFormat, 'tsv'>; label: string; hint: string }[] = [
@@ -65,13 +71,20 @@ interface Prefs {
   groups: ColumnGroup[];
   msk: boolean;
   image: SnapshotKind;
+  videoSec: (typeof VIDEO_SECONDS)[number];
+  videoSpeed: (typeof VIDEO_SPEEDS)[number];
 }
 const PREFS_KEY = 'kepler:export';
-const DEFAULT_PREFS: Prefs = { tab: 'track', format: 'excel', range: 'shown', groups: ['motion'], msk: true, image: 'map' };
+const DEFAULT_PREFS: Prefs = { tab: 'track', format: 'excel', range: 'shown', groups: ['motion'], msk: true, image: 'map', videoSec: '10', videoSpeed: '300' };
 
 function readPrefs(): Prefs {
   try {
-    return { ...DEFAULT_PREFS, ...JSON.parse(localStorage.getItem(PREFS_KEY) ?? '{}') };
+    const p: Prefs = { ...DEFAULT_PREFS, ...JSON.parse(localStorage.getItem(PREFS_KEY) ?? '{}') };
+    // Сохранённое значение, которого больше нет среди вариантов, — по умолчанию
+    if (!TAB_IDS.includes(p.tab)) p.tab = DEFAULT_PREFS.tab;
+    if (!VIDEO_SECONDS.includes(p.videoSec)) p.videoSec = DEFAULT_PREFS.videoSec;
+    if (!VIDEO_SPEEDS.includes(p.videoSpeed)) p.videoSpeed = DEFAULT_PREFS.videoSpeed;
+    return p;
   } catch {
     return DEFAULT_PREFS;
   }
@@ -232,7 +245,7 @@ function ExportForm({ orbit, onClose }: { orbit: PreparedOrbit; onClose: () => v
   }, [imageKind]);
   const [imageUrl, setImageUrl] = useState<string | null>(null);
   useEffect(() => {
-    if (prefs.tab !== 'image' || !imageKind) return setImageUrl(null);
+    if ((prefs.tab !== 'image' && prefs.tab !== 'video') || !imageKind) return setImageUrl(null);
     const shot = captureView(imageKind, snapshotCaption());
     if (!shot) return setImageUrl(null);
     let url: string | null = null;
@@ -249,9 +262,33 @@ function ExportForm({ orbit, onClose }: { orbit: PreparedOrbit; onClose: () => v
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [prefs.tab, imageKind]);
 
-  const isText = prefs.tab !== 'image';
+  const isText = prefs.tab === 'track' || prefs.tab === 'elements';
   const ext = isText ? fileType(prefs.format).ext.toUpperCase() : 'PNG';
   const disabled = busy || (prefs.tab === 'track' && (!!rangeError || tooMany)) || (prefs.tab === 'image' && !imageKind);
+
+  // Видео: запись идёт над видом, окно закрывается, чтобы было видно полёт
+  const videoOk = useMemo(canRecordVideo, []);
+  const recording = useRecorder((s) => s.state.status === 'recording');
+  const videoSec = Number(prefs.videoSec);
+  const videoSpeed = Number(prefs.videoSpeed);
+  const simSec = videoSec * videoSpeed;
+  const startVideo = () => {
+    if (!imageKind) return;
+    const kind = imageKind;
+    const start = useAppStore.getState().simTime;
+    const problem = startRecording({
+      kind,
+      durationSec: videoSec,
+      speed: videoSpeed,
+      caption: () => {
+        const s = useAppStore.getState();
+        return { ...snapshotCaption(), title: `${meta.satellite} · ${fmtDateTime(s.simTime)} UTC · ×${fmt(s.speed)}` };
+      },
+      fileName: (videoExt) => exportFileName(meta.satellite, kind === 'map' ? 'карта-видео' : 'глобус-видео', start, videoExt),
+    });
+    if (problem) flash(problem);
+    else onClose();
+  };
 
   return (
     <dialog ref={ref} className={`${base.dialog} ${styles.dialog}`} onClose={onClose} aria-labelledby={`${idBase}-title`}>
@@ -368,7 +405,27 @@ function ExportForm({ orbit, onClose }: { orbit: PreparedOrbit; onClose: () => v
           </div>
         )}
 
-        {prefs.tab === 'image' && (
+        {prefs.tab === 'video' && (
+          <>
+            <Field label="Длительность">
+              <Segmented ids={[...VIDEO_SECONDS]} items={VIDEO_SECONDS.map((s) => ({ id: s, label: `${s} с` }))} value={prefs.videoSec} onChange={(videoSec) => update({ videoSec })} label="Длительность" />
+            </Field>
+            <Field label="Ускорение времени">
+              <Segmented ids={[...VIDEO_SPEEDS]} items={VIDEO_SPEEDS.map((s) => ({ id: s, label: `×${fmt(Number(s))}` }))} value={prefs.videoSpeed} onChange={(videoSpeed) => update({ videoSpeed })} label="Ускорение времени" />
+              <p className={styles.note}>
+                За {videoSec} с записи пройдёт {fmtDuration(simSec)} модельного времени, витков: {fmt(simSec / orbit.T, simSec / orbit.T < 10 ? 2 : 1)}. После записи вернётся прежнее
+                ускорение.
+              </p>
+            </Field>
+            {!videoOk && (
+              <p className={base.error} role="alert">
+                Этот браузер не умеет записывать видео. Подойдут Safari, Chrome, Firefox и Edge последних версий.
+              </p>
+            )}
+          </>
+        )}
+
+        {(prefs.tab === 'image' || prefs.tab === 'video') && (
           <>
             <Field label="Вид">
               <Segmented
@@ -381,7 +438,12 @@ function ExportForm({ orbit, onClose }: { orbit: PreparedOrbit; onClose: () => v
                 onChange={(image) => update({ image })}
                 label="Вид"
               />
-              <p className={styles.note}>Как сейчас на экране, в полном разрешении, с названием спутника и временем. {!mapShown || !globeShown ? 'Второй вид можно выбрать, если открыть его или «Оба вида».' : ''}</p>
+              <p className={styles.note}>
+                {prefs.tab === 'image'
+                  ? 'Как сейчас на экране, в полном разрешении, с названием спутника и временем.'
+                  : 'Как на экране, 30 кадров в секунду, до Full HD; в кадре — спутник, время и ускорение. Двигать и приближать вид можно прямо во время записи.'}{' '}
+                {!mapShown || !globeShown ? 'Второй вид можно выбрать, если открыть его или «Оба вида».' : ''}
+              </p>
             </Field>
             <div className={styles.imageBox}>{imageUrl ? <img src={imageUrl} alt="Образец картинки" /> : <span className={styles.note}>{imageKind ? 'Готовим образец…' : 'Откройте карту или глобус'}</span>}</div>
           </>
@@ -396,14 +458,22 @@ function ExportForm({ orbit, onClose }: { orbit: PreparedOrbit; onClose: () => v
               {notice?.startsWith('Скопировано') ? <Check size={15} aria-hidden="true" /> : <Copy size={15} aria-hidden="true" />} Скопировать
             </button>
           )}
-          {shareable && (
-            <button type="button" className={`${base.secondary} ${styles.btn}`} onClick={() => void run('share')} disabled={disabled}>
-              <Share size={15} aria-hidden="true" /> Отправить
+          {prefs.tab === 'video' ? (
+            <button type="button" className={`${base.primary} ${styles.btn}`} onClick={startVideo} disabled={!videoOk || recording || !imageKind}>
+              <Video size={15} aria-hidden="true" /> {recording ? 'Запись уже идёт' : `Записать ${videoSec} с`}
             </button>
+          ) : (
+            <>
+              {shareable && (
+                <button type="button" className={`${base.secondary} ${styles.btn}`} onClick={() => void run('share')} disabled={disabled}>
+                  <Share size={15} aria-hidden="true" /> Отправить
+                </button>
+              )}
+              <button type="button" className={`${base.primary} ${styles.btn}`} onClick={() => void run('download')} disabled={disabled}>
+                <Download size={15} aria-hidden="true" /> Скачать {ext}
+              </button>
+            </>
           )}
-          <button type="button" className={`${base.primary} ${styles.btn}`} onClick={() => void run('download')} disabled={disabled}>
-            <Download size={15} aria-hidden="true" /> Скачать {ext}
-          </button>
         </div>
       </div>
     </dialog>

@@ -64,12 +64,18 @@
   color: var(--text-1);
 }
 
+.cardActions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--sp-2);
+  margin-top: var(--sp-4);
+}
+
 .exportBtn {
   display: inline-flex;
   align-items: center;
   gap: 6px;
   height: 30px;
-  margin-top: var(--sp-4);
   padding: 0 var(--sp-3);
   border: 1px solid var(--line-strong);
   border-radius: var(--r-control);

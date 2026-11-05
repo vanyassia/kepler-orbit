@@ -86,7 +86,7 @@ export default function GlobeView() {
         Загрузка глобуса…
       </div>
 
-      <div className={styles.toolbar}>
+      <div className={styles.toolbar} data-chrome="">
         <div className={styles.segmented} role="radiogroup" aria-label="Камера" onKeyDown={(e) => rovingKeyDown(e, CAMERA_IDS, camera, setCamera)}>
           {CAMERA_MODES.map((m) => (
             <button

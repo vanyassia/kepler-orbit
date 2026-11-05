@@ -11,6 +11,13 @@
   transition: background-color 400ms var(--ease);
 }
 
+/* Режим показа: шапка и панели скрыты (data-chrome), вид занимает весь экран */
+.app[data-presenting] {
+  grid-template-columns: minmax(0, 1fr);
+  grid-template-rows: minmax(0, 1fr);
+  grid-template-areas: 'main';
+}
+
 .main {
   grid-area: main;
   position: relative;

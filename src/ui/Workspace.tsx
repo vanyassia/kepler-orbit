@@ -3,6 +3,7 @@ import { lazy, Suspense, useDeferredValue, useEffect, useRef, ViewTransition } f
 import type { ViewMode } from '../state/store';
 import { useAppStore } from '../state/store';
 import { ErrorBoundary } from './ErrorBoundary';
+import { RecordingChip } from './RecordingChip';
 import noSignalArt from './illustrations/no-signal.webp';
 import viewFailedArt from './illustrations/view-failed.webp';
 import styles from './Workspace.module.css';
@@ -53,6 +54,7 @@ export function Workspace() {
     <div className={styles.workspace} data-view={shownView}>
       <div
         className={styles.switcher}
+        data-chrome=""
         role="tablist"
         aria-label="Вид"
         style={{ viewTransitionName: 'view-switcher' }}
@@ -74,6 +76,7 @@ export function Workspace() {
         ))}
       </div>
       {!hasRecord && (error || loading) && <EmptyState error={error} />}
+      <RecordingChip />
       {globeOpened && (
         <ViewTransition key="globe" enter="pane-in" update="pane-move" default="none">
           <section className={styles.pane} aria-label="Трёхмерный вид" hidden={shownView === '2d'}>
