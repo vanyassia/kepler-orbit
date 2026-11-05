@@ -50,6 +50,7 @@ src/physics/   чистые функции модели, без React и DOM; у
   kepler.ts      a, T, уравнение Кеплера (метод Ньютона), ν
   orbit.ts       положение и скорость в АГЭСК (формулы 9, 10)
   subpoint.ts    подспутниковая точка через сферический треугольник (шаги 5.5–5.8)
+  orbitProfile.ts графики за виток (h, V, φ, ν от перицентра до перицентра; точки равномерно по E)
   passes.ts      пролёты над точкой: минимумы расстояния от подспутниковой точки до места (золотое сечение), круг поиска
   time.ts, sun.ts, frames.ts, groundTrack.ts, bodies.ts (Земля, Луна, Марс: μ, R, вращение, полюс; вращение Луны и Марса — по TDB = UTC + 69,184 с)
 src/data/      источники элементов орбит и справочники
@@ -62,7 +63,8 @@ src/data/      источники элементов орбит и справо�
   exportData.ts  выгрузка: таблица трассы и элементы орбиты в CSV для Excel («;», запятая, BOM), CSV, TSV, JSON
 src/state/store.ts   zustand: спутник, время, скорость, вид, слои; настройки в localStorage «kepler:prefs»
 src/hooks/useSimClock.ts   часы симуляции
-src/ui/        шапка (TopBar, BodySwitcher, SatelliteSearch), боковая панель (Sidebar, FormulaSteps),
+src/ui/        шапка (TopBar, BodySwitcher, SatelliteSearch), боковая панель (Sidebar, FormulaSteps,
+               «Графики за виток» OrbitCharts: наведение — значения, щелчок — переход к моменту),
                «Пролёты над точкой» (PassFinder + плашка PassChip, расчёт — usePassSearch): по умолчанию выключено,
                точку ставит щелчок по карте (рядом с городом — город), крестик убирает; список с переходом к моменту,
                нижняя панель времени (Timeline), рабочая область (Workspace), диалоги TLE и своей орбиты,
