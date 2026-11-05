@@ -11,6 +11,8 @@ import type { SatelliteRecord } from '../data/celestrak';
 import { loadByNorad } from '../data/celestrak';
 import type { CustomSatellite } from '../data/custom';
 import { CUSTOM_ID_BASE, customToRecord, isCustomId } from '../data/custom';
+import type { TunePatch } from '../data/orbitTune';
+import { shapeOf, tuneElements } from '../data/orbitTune';
 import { DEFAULT_SATELLITE, isOrbiterId, loadOrbiter } from '../data/orbiters';
 import type { BodyId } from '../physics/bodies';
 import type { PreparedOrbit } from '../physics/propagate';
@@ -119,6 +121,15 @@ interface AppState {
   /** Переход к другому телу — с его спутником по умолчанию. */
   selectBody: (body: BodyId) => void;
   setRecord: (rec: SatelliteRecord) => void;
+  /**
+   * Орбита до изменения ползунками «Изменить орбиту» (null — орбиту не меняли).
+   * Для своего спутника — и его прежние параметры: изменения сохраняются в нём самом.
+   */
+  tuneBase: { record: SatelliteRecord; custom?: CustomSatellite } | null;
+  /** Изменить высоту перицентра, эксцентриситет или наклонение текущего спутника. */
+  tuneOrbit: (patch: TunePatch) => void;
+  /** Вернуть орбиту, какой она была до изменений. */
+  resetTune: () => void;
   setSimTime: (t: number) => void;
   /** Пересчёт времени симуляции по реальным часам (вызывается каждый кадр). */
   tick: (realNowMs: number) => void;
@@ -184,6 +195,7 @@ export const useAppStore = create<AppState>()(
   revsBack: 1,
   revsForward: 2,
   customSats: [],
+  tuneBase: null,
 
   addCustom: (c) => {
     const id = Math.max(CUSTOM_ID_BASE, ...get().customSats.map((x) => x.id)) + 1;
@@ -209,7 +221,7 @@ export const useAppStore = create<AppState>()(
     try {
       const rec = isOrbiterId(id) ? await loadOrbiter(id) : await loadByNorad(id);
       if (seq !== loadSeq) return; // пользователь уже выбрал другой спутник
-      set({ record: rec, body: rec.elements.body ?? 'earth', orbit: prepareOrbit(rec.elements), loading: false, pendingNorad: null });
+      set({ record: rec, body: rec.elements.body ?? 'earth', orbit: prepareOrbit(rec.elements), loading: false, pendingNorad: null, tuneBase: null });
     } catch (e) {
       if (seq !== loadSeq) return;
       set({ loading: false, pendingNorad: null, error: e instanceof Error ? e.message : String(e) });
@@ -217,7 +229,32 @@ export const useAppStore = create<AppState>()(
   },
   setRecord: (rec) => {
     loadSeq++;
-    set({ record: rec, body: rec.elements.body ?? 'earth', orbit: prepareOrbit(rec.elements), loading: false, error: null, pendingNorad: null, lastNorad: rec.elements.noradId });
+    set({ record: rec, body: rec.elements.body ?? 'earth', orbit: prepareOrbit(rec.elements), loading: false, error: null, pendingNorad: null, lastNorad: rec.elements.noradId, tuneBase: null });
+  },
+  tuneOrbit: (patch) => {
+    const s = get();
+    if (!s.record) return;
+    const id = s.record.elements.noradId;
+    const custom = isCustomId(id) ? s.customSats.find((x) => x.id === id) : undefined;
+    const elements = tuneElements(s.record.elements, patch);
+    const record = { ...s.record, elements };
+    const tuneBase = s.tuneBase ?? { record: s.record, custom };
+    loadSeq++; // загрузка другого спутника, начатая раньше, уже не нужна
+    // Свой спутник запоминает новую орбиту (одним обновлением — без лишней перерисовки)
+    let customSats = s.customSats;
+    if (custom) {
+      const sh = shapeOf(elements);
+      const next = { ...custom, hPeri: sh.hPeri, hApo: sh.hApo, inclinationDeg: elements.inclinationDeg };
+      customSats = customSats.map((x) => (x.id === id ? next : x));
+    }
+    set({ record, orbit: prepareOrbit(elements), tuneBase, customSats });
+  },
+  resetTune: () => {
+    const { tuneBase, customSats } = get();
+    if (!tuneBase) return;
+    const c = tuneBase.custom;
+    if (c) set({ customSats: customSats.map((x) => (x.id === c.id ? c : x)) });
+    get().setRecord(tuneBase.record);
   },
 
   setSimTime: (t) => set({ simTime: t, anchorSim: t, anchorReal: performance.now() }),

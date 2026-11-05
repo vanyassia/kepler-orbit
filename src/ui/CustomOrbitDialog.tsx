@@ -4,6 +4,8 @@ import type { CustomSatellite } from '../data/custom';
 import { CUSTOM_DEFAULTS, periodOf, shapeFromHeights, validateCustom, wrapDeg } from '../data/custom';
 import type { BodyId } from '../physics/bodies';
 import { BODIES } from '../physics/bodies';
+import type { OrbitTemplate } from '../data/orbitTemplates';
+import { ORBIT_TEMPLATES, templatesFor } from '../data/orbitTemplates';
 import { useAppStore } from '../state/store';
 import styles from './CustomOrbitDialog.module.css';
 import { fmt, fmtDuration } from './format';
@@ -25,11 +27,20 @@ const BODY_ORDER: BodyId[] = ['earth', 'moon', 'mars'];
 
 /** Число из поля: допускается десятичная запятая и знак «−». */
 const parse = (s: string) => Number(s.trim().replace(',', '.').replace('−', '-'));
+/** Число в поле — с десятичной запятой. */
+const str = (v: number) => String(v).replace('.', ',');
+
+const DEFAULT_NAME = 'Мой спутник';
+
+/** Поля совпадают с шаблоном (тогда его кнопка подсвечена). */
+function matches(t: OrbitTemplate, v: Record<Field, string>): boolean {
+  return (['hPeri', 'hApo', 'inclinationDeg', 'raanDeg', 'argPerigeeDeg', 'meanAnomalyDeg'] as const).every((k) => Math.abs(parse(v[k]) - t[k]) < 1e-9);
+}
 
 function initial(body: BodyId): Record<Field, string> {
   const d = CUSTOM_DEFAULTS[body];
   return {
-    name: 'Мой спутник',
+    name: DEFAULT_NAME,
     hPeri: String(d.hPeri),
     hApo: String(d.hApo),
     inclinationDeg: String(d.inclinationDeg).replace('.', ','),
@@ -82,6 +93,20 @@ function CustomOrbitForm({ onClose }: { onClose: () => void }) {
     const d = CUSTOM_DEFAULTS[id];
     setValues((v) => ({ ...v, hPeri: String(d.hPeri), hApo: String(d.hApo), inclinationDeg: String(d.inclinationDeg).replace('.', ',') }));
   };
+
+  // Шаблон заполняет поля; название меняется, только если его ещё не вводили вручную
+  const applyTemplate = (t: OrbitTemplate) =>
+    setValues((v) => ({
+      name: v.name.trim() === DEFAULT_NAME || ORBIT_TEMPLATES.some((x) => x.satName === v.name.trim()) ? t.satName : v.name,
+      hPeri: str(t.hPeri),
+      hApo: str(t.hApo),
+      inclinationDeg: str(t.inclinationDeg),
+      raanDeg: str(t.raanDeg),
+      argPerigeeDeg: str(t.argPerigeeDeg),
+      meanAnomalyDeg: str(t.meanAnomalyDeg),
+    }));
+  const templates = templatesFor(body);
+  const active = templates.find((t) => matches(t, values));
 
   const submit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -143,6 +168,19 @@ function CustomOrbitForm({ onClose }: { onClose: () => void }) {
           ))}
         </div>
 
+        <div className={styles.templates}>
+          <span className={styles.templatesLabel} id={`${idBase}-tpl`}>
+            Шаблон
+          </span>
+          <div className={styles.templateChips} role="group" aria-labelledby={`${idBase}-tpl`}>
+            {templates.map((t) => (
+              <button key={t.id} type="button" className={styles.templateChip} aria-pressed={active?.id === t.id} onClick={() => applyTemplate(t)}>
+                {t.label}
+              </button>
+            ))}
+          </div>
+        </div>
+
         <div className={styles.grid}>
           {field('name', 'Название', undefined, true)}
           {FIELDS.map((f) => field(f.key, f.label, f.unit))}
@@ -158,6 +196,7 @@ function CustomOrbitForm({ onClose }: { onClose: () => void }) {
             'Проверьте значения в полях'
           )}
         </p>
+        {active && <p className={styles.templateNote}>{active.note}</p>}
         <p className={base.hint}>
           {body === 'earth' ? 'Углы i и Ω — от экватора Земли, Ω — от точки весеннего равноденствия.' : `Углы i и Ω — от экватора тела (${b.name}), как у элементов JPL Horizons.`}{' '}
           Эпоха — момент создания; при M₀ = 0° спутник начинает с перицентра. Спутник сохранится в этом браузере.

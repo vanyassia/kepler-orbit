@@ -11,6 +11,7 @@ import { useAppStore } from '../state/store';
 import { CustomOrbitDialog } from './CustomOrbitDialog';
 import { FormulaSteps } from './FormulaSteps';
 import { OrbitCharts } from './OrbitCharts';
+import { OrbitTuner } from './OrbitTuner';
 import { PassFinder } from './PassFinder';
 import styles from './Sidebar.module.css';
 import { fmt, fmtDateTime, fmtLat, fmtLon } from './format';
@@ -34,6 +35,7 @@ export function Sidebar() {
       <SatelliteCard />
       <QuickPicks />
       <Telemetry />
+      <OrbitTuner />
       <OrbitCharts />
       <PassFinder />
       <OrbitElements />
@@ -47,6 +49,7 @@ function SatelliteCard() {
   const setExportOpen = useAppStore((s) => s.setExportOpen);
   const error = useAppStore((s) => s.error);
   const loading = useAppStore((s) => s.loading);
+  const tuned = useAppStore((s) => s.tuneBase !== null);
 
   if (!record) {
     return (
@@ -105,6 +108,7 @@ function SatelliteCard() {
       <button type="button" className={styles.exportBtn} onClick={() => setExportOpen(true)}>
         <Download size={14} aria-hidden="true" /> Выгрузка данных
       </button>
+      {tuned && <p className={styles.satNote}>Орбита изменена ползунками в разделе «Изменить орбиту».</p>}
       {record.source === 'historic' && <p className={styles.satNote}>Форма орбиты по опубликованным данным. Углы Ω и ω и положение на орбите условные.</p>}
       {error && (
         <p className={styles.error} role="alert">

@@ -102,3 +102,60 @@
     font-size: 16px;
   }
 }
+
+/* Шаблоны орбит: кнопки заполняют поля типичными значениями */
+.templates {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-2);
+}
+
+.templatesLabel {
+  color: var(--text-1);
+  font-size: var(--fs-caption);
+}
+
+.templateChips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.templateChip {
+  height: 30px;
+  padding: 0 var(--sp-3);
+  border: 1px solid var(--line-strong);
+  border-radius: var(--r-chip);
+  background: transparent;
+  color: var(--text-1);
+  font-size: var(--fs-caption);
+  white-space: nowrap;
+  transition:
+    color var(--dur) var(--ease),
+    border-color var(--dur) var(--ease),
+    background var(--dur) var(--ease);
+}
+
+.templateChip:hover {
+  color: var(--text-0);
+  border-color: var(--text-2);
+}
+
+.templateChip[aria-pressed='true'] {
+  border-color: var(--sat);
+  background: var(--sat-dim);
+  color: var(--sat);
+}
+
+.templateNote {
+  margin: 0;
+  color: var(--text-1);
+  font-size: var(--fs-caption);
+  text-wrap: pretty;
+}
+
+@media (pointer: coarse) {
+  .templateChip {
+    height: 40px;
+  }
+}

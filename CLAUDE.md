@@ -59,11 +59,14 @@ src/data/      источники элементов орбит и справо�
                  у Земли Ω из Horizons сдвигается на 90° + прецессия (scripts/update-orbiters.mjs, earthRaan)
   historicOrbiters.ts  Марс-2, -3, -5, Фобос-2 по опубликованным параметрам (Ω, ω, M₀ условные)
   popular.ts     52 спутника Земли по группам; custom.ts — свои спутники; tle.ts, omm.ts — форматы
+  orbitTemplates.ts  шаблоны окна «Свой спутник» (геостационарная, «Молния», ССО, полярная; у Луны и Марса свои)
+  orbitTune.ts   ползунки «Изменить орбиту»: hп, e, i → элементы листка (перицентр на месте, апоцентр ≤ 1 млн км)
   cities.ts, landmarks.ts, regions.ts — города, места посадок, регионы Луны и Марса
   exportData.ts  выгрузка: таблица трассы и элементы орбиты в CSV для Excel («;», запятая, BOM), CSV, TSV, JSON
 src/state/store.ts   zustand: спутник, время, скорость, вид, слои; настройки в localStorage «kepler:prefs»
 src/hooks/useSimClock.ts   часы симуляции
 src/ui/        шапка (TopBar, BodySwitcher, SatelliteSearch), боковая панель (Sidebar, FormulaSteps,
+               «Изменить орбиту» OrbitTuner (ползунки hп, e, i; «Как было» — store.resetTune; у своего спутника изменения сохраняются),
                «Графики за виток» OrbitCharts: наведение — значения, щелчок — переход к моменту),
                «Пролёты над точкой» (PassFinder + плашка PassChip, расчёт — usePassSearch): по умолчанию выключено,
                точку ставит щелчок по карте (рядом с городом — город), крестик убирает; список с переходом к моменту,
