@@ -18,6 +18,17 @@
   padding-top: var(--sp-5);
 }
 
+.cardHead {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--sp-3);
+}
+
+.cardTitle {
+  flex: 1;
+  min-width: 0;
+}
+
 .satName {
   margin: 0;
   font-family: var(--font-display);
@@ -322,5 +333,10 @@
     border-radius: var(--r-control);
     background: var(--bg-2);
     color: var(--text-1);
+  }
+
+  /* Справа вверху кнопка закрытия панели — миниатюра снимка встаёт левее неё */
+  .cardHead {
+    padding-right: 40px;
   }
 }

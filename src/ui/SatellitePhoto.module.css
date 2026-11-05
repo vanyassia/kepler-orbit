@@ -1,0 +1,123 @@
+/* Миниатюра нарочно тихая: маленькая, приглушённая, без подписи — чтобы не спорить с трассой */
+.thumb {
+  flex: none;
+  width: 56px;
+  height: 40px;
+  padding: 0;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: var(--bg-0);
+  overflow: hidden;
+  cursor: zoom-in;
+}
+
+.thumb img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  opacity: 0.55;
+  filter: saturate(0.5);
+  transition:
+    opacity 0.15s,
+    filter 0.15s;
+}
+
+.thumb:hover img,
+.thumb:focus-visible img {
+  opacity: 1;
+  filter: none;
+}
+
+.thumb:hover {
+  border-color: var(--line-strong);
+}
+
+.dialog {
+  width: min(760px, calc(100vw - 32px));
+  max-height: calc(100dvh - 32px);
+  padding: 0;
+  border: 1px solid var(--line-strong);
+  border-radius: var(--r-panel);
+  background: var(--bg-1);
+  color: var(--text-0);
+  box-shadow: 0 30px 80px rgb(0 0 0 / 0.5);
+  overflow: hidden;
+}
+
+.dialog::backdrop {
+  background: var(--surface-scrim);
+}
+
+.figure {
+  position: relative;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.image {
+  display: block;
+  width: 100%;
+  /* Место под подпись оставляем всегда, высокие снимки ужимаются */
+  max-height: calc(100dvh - 140px);
+  object-fit: contain;
+  background: var(--bg-0);
+}
+
+.caption {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: var(--sp-3) var(--sp-4);
+  font-size: var(--fs-body);
+  color: var(--text-0);
+}
+
+.kind {
+  color: var(--text-1);
+}
+
+.kind::after {
+  content: ' ·';
+}
+
+.credit {
+  color: var(--text-2);
+  font-size: var(--fs-note);
+}
+
+.credit a {
+  color: inherit;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+.credit a:hover {
+  color: var(--text-1);
+}
+
+.close {
+  position: absolute;
+  top: var(--sp-2);
+  right: var(--sp-2);
+  display: grid;
+  place-items: center;
+  width: 32px;
+  height: 32px;
+  border: 0;
+  border-radius: var(--r-control);
+  background: var(--surface-overlay);
+  color: var(--text-1);
+}
+
+.close:hover {
+  color: var(--text-0);
+}
+
+@media (pointer: coarse) {
+  .close {
+    width: 40px;
+    height: 40px;
+  }
+}

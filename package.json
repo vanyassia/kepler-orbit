@@ -12,6 +12,7 @@
     "test:watch": "vitest",
     "typecheck": "tsc -b --noEmit",
     "fetch:textures": "node scripts/fetch-textures.mjs",
+    "fetch:photos": "node scripts/fetch-photos.mjs",
     "update:fallback": "node scripts/update-fallback.mjs",
     "deploy": "sh scripts/deploy.sh",
     "update:orbiters": "node scripts/update-orbiters.mjs",

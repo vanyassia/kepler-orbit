@@ -2,6 +2,7 @@ import { Download, Plus, Presentation, X } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
 import { customToRecord } from '../data/custom';
 import { isOrbiterId, ORBITERS } from '../data/orbiters';
+import { photoFor } from '../data/photos';
 import { POPULAR_GROUPS, POPULAR_SATELLITES } from '../data/popular';
 import { BODIES } from '../physics/bodies';
 import { useThrottledSimTime } from '../hooks/useSimClock';
@@ -13,6 +14,7 @@ import { FormulaSteps } from './FormulaSteps';
 import { OrbitCharts } from './OrbitCharts';
 import { OrbitTuner } from './OrbitTuner';
 import { PassFinder } from './PassFinder';
+import { PhotoThumb } from './SatellitePhoto';
 import { startPresentation } from './Presentation';
 import styles from './Sidebar.module.css';
 import { fmt, fmtDateTime, fmtLat, fmtLon } from './format';
@@ -68,16 +70,23 @@ function SatelliteCard() {
   }
   const el = record.elements;
   const { title, subtitle } = satelliteTitle(el);
+  // У своего спутника снимка нет: номер у него условный
+  const photo = record.source === 'custom' ? null : photoFor(el.body, el.noradId);
   return (
     <section className={styles.card}>
-      <h1 className={styles.satName} translate="no">
-        {title}
-      </h1>
-      {subtitle && (
-        <div className={styles.satSub} translate="no">
-          {subtitle}
+      <div className={styles.cardHead}>
+        <div className={styles.cardTitle}>
+          <h1 className={styles.satName} translate="no">
+            {title}
+          </h1>
+          {subtitle && (
+            <div className={styles.satSub} translate="no">
+              {subtitle}
+            </div>
+          )}
         </div>
-      )}
+        {photo && <PhotoThumb photo={photo} title={title} />}
+      </div>
       <dl className={styles.ids}>
         {record.source === 'custom' || record.source === 'historic' ? (
           <div>

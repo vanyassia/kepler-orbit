@@ -27,6 +27,7 @@ npm run update:fallback   # свежий снимок элементов спу�
 npm run update:orbiters   # свежие элементы спутников Луны и Марса из JPL Horizons → public/data/orbiters.json
 npm run update:regions    # регионы Луны и Марса из справочника USGS
 npm run fetch:textures    # скачать и пережать текстуры (нужна macOS: sips, cwebp)
+npm run fetch:photos      # снимки аппаратов с Wikimedia Commons → public/photos (список — src/data/photos.ts, нужен cwebp)
 ```
 
 ## Порядок выкладки
@@ -62,10 +63,13 @@ src/data/      источники элементов орбит и справо�
   orbitTemplates.ts  шаблоны окна «Свой спутник» (геостационарная, «Молния», ССО, полярная; у Луны и Марса свои)
   orbitTune.ts   ползунки «Изменить орбиту»: hп, e, i → элементы листка (перицентр на месте, апоцентр ≤ 1 млн км)
   cities.ts, landmarks.ts, regions.ts — города, места посадок, регионы Луны и Марса
+  photos.ts      снимки аппаратов (Wikimedia Commons, автор и лицензия у каждого; фото/макет/рисунок/марка), ключ «тело:номер»
   exportData.ts  выгрузка: таблица трассы и элементы орбиты в CSV для Excel («;», запятая, BOM), CSV, TSV, JSON
 src/state/store.ts   zustand: спутник, время, скорость, вид, слои; настройки в localStorage «kepler:prefs»
 src/hooks/useSimClock.ts   часы симуляции
 src/ui/        шапка (TopBar, BodySwitcher, SatelliteSearch), боковая панель (Sidebar, FormulaSteps,
+               маленькая приглушённая миниатюра снимка у названия спутника — SatellitePhoto.tsx, по нажатию окно со снимком;
+               нарочно тихая: главное на сайте — трасса),
                «Изменить орбиту» OrbitTuner — только у своих спутников (ползунки hп, e, i; «Как было» — store.resetTune;
                изменения сохраняются в спутнике); порядок разделов: «Изменить орбиту» (у своего), положение, элементы, графики,
                «Графики за виток» OrbitCharts: наведение — значения, щелчок — переход к моменту),
