@@ -64,11 +64,21 @@
   color: var(--text-1);
 }
 
+/*
+ * «Выгрузка данных» и «Показ» — действия со всем видом, их место в шапке. В панели они только на телефоне,
+ * где шапке не хватает места (там эти кнопки скрыты, см. TopBar.module.css, 720 px)
+ */
 .cardActions {
-  display: flex;
+  display: none;
   flex-wrap: wrap;
   gap: var(--sp-2);
   margin-top: var(--sp-4);
+}
+
+@media (max-width: 720px) {
+  .cardActions {
+    display: flex;
+  }
 }
 
 .exportBtn {
