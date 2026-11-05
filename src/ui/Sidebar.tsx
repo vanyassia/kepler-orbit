@@ -34,10 +34,11 @@ export function Sidebar() {
       </button>
       <SatelliteCard />
       <QuickPicks />
+      {/* У своего спутника ползунки — первым разделом: так нагляднее, как они меняют всё ниже */}
+      <OrbitTuner />
       <Telemetry />
       <OrbitElements />
       <OrbitCharts />
-      <OrbitTuner />
       <PassFinder />
       <FormulaSteps />
     </aside>
