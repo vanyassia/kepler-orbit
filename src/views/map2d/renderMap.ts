@@ -359,11 +359,20 @@ function drawTrackEnds(ctx: CanvasRenderingContext2D, v: View, track: TrackWindo
     ctx.strokeStyle = 'rgba(200, 220, 245, 0.7)';
     ctx.lineWidth = 1.2;
     ctx.stroke();
-    const rect: Rect = [x + 6, y - 8, x + 9 + ctx.measureText(text).width, y + 8];
-    if (overlaps(placed, rect)) continue;
-    placed.push(rect);
+    // Справа, слева, сверху, снизу — первое свободное место. Конец витка может лежать
+    // по ту сторону от спутника, куда смотрит подпись: при отдалении она налезала бы на его метку
+    const tw = ctx.measureText(text).width;
+    const spots: [number, number][] = [
+      [x + 7, y],
+      [x - 7 - tw, y],
+      [x - tw / 2, y - 13],
+      [x - tw / 2, y + 13],
+    ];
+    const spot = spots.map(([lx, ly]) => [lx, ly, [lx - 1, ly - 8, lx + tw + 2, ly + 8] as Rect] as const).find(([, , r]) => !overlaps(placed, r));
+    if (!spot) continue;
+    placed.push(spot[2]);
     ctx.fillStyle = 'rgba(200, 220, 245, 0.85)';
-    textWithHalo(ctx, text, x + 7, y);
+    textWithHalo(ctx, text, spot[0], spot[1]);
   }
 }
 
