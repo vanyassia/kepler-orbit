@@ -47,10 +47,25 @@ export function DataStatus() {
       <span className={styles.dot} />
       {/* Одна строка: источник; когда получены данные — во всплывающей подсказке и для читалки */}
       <span className={styles.text} role="status" aria-live="polite">
-        {loading ? 'Загрузка…' : SOURCE_LABELS[record.source]}
+        {loading ? 'Загрузка…' : <SourceLabel label={SOURCE_LABELS[record.source]} />}
       </span>
       {detail && <span className="visually-hidden">, {detail}</span>}
       {stale && <span className={styles.warn}>эпоха {Math.round(epochAgeDays)}&nbsp;сут</span>}
     </div>
+  );
+}
+
+/** «CelesTrak, онлайн» → название источника ярче, состояние — цветом состояния. */
+function SourceLabel({ label }: { label: string }) {
+  const comma = label.indexOf(', ');
+  if (comma < 0) return <>{label}</>;
+  return (
+    <>
+      <span className={styles.source} translate="no">
+        {label.slice(0, comma)}
+      </span>
+      {', '}
+      <span className={styles.state}>{label.slice(comma + 2)}</span>
+    </>
   );
 }
