@@ -42,3 +42,25 @@ export function boardFov(distRadii: number, aspect: number, zoom = 1): number {
 }
 
 export const clampZoom = (z: number): number => Math.min(BOARD_ZOOM_MAX, Math.max(BOARD_ZOOM_MIN, Number.isFinite(z) ? z : 1));
+
+/**
+ * Масштаб пунктира будущей трассы в виде с борта.
+ *
+ * Штрихи пунктира заданы в единицах сцены (около 140 км штрих, 100 км просвет) и подобраны под обзор
+ * издалека. С борта низкого спутника поверхность в десятки раз ближе: первый штрих растягивается
+ * на полэкрана, а просвет за ним выглядит как обрыв линии. Масштаб уменьшает штрихи так, чтобы
+ * под спутником они были на экране той же длины, что и в обзоре.
+ *
+ * @param altitudeRadii высота камеры над поверхностью, в радиусах тела
+ * @param halfDeg половинный угол обзора по узкой стороне кадра, градусы (boardHalfAngle)
+ * @returns множитель dashScale материала линии: 1 — как в обзоре, больше — штрихи короче
+ */
+export function boardDashScale(altitudeRadii: number, halfDeg: number): number {
+  const k = BOARD_DASH_REF / (Math.max(1e-4, altitudeRadii) * Math.tan(Math.max(BOARD_MIN_HALF_DEG, halfDeg) / RAD));
+  return Math.min(BOARD_DASH_SCALE_MAX, Math.max(1, Number.isFinite(k) ? k : 1));
+}
+
+/** Обзор: до поверхности около 2,4 радиуса тела при половинном угле обзора 19° — 2,4 · tg 19°. */
+export const BOARD_DASH_REF = 2.4 * Math.tan(19 / RAD);
+/** Предел уменьшения штрихов: мельче они сливаются в сплошную линию. */
+export const BOARD_DASH_SCALE_MAX = 400;

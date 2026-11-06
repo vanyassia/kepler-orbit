@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { BOARD_MAX_HALF_DEG, boardFov, boardHalfAngle, clampZoom } from '../boardView';
+import { BOARD_DASH_SCALE_MAX, BOARD_MAX_HALF_DEG, boardDashScale, boardFov, boardHalfAngle, clampZoom } from '../boardView';
 
 const R_EARTH = 6371;
 
@@ -49,5 +49,33 @@ describe('Вид с борта: угол обзора', () => {
     expect(clampZoom(0)).toBeGreaterThan(0);
     expect(clampZoom(Number.NaN)).toBe(1);
     expect(boardHalfAngle(0.5)).toBeGreaterThan(0); // внутри тела — не падает
+  });
+});
+
+describe('Вид с борта: пунктир будущей трассы', () => {
+  // Длина штриха на экране ∝ 1 / (расстояние до поверхности · tg половинного угла · масштаб пунктира)
+  const onScreen = (altitude: number, half: number, scale: number) => 1 / (altitude * Math.tan((half * Math.PI) / 180) * scale);
+
+  it('с МКС штрихи под спутником той же длины на экране, что и в обзоре', () => {
+    const h = 420 / R_EARTH;
+    const half = boardHalfAngle(1 + h);
+    const scale = boardDashScale(h, half);
+    expect(scale).toBeGreaterThan(10);
+    expect(onScreen(h, half, scale)).toBeCloseTo(onScreen(2.4, 19, 1), 6);
+  });
+
+  it('приближение колёсиком тоже укорачивает штрихи', () => {
+    const h = 420 / R_EARTH;
+    expect(boardDashScale(h, boardHalfAngle(1 + h, 0.2))).toBeGreaterThan(boardDashScale(h, boardHalfAngle(1 + h)));
+  });
+
+  it('издалека (Луна над Землёй) — как в обзоре, без растяжения штрихов', () => {
+    const r = 384400 / R_EARTH;
+    expect(boardDashScale(r - 1, boardHalfAngle(r))).toBe(1);
+  });
+
+  it('предел и защита от нуля', () => {
+    expect(boardDashScale(0, 0)).toBe(BOARD_DASH_SCALE_MAX);
+    expect(boardDashScale(Number.NaN, 30)).toBe(1);
   });
 });

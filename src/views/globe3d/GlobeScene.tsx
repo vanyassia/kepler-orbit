@@ -34,7 +34,7 @@ import { useAppStore } from '../../state/store';
 import { fmt } from '../../ui/format';
 import { satelliteTitle } from '../../ui/satelliteTitle';
 import type { TrackWindow } from '../trackCache';
-import { boardFov, clampZoom } from '../boardView';
+import { boardDashScale, boardFov, boardHalfAngle, clampZoom } from '../boardView';
 import { frameDue, pixelsPerUnit, simMsPerShift } from '../frameRate';
 import { glowPixels, type Rgba } from '../glowPixels';
 import { MAX_WINDOW_POINTS, ORBIT_COLOR, orbitSource, Revolutions, revolutionColor, SAT_COLOR, TrackCache, trackSpan } from '../trackCache';
@@ -642,6 +642,10 @@ export function GlobeScene({ overlay, onReady }: { overlay: React.RefObject<HTML
       satGlow.current.visible = !natural && !onBoard;
       for (const [kind, mesh] of Object.entries(naturalModels)) mesh.visible = kind === natural && !onBoard;
       lines.radius.visible = !onBoard;
+      // Пунктир будущей трассы: с борта штрихи короче — иначе первый штрих на полэкрана, а за ним «обрыв»
+      (lines.future.material as LineMaterial).dashScale = onBoard
+        ? boardDashScale(camera.position.length() - 1, boardHalfAngle(camera.position.length(), boardZoom.current))
+        : 1;
       subMarker.current.visible = !onBoard;
       if (natural) {
         if (natural === 'moon') loadMoonSurface(naturalModels.moon, invalidate);
