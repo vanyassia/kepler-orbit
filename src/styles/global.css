@@ -66,6 +66,21 @@ button:disabled {
   font-variant-numeric: tabular-nums;
 }
 
+/* Подпись «как на пульте»: заглавные с разрядкой, приглушённо (CapsLabel.tsx) */
+.caps {
+  color: var(--text-2);
+  font-size: var(--fs-label);
+  font-weight: 500;
+  letter-spacing: var(--ls-label);
+  text-transform: uppercase;
+}
+
+/* Обозначение величины внутри заглавной подписи пишется как есть: φ, h, Vr */
+.sym {
+  letter-spacing: 0;
+  text-transform: none;
+}
+
 .visually-hidden {
   position: absolute;
   width: 1px;

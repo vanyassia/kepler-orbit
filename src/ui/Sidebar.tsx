@@ -9,6 +9,7 @@ import { useThrottledSimTime } from '../hooks/useSimClock';
 import { RAD } from '../physics/constants';
 import { propagate } from '../physics/propagate';
 import { useAppStore } from '../state/store';
+import { CapsLabel } from './CapsLabel';
 import { CustomOrbitDialog } from './CustomOrbitDialog';
 import { FormulaSteps } from './FormulaSteps';
 import { OrbitCharts } from './OrbitCharts';
@@ -253,13 +254,19 @@ function OrbitElements() {
   );
 }
 
-function Big({ label, value, unit }: { label: string; value: string; unit?: string }) {
+function Big({ label, value, unit: unitProp }: { label: string; value: string; unit?: string }) {
+  // «23,95° с. ш.»: полушарие идёт мелким шрифтом, как единица (в Tektur «д» похожа на латинскую «g»)
+  const hemi = unitProp ? null : /^(.*°)\s(.+)$/.exec(value);
+  const num = hemi ? hemi[1] : value;
+  const unit = hemi ? hemi[2] : unitProp;
   return (
     <div className={styles.big}>
-      <div className={styles.bigLabel}>{label}</div>
+      <div className={`${styles.bigLabel} caps`}>
+        <CapsLabel text={label} />
+      </div>
       <div className={styles.bigValue}>
-        <span className="num">{value}</span>
-        {unit && <span className={styles.unit}>{'\u00a0' + unit}</span>}
+        <span className={styles.bigNum}>{num}</span>
+        {unit && <span className={styles.bigUnit}>{'\u00a0' + unit}</span>}
       </div>
     </div>
   );

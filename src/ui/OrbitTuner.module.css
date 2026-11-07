@@ -14,7 +14,7 @@
 .h2 {
   margin: 0;
   font-family: var(--font-display);
-  font-weight: 500;
+  font-weight: var(--fw-heading);
   font-size: var(--fs-title);
   line-height: 1.3;
 }

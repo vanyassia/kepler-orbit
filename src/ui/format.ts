@@ -85,3 +85,15 @@ export function fmtAge(ms: number): string {
   if (s < 172800) return `${Math.round(s / 3600)} ч назад`;
   return `${Math.round(s / 86400)} сут назад`;
 }
+
+/**
+ * Подпись величины делится на слова и обозначение в конце: «Широта φ» → «Широта» и «φ».
+ * Слова набираются заглавными с разрядкой, а обозначение остаётся как есть —
+ * иначе «φ» превратится в «Φ», «h» в «H», а «ν» станет похожа на латинскую «N».
+ * Обозначение — последнее слово из одной-двух букв (h, V, φ, Vr, M₀).
+ */
+export function splitLabelSymbol(label: string): { words: string; symbol: string | null } {
+  const m = /^(.*\S)\s+(\S{1,2})$/u.exec(label);
+  if (!m) return { words: label, symbol: null };
+  return { words: m[1], symbol: m[2] };
+}

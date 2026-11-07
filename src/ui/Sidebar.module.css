@@ -60,14 +60,18 @@
   grid-column: 1 / -1;
 }
 
+/* Подписи «как на пульте»: те же правила, что у класса .caps (global.css) */
 .ids dt {
   color: var(--text-2);
-  font-size: var(--fs-micro);
+  font-size: var(--fs-label);
+  font-weight: 500;
+  letter-spacing: var(--ls-label);
+  text-transform: uppercase;
 }
 
 .ids dd {
-  margin: 0;
-  font-size: var(--fs-caption);
+  margin: 2px 0 0;
+  font-size: var(--fs-body);
 }
 
 .muted {
@@ -236,7 +240,7 @@
 .h2 {
   margin: 0 0 var(--sp-3);
   font-family: var(--font-display);
-  font-weight: 500;
+  font-weight: var(--fw-heading);
   font-size: var(--fs-title);
   line-height: 1.3;
 }
@@ -244,20 +248,31 @@
 .bigGrid {
   display: grid;
   grid-template-columns: 1fr 1fr;
-  gap: var(--sp-3) var(--sp-4);
+  gap: var(--sp-4) var(--sp-4);
   margin-bottom: var(--sp-4);
 }
 
 .bigLabel {
-  color: var(--text-2);
-  font-size: var(--fs-micro);
+  margin-bottom: 2px;
 }
 
+/* Крупные величины: Tektur тонкий, цифры одной ширины — число не «дрожит» при обновлении */
 .bigValue {
-  font-size: 1.125rem;
-  line-height: 1.3;
+  line-height: 1.2;
   color: var(--text-0);
   white-space: nowrap;
+}
+
+.bigNum {
+  font-family: var(--font-display);
+  font-weight: var(--fw-data);
+  font-size: var(--fs-data-lg);
+  font-variant-numeric: tabular-nums;
+}
+
+.bigUnit {
+  color: var(--text-2);
+  font-size: var(--fs-caption);
 }
 
 .rows {
@@ -284,8 +299,13 @@
 
 .row dd {
   margin: 0;
+  font-size: var(--fs-body);
   text-align: end;
   white-space: nowrap;
+}
+
+.row dd .unit {
+  font-size: var(--fs-caption);
 }
 
 .unit {

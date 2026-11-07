@@ -295,9 +295,13 @@
   white-space: nowrap;
 }
 
+/* Часы — Tektur с цифрами одной ширины: главное число нижней панели */
 .time {
-  font-size: var(--fs-body);
+  font-family: var(--font-display);
+  font-size: var(--fs-title);
   font-weight: 500;
+  font-variant-numeric: tabular-nums;
+  line-height: 1.25;
 }
 
 .sub {

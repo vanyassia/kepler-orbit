@@ -64,7 +64,9 @@
   border-radius: var(--r-chip);
   background: none;
   color: var(--text-1);
-  font-size: var(--fs-caption);
+  font-family: var(--font-display);
+  font-size: var(--fs-body);
+  font-weight: 500;
 }
 
 .tab:hover {

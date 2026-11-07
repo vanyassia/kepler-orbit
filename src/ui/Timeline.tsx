@@ -112,7 +112,7 @@ export function Timeline() {
       </div>
 
       <div className={styles.readout}>
-        <div className={`${styles.time} num`}>{fmtDateTime(t, 'MSK')}</div>
+        <div className={styles.time}>{fmtDateTime(t, 'MSK')}</div>
         <div className={styles.sub}>
           МСК, <span className="num">UTC {fmtTime(t)}</span>
           {!live && Math.abs(offsetH) >= 0.01 && (

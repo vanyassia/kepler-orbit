@@ -13,6 +13,7 @@ import { RAD } from '../physics/constants';
 import type { OrbitProfile, ProfilePoint } from '../physics/orbitProfile';
 import { orbitProfile, perigeeBefore, profileAt } from '../physics/orbitProfile';
 import { useAppStore } from '../state/store';
+import { CapsLabel } from './CapsLabel';
 import { fmt, fmtDateTime, fmtDuration, fmtLat } from './format';
 import styles from './OrbitCharts.module.css';
 
@@ -197,7 +198,9 @@ function Chart({
   return (
     <div className={styles.chart}>
       <div className={styles.head}>
-        <span className={styles.label}>{def.label}</span>
+        <span className={`${styles.label} caps`}>
+          <CapsLabel text={def.label} />
+        </span>
         <span className={`${styles.value} num`} data-hover={hover ? true : undefined}>
           {def.show(def.value(shown))}
         </span>
