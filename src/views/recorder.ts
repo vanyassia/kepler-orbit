@@ -126,9 +126,22 @@ export function startRecording(o: RecordOptions): string | null {
       setState({ status: 'recording', elapsed, duration: o.durationSec });
     }
   };
-  rec.start(1000);
+  try {
+    rec.start(1000);
+  } catch (e) {
+    // Кодировщик не запустился: вернуть прежнее ускорение и убрать холст записи
+    stream.getTracks().forEach((t) => t.stop());
+    canvas.remove();
+    app.setSpeed(before.speed);
+    app.setPlaying(before.playing);
+    console.warn('Запись видео не началась:', e);
+    return 'Браузер не дал записать видео';
+  }
   setState({ status: 'recording', elapsed: 0, duration: o.durationSec });
   raf = requestAnimationFrame(frame);
+  // В фоновой вкладке кадры не идут: запись всё равно кончится вовремя, и ускорение вернётся
+  const deadline = setTimeout(finish, o.durationSec * 1000 + 250);
+  rec.addEventListener('stop', () => clearTimeout(deadline));
   stopActive = finish;
   return null;
 }

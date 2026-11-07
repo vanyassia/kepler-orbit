@@ -110,6 +110,11 @@ describe('элементы орбиты', () => {
   it('текст с запятой берётся в кавычки', () => {
     expect(elementsToText(orbit, 'csv', { ...meta, satellite: 'Луна, спутник' })).toContain('"Луна, спутник"');
   });
+  it('название, похожее на формулу Excel, остаётся текстом', () => {
+    const text = elementsToText(orbit, 'excel', { ...meta, satellite: '=HYPERLINK("x")' });
+    expect(text).toContain(`Спутник;"'=HYPERLINK(""x"")";`);
+    expect(text).not.toMatch(/;=HYPERLINK/);
+  });
 });
 
 describe('имя файла и время', () => {

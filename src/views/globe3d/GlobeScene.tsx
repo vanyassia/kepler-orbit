@@ -32,7 +32,7 @@ import { BODIES } from '../../physics/bodies';
 import { orbitEllipse, positionAtTrueAnomaly, propagate } from '../../physics/propagate';
 import { useAppStore } from '../../state/store';
 import { fmt } from '../../ui/format';
-import { satelliteTitle } from '../../ui/satelliteTitle';
+import { labelTitle } from '../../ui/satelliteTitle';
 import type { TrackWindow } from '../trackCache';
 import { boardDashScale, boardFov, boardHalfAngle, clampZoom } from '../boardView';
 import { frameDue, pixelsPerUnit, simMsPerShift } from '../frameRate';
@@ -333,7 +333,7 @@ export function GlobeScene({ overlay, onReady }: { overlay: React.RefObject<HTML
     if (orbit) {
       specs.push({
         id: 'sat',
-        text: record ? satelliteTitle(record.elements).title : '',
+        text: record ? labelTitle(record.elements) : '',
         className: 'globe-label sat',
         // В виде с борта камера стоит на самом спутнике: подпись — у подспутниковой точки, в центре кадра
         anchor: (out) =>
@@ -764,7 +764,7 @@ export function GlobeScene({ overlay, onReady }: { overlay: React.RefObject<HTML
       const now = performance.now();
       if (now - lastLabelUpdate.current > 100) {
         lastLabelUpdate.current = now;
-        const title = st.record ? satelliteTitle(st.record.elements).title : '';
+        const title = st.record ? labelTitle(st.record.elements) : '';
         labelLayer.current?.setText('sat', `${title}, ${fmt(s.h, 0)} км`);
       }
     } else {

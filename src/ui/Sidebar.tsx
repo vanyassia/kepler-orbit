@@ -176,10 +176,10 @@ function QuickPicks() {
         {/* Свои спутники этого тела: выбор и удаление */}
         {mine.map((c) => (
           <span key={c.id} className={styles.customChip} data-current={current === c.id || undefined}>
-            <button type="button" className={styles.chip} aria-pressed={current === c.id} title="Свой спутник" onClick={() => setRecord(customToRecord(c))}>
+            <button type="button" className={styles.chip} aria-pressed={current === c.id} title={`Свой спутник: ${c.name}`} onClick={() => setRecord(customToRecord(c))}>
               {c.name}
             </button>
-            <button type="button" className={styles.chipRemove} aria-label={`Удалить спутник «${c.name}»`} title="Удалить" onClick={() => removeCustom(c.id)}>
+            <button type="button" className={styles.chipRemove} aria-label={`Удалить спутник «${c.name}»`} title="Удалить" onClick={() => confirm(`Удалить спутник «${c.name}»? Вернуть его будет нельзя.`) && removeCustom(c.id)}>
               <X size={12} />
             </button>
           </span>

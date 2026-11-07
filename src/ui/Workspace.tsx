@@ -1,5 +1,6 @@
-import { Columns2, Globe2, Map, RotateCw, SatelliteDish } from 'lucide-react';
+import { Columns2, Globe2, Map, RotateCw, Satellite, SatelliteDish } from 'lucide-react';
 import { lazy, Suspense, useDeferredValue, useEffect, useRef, ViewTransition } from 'react';
+import { DEFAULT_SATELLITE } from '../data/orbiters';
 import type { ViewMode } from '../state/store';
 import { useAppStore } from '../state/store';
 import { ErrorBoundary } from './ErrorBoundary';
@@ -136,6 +137,10 @@ function EmptyState({ error }: { error: string | null }) {
     const s = useAppStore.getState();
     void s.loadNorad(s.lastNorad ?? 25544);
   };
+  // Номера нет в каталоге (опечатка в ссылке) — повтор не поможет, нужен выход к спутнику по умолчанию
+  const body = useAppStore((s) => s.body);
+  const fallbackId = DEFAULT_SATELLITE[body];
+  const failedId = useAppStore((s) => s.lastNorad);
   return (
     <div className={styles.empty} role={error ? 'alert' : 'status'}>
       <div className={styles.emptyCard}>
@@ -147,9 +152,16 @@ function EmptyState({ error }: { error: string | null }) {
             <p className={styles.emptyHint}>
               Проверьте подключение к интернету и повторите запрос, выберите другой спутник или введите TLE вручную через поиск.
             </p>
-            <button type="button" className={styles.retry} onClick={retry}>
-              <RotateCw size={15} aria-hidden="true" /> Повторить запрос
-            </button>
+            <div className={styles.actions}>
+              <button type="button" className={styles.retry} onClick={retry}>
+                <RotateCw size={15} aria-hidden="true" /> Повторить запрос
+              </button>
+              {failedId !== fallbackId && (
+                <button type="button" className={styles.retry} onClick={() => void useAppStore.getState().loadNorad(fallbackId)}>
+                  <Satellite size={15} aria-hidden="true" /> {body === 'earth' ? 'Открыть МКС' : 'Открыть спутник по умолчанию'}
+                </button>
+              )}
+            </div>
           </>
         ) : (
           <>

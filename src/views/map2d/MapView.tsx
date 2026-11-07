@@ -16,7 +16,7 @@ import { passRadiusOf, passTargetOf, useAppStore } from '../../state/store';
 import { LayersMenu, RevsControl } from '../../ui/LayersMenu';
 import { PassChip } from '../../ui/PassFinder';
 import { fmt, fmtLat, fmtLon } from '../../ui/format';
-import { satelliteTitle } from '../../ui/satelliteTitle';
+import { labelTitle } from '../../ui/satelliteTitle';
 import { ensureFullImage, LIGHT_DEVICE, NIGHT_LIGHTS, SURFACE, SURFACE_CREDIT, useProgressiveImage } from '../assets';
 import { registerSnapshot } from '../snapshot';
 import { frameDue, peakAngularRateDeg, simMsPerShift } from '../frameRate';
@@ -427,7 +427,7 @@ export default function MapView() {
           radiusLabel: `${fmt(radiusKm)} км`,
         };
       }
-      const title = st.record ? satelliteTitle(st.record.elements).title : '';
+      const title = st.record ? labelTitle(st.record.elements) : '';
       renderMap(ctx, {
         view,
         layers: st.layers,

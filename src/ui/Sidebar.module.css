@@ -203,15 +203,22 @@
 /* Свой спутник: название и кнопка удаления — одна «таблетка» */
 .customChip {
   display: inline-flex;
+  /* Длинное название своего спутника не выталкивает крестик «Удалить» за край панели */
+  max-width: 100%;
+  min-width: 0;
 }
 
 .customChip .chip {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
   border-top-right-radius: 0;
   border-bottom-right-radius: 0;
   border-right: 0;
 }
 
 .chipRemove {
+  flex: none;
   display: grid;
   place-items: center;
   width: 26px;

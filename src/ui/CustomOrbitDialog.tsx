@@ -26,7 +26,7 @@ const FIELDS: { key: Exclude<Field, 'name'>; label: string; unit: string }[] = [
 const BODY_ORDER: BodyId[] = ['earth', 'moon', 'mars'];
 
 /** Число из поля: допускается десятичная запятая и знак «−». */
-const parse = (s: string) => Number(s.trim().replace(',', '.').replace('−', '-'));
+const parse = (s: string) => (s.trim() ? Number(s.trim().replace(',', '.').replace('−', '-')) : NaN); // пустое поле — не ноль
 /** Число в поле — с десятичной запятой. */
 const str = (v: number) => String(v).replace('.', ',');
 
@@ -134,6 +134,7 @@ function CustomOrbitForm({ onClose }: { onClose: () => void }) {
             inputMode={key === 'name' ? 'text' : 'decimal'}
             autoComplete="off"
             spellCheck={false}
+            maxLength={key === 'name' ? 60 : 24}
             value={values[key]}
             onChange={(e) => setValues((v) => ({ ...v, [key]: e.target.value }))}
             aria-invalid={!!err}

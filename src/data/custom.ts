@@ -35,6 +35,19 @@ export const CUSTOM_ID_BASE = 9_000_000;
 
 export const isCustomId = (id: number) => id > CUSTOM_ID_BASE;
 
+/** Запись своего спутника из хранилища браузера цела: номер, тело и все числа на месте. */
+export function isStoredCustom(x: unknown): x is CustomSatellite {
+  if (!x || typeof x !== 'object') return false;
+  const c = x as Record<string, unknown>;
+  const nums = ['id', 'hPeri', 'hApo', 'inclinationDeg', 'raanDeg', 'argPerigeeDeg', 'meanAnomalyDeg', 'epochMs'];
+  return (
+    typeof c.name === 'string' &&
+    (c.body === 'earth' || c.body === 'moon' || c.body === 'mars') &&
+    nums.every((k) => typeof c[k] === 'number' && Number.isFinite(c[k])) &&
+    isCustomId(c.id as number)
+  );
+}
+
 /** Большая полуось и эксцентриситет по высотам перицентра и апоцентра. */
 export function shapeFromHeights(hPeri: number, hApo: number, R: number): { a: number; e: number } {
   const rp = R + hPeri;

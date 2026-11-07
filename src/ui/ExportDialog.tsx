@@ -36,9 +36,9 @@ import { satelliteTitle } from './satelliteTitle';
 type Tab = 'track' | 'elements' | 'image' | 'video';
 type RangePreset = 'shown' | 'rev' | 'day' | 'custom';
 
-const TABS: { id: Tab; label: string }[] = [
+const TABS: { id: Tab; label: string; short?: string }[] = [
   { id: 'track', label: 'Трасса' },
-  { id: 'elements', label: 'Элементы орбиты' },
+  { id: 'elements', label: 'Элементы орбиты', short: 'Элементы' },
   { id: 'image', label: 'Картинка' },
   { id: 'video', label: 'Видео' },
 ];
@@ -84,6 +84,12 @@ function readPrefs(): Prefs {
     if (!TAB_IDS.includes(p.tab)) p.tab = DEFAULT_PREFS.tab;
     if (!VIDEO_SECONDS.includes(p.videoSec)) p.videoSec = DEFAULT_PREFS.videoSec;
     if (!VIDEO_SPEEDS.includes(p.videoSpeed)) p.videoSpeed = DEFAULT_PREFS.videoSpeed;
+    if (!FORMAT_IDS.includes(p.format)) p.format = DEFAULT_PREFS.format;
+    if (!RANGE_IDS.includes(p.range)) p.range = DEFAULT_PREFS.range;
+    if (p.image !== 'map' && p.image !== 'globe') p.image = DEFAULT_PREFS.image;
+    if (typeof p.msk !== 'boolean') p.msk = DEFAULT_PREFS.msk;
+    const groupIds = COLUMN_GROUPS.map((g) => g.id);
+    p.groups = Array.isArray(p.groups) ? p.groups.filter((g) => groupIds.includes(g)) : DEFAULT_PREFS.groups;
     return p;
   } catch {
     return DEFAULT_PREFS;
@@ -230,6 +236,10 @@ function ExportForm({ orbit, onClose }: { orbit: PreparedOrbit; onClose: () => v
         downloadBlob(file.blob, file.name);
         flash(`Сохранено: ${file.name}`);
       }
+    } catch (e) {
+      // Например, на телефоне не хватило памяти на большой файл: говорим об этом, а не молчим
+      console.warn('Выгрузка не удалась:', e);
+      flash('Не получилось собрать файл — сократите интервал или увеличьте шаг');
     } finally {
       setBusy(false);
     }
@@ -305,8 +315,17 @@ function ExportForm({ orbit, onClose }: { orbit: PreparedOrbit; onClose: () => v
 
         <div className={styles.tabs} role="tablist" aria-label="Что выгрузить" onKeyDown={(e) => rovingKeyDown(e, TAB_IDS, prefs.tab, (tab) => update({ tab }))}>
           {TABS.map((t) => (
-            <button key={t.id} type="button" role="tab" aria-selected={prefs.tab === t.id} tabIndex={rovingTabIndex(prefs.tab === t.id)} onClick={() => update({ tab: t.id })}>
-              {t.label}
+            <button key={t.id} type="button" role="tab" aria-selected={prefs.tab === t.id} tabIndex={rovingTabIndex(prefs.tab === t.id)} onClick={() => update({ tab: t.id })} aria-label={t.short ? t.label : undefined}>
+              {t.short ? (
+                <>
+                  <span className={styles.tabFull}>{t.label}</span>
+                  <span className={styles.tabShort} aria-hidden="true">
+                    {t.short}
+                  </span>
+                </>
+              ) : (
+                t.label
+              )}
             </button>
           ))}
         </div>

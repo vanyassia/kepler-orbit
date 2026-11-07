@@ -10,7 +10,7 @@ import { createJSONStorage, persist } from 'zustand/middleware';
 import type { SatelliteRecord } from '../data/celestrak';
 import { loadByNorad } from '../data/celestrak';
 import type { CustomSatellite } from '../data/custom';
-import { CUSTOM_ID_BASE, customToRecord, isCustomId } from '../data/custom';
+import { CUSTOM_ID_BASE, customToRecord, isCustomId, isStoredCustom } from '../data/custom';
 import type { TunePatch } from '../data/orbitTune';
 import { shapeOf, tuneElements } from '../data/orbitTune';
 import { DEFAULT_SATELLITE, isOrbiterId, loadOrbiter } from '../data/orbiters';
@@ -318,7 +318,9 @@ export const useAppStore = create<AppState>()(
         // «День и ночь» при каждом запуске включены — сохранённое выключение не восстанавливается
         for (const k of Object.keys(layers) as (keyof Layers)[]) if (k !== 'night' && typeof saved[k] === 'boolean') layers[k] = saved[k];
         // Место пролётов не восстанавливается (его сохраняла прошлая версия): при запуске — только трассы
-        return { ...current, ...p, layers, passTargets: {} };
+        // Свои спутники — только целые записи (испорченная запись в хранилище не должна ронять панель)
+        const customSats = Array.isArray(p.customSats) ? p.customSats.filter(isStoredCustom) : [];
+        return { ...current, ...p, layers, customSats, passTargets: {} };
       },
     },
   ),

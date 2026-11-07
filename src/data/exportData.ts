@@ -175,7 +175,9 @@ function num(x: number, digits: number, comma: boolean): string {
 }
 
 /** Ячейка с текстом: в кавычки, если внутри разделитель, кавычка или перевод строки. */
-function cell(text: string, sep: string): string {
+function cell(raw: string, sep: string): string {
+  // Текст, начинающийся с «=», «+», «-», «@», Excel счёл бы формулой (например, название из чужого TLE) — апостроф делает его текстом
+  const text = /^[=+\-@\t\r]/.test(raw) ? `'${raw}` : raw;
   return text.includes(sep) || /["\r\n]/.test(text) ? `"${text.replace(/"/g, '""')}"` : text;
 }
 

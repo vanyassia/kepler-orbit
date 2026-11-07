@@ -16,6 +16,8 @@
 
 .tabs button {
   position: relative;
+  /* Вкладки не сжимаются друг на друга: на узком экране ряд прокручивается */
+  flex: none;
   height: 36px;
   padding: 0 var(--sp-3);
   border: 0;
@@ -23,6 +25,23 @@
   color: var(--text-1);
   white-space: nowrap;
   transition: color var(--dur) var(--ease);
+}
+
+/* На телефоне «Элементы орбиты» короче — все четыре вкладки помещаются в ряд */
+.tabShort {
+  display: none;
+}
+
+@media (max-width: 480px) {
+  .tabs button {
+    padding: 0 var(--sp-2);
+  }
+  .tabFull {
+    display: none;
+  }
+  .tabShort {
+    display: inline;
+  }
 }
 
 .tabs button:hover {

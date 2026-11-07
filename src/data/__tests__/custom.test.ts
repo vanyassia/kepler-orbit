@@ -3,7 +3,7 @@ import { BODIES } from '../../physics/bodies';
 import { prepareOrbit, propagate } from '../../physics/propagate';
 import { RAD } from '../../physics/constants';
 import type { CustomSatellite } from '../custom';
-import { customToElements, shapeFromHeights, validateCustom } from '../custom';
+import { customToElements, isStoredCustom, shapeFromHeights, validateCustom } from '../custom';
 
 const base: CustomSatellite = {
   id: 9_000_001,
@@ -47,5 +47,21 @@ describe('Свой спутник: элементы по высотам пери
     expect(err.hApo).toBeTruthy();
     expect(err.inclinationDeg).toBeTruthy();
     expect(Object.keys(validateCustom(base))).toHaveLength(0);
+  });
+});
+
+describe('isStoredCustom — запись из хранилища браузера', () => {
+  it('целая запись проходит', () => {
+    expect(isStoredCustom(base)).toBe(true);
+  });
+  it('испорченные записи отбрасываются', () => {
+    expect(isStoredCustom(null)).toBe(false);
+    expect(isStoredCustom('спутник')).toBe(false);
+    expect(isStoredCustom({ ...base, body: 'venus' })).toBe(false);
+    expect(isStoredCustom({ ...base, hApo: '500' })).toBe(false);
+    expect(isStoredCustom({ ...base, raanDeg: NaN })).toBe(false);
+    expect(isStoredCustom({ ...base, id: 25544 })).toBe(false);
+    const { name: _name, ...noName } = base;
+    expect(isStoredCustom(noName)).toBe(false);
   });
 });

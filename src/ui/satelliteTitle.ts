@@ -7,3 +7,11 @@ export function satelliteTitle(el: OrbitalElements): { title: string; subtitle: 
   if (!popular) return { title: el.name, subtitle: null };
   return { title: popular.title, subtitle: el.name === popular.title ? null : el.name };
 }
+
+/** Подписи на карте и глобусе: длинное название своего спутника сокращается, чтобы подпись не уходила за край экрана. */
+export const LABEL_MAX = 32;
+
+export function labelTitle(el: OrbitalElements): string {
+  const t = satelliteTitle(el).title;
+  return t.length > LABEL_MAX ? `${t.slice(0, LABEL_MAX - 1).trimEnd()}…` : t;
+}
