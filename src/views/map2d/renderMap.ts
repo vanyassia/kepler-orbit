@@ -541,15 +541,42 @@ function drawCities(ctx: CanvasRenderingContext2D, v: View, cities: City[], hove
     const [x, y] = toScreen(v, c.lon, c.lat);
     return !(x < -20 || y < -20 || x > v.w + 20 || y > v.h + 20);
   });
-  // Сначала все точки, потом подписи — иначе точки соседних городов ложатся поверх текста
+  // Сначала решаем, у каких городов будет подпись и где (без наложений: выделенные места — первыми,
+  // затем остальные по порядку списка); от этого зависит вид точки
+  const labels = new Map<City, { lx: number; y: number }>();
+  for (const c of visible) {
+    const ru = !!c.highlight;
+    if (!(ru || showCapitalLabels || hover === c)) continue;
+    const [x, y] = toScreen(v, c.lon, c.lat);
+    ctx.font = cityFont(ru);
+    const tw = ctx.measureText(c.name).width;
+    const gap = ru ? 10 : 6;
+    const at = (onLeft: boolean) => {
+      const lx = x + (onLeft ? -gap : gap);
+      return { lx, rect: [onLeft ? lx - tw : lx, y - 7, onLeft ? lx : lx + tw, y + 7] as Rect };
+    };
+    const left = c.labelSide === 'left';
+    let pos = at(left);
+    // Выделенные места при наложении пробуют другую сторону; если и там занято — без подписи
+    if (overlaps(placed, pos.rect) && hover !== c) {
+      if (!ru) continue;
+      pos = at(!left);
+      if (overlaps(placed, pos.rect)) continue;
+    }
+    placed.push(pos.rect);
+    labels.set(c, { lx: pos.lx, y });
+  }
+  // Потом все точки, затем подписи — иначе точки соседних городов ложатся поверх текста.
+  // Город без подписи — маленькая тусклая точка, чтобы не выглядеть случайным мусором на карте
   for (const c of visible) {
     const [x, y] = toScreen(v, c.lon, c.lat);
     const ru = !!c.highlight;
+    const quiet = !ru && !labels.has(c);
     ctx.beginPath();
-    ctx.arc(x, y, ru ? 4 : 2.4, 0, Math.PI * 2);
-    ctx.fillStyle = ru ? COLORS.ruCity : '#ffffff';
-    ctx.lineWidth = ru ? 2 : 1.4;
-    ctx.strokeStyle = COLORS.halo;
+    ctx.arc(x, y, ru ? 4 : quiet ? 1.5 : 2.4, 0, Math.PI * 2);
+    ctx.fillStyle = ru ? COLORS.ruCity : quiet ? 'rgba(255, 255, 255, 0.5)' : '#ffffff';
+    ctx.lineWidth = ru ? 2 : quiet ? 1 : 1.4;
+    ctx.strokeStyle = quiet ? 'rgba(5, 12, 24, 0.5)' : COLORS.halo;
     ctx.stroke();
     ctx.fill();
     if (ru) {
@@ -560,35 +587,20 @@ function drawCities(ctx: CanvasRenderingContext2D, v: View, cities: City[], hove
       ctx.stroke();
     }
   }
-  // Подписи без наложений: выделенные места — первыми, затем остальные по порядку списка
   for (const c of visible) {
-    const [x, y] = toScreen(v, c.lon, c.lat);
+    const label = labels.get(c);
+    if (!label) continue;
     const ru = !!c.highlight;
-    if (ru || showCapitalLabels || hover === c) {
-      ctx.font = ru ? '600 12px "IBM Plex Mono", monospace' : '500 11px "IBM Plex Mono", monospace';
-      ctx.fillStyle = ru ? '#ffd9d6' : COLORS.text;
-      ctx.textBaseline = 'middle';
-      const left = c.labelSide === 'left';
-      ctx.textAlign = left ? 'right' : 'left';
-      const tw = ctx.measureText(c.name).width;
-      const gap = ru ? 10 : 6;
-      const at = (onLeft: boolean) => {
-        const lx = x + (onLeft ? -gap : gap);
-        return { lx, rect: [onLeft ? lx - tw : lx, y - 7, onLeft ? lx : lx + tw, y + 7] as Rect };
-      };
-      let pos = at(left);
-      // Выделенные места при наложении пробуют другую сторону; если и там занято — без подписи
-      if (overlaps(placed, pos.rect) && hover !== c) {
-        if (!ru) continue;
-        pos = at(!left);
-        if (overlaps(placed, pos.rect)) continue;
-      }
-      ctx.textAlign = pos.lx < x ? 'right' : 'left';
-      placed.push(pos.rect);
-      textWithHalo(ctx, c.name, pos.lx, y);
-    }
+    const [x] = toScreen(v, c.lon, c.lat);
+    ctx.font = cityFont(ru);
+    ctx.fillStyle = ru ? '#ffd9d6' : COLORS.text;
+    ctx.textBaseline = 'middle';
+    ctx.textAlign = label.lx < x ? 'right' : 'left';
+    textWithHalo(ctx, c.name, label.lx, label.y);
   }
 }
+
+const cityFont = (ru: boolean) => (ru ? '600 12px "IBM Plex Mono", monospace' : '500 11px "IBM Plex Mono", monospace');
 
 /** Место метки спутника: значок в точке (x, y) и подпись справа сверху, не выходя за край. */
 function satelliteLabelBox(ctx: CanvasRenderingContext2D, v: View, p: TrackPoint, label: string) {

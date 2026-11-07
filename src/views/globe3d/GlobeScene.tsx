@@ -830,9 +830,10 @@ export function GlobeScene({ overlay, onReady }: { overlay: React.RefObject<HTML
 
         {layers.cities &&
           capitals.map((c) => (
+            // У столиц на глобусе подписей нет — точки маленькие и тусклые, чтобы не выглядеть мусором
             <mesh key={c.name} position={geoToLocal(c.lat, c.lon, 1.001)}>
-              <sphereGeometry args={[0.0045, 8, 6]} />
-              <meshBasicMaterial color="#ffffff" toneMapped={false} />
+              <sphereGeometry args={[0.003, 8, 6]} />
+              <meshBasicMaterial color="#ffffff" toneMapped={false} transparent opacity={0.5} />
             </mesh>
           ))}
         {layers.cities &&
