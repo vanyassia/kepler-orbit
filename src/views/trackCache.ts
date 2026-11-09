@@ -166,6 +166,25 @@ export class Revolutions {
 }
 
 /**
+ * Сколько витков начинается на будущей части трассы — узлы в (t, t + forward·T].
+ * У обычных орбит это ровно forward. У очень долгих (Луна вокруг Земли: виток 27 сут, окно — пара суток)
+ * узел попадает в окно лишь иногда: тогда на трассе есть «+1», и легенда должна его показать.
+ */
+export function revolutionsAhead(orbit: PreparedOrbit, t: number, forwardRevs: number): number {
+  return ascendingNodeTimes(orbit, t, t + forwardRevs * orbit.T * 1000).filter((n) => n > t).length;
+}
+
+/**
+ * Начала витков (восходящие узлы), которые попадают на показанную трассу: от её начала до конца.
+ * Прошедшие (не позже t) отмечаются на карте тихой точкой, будущие — точкой с подписью «+1», «+2»…
+ */
+export function nodesInWindow(revs: Revolutions, t: number, backRevs: number, forwardRevs: number, periodSec: number): { time: number; offset: number }[] {
+  const from = t - backRevs * periodSec * 1000;
+  const to = t + forwardRevs * periodSec * 1000;
+  return revs.nodes.filter((n) => n >= from && n <= to).map((n) => ({ time: n, offset: revs.offsetAt(n) }));
+}
+
+/**
  * Цвета витков. Текущий и три следующих — свои оттенки, дальше — один общий
  * (цвета не повторяются по кругу). Оттенки одной насыщенности (OKLCH, C ≈ 0,13), без «кислотных»:
  * голубой → барвинковый → орхидея → шалфей. Проверено на тёмном фоне: различимость (ΔE OKLab)

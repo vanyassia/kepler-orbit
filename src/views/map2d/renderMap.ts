@@ -81,7 +81,7 @@ export interface MapScene {
   satNatural: NaturalSatellite | null;
   /** Витки нашей модели: цвет трассы и подписи начала витков. */
   revs: Revolutions | null;
-  /** Моменты узлов (начал витков) с точными подспутниковыми точками — для подписей. */
+  /** Начала витков на показанной трассе (точные подспутниковые точки в моменты узлов); offset ≤ 0 — прошедшие. */
   nodePoints: { offset: number; point: TrackPoint }[];
   cities: City[];
   hoverCity: City | null;
@@ -313,7 +313,11 @@ function strokePiece(
   return length;
 }
 
-/** Начала следующих витков (восходящие узлы на экваторе): «+1», «+2»… */
+/**
+ * Начала витков (восходящие узлы на экваторе). Следующие — точка с подписью «+1», «+2»…
+ * Прошедшие (начало текущего витка и более ранних) — маленькая тихая бусина цвета того витка,
+ * который там начался, в тёмной обводке: видна на линии трассы, но не спорит с ней и с подписями.
+ */
 function drawNodeLabels(ctx: CanvasRenderingContext2D, v: View, nodes: { offset: number; point: TrackPoint }[], placed: Rect[]) {
   ctx.font = '600 11px "IBM Plex Mono", monospace';
   ctx.textBaseline = 'middle';
@@ -321,6 +325,18 @@ function drawNodeLabels(ctx: CanvasRenderingContext2D, v: View, nodes: { offset:
   for (const { offset, point } of nodes) {
     const [x, y] = toScreen(v, point.lon, point.lat);
     if (x < -40 || x > v.w + 40 || y < -20 || y > v.h + 20) continue;
+    if (offset <= 0) {
+      ctx.beginPath();
+      ctx.arc(x, y, 2.25, 0, Math.PI * 2);
+      ctx.strokeStyle = COLORS.halo;
+      ctx.lineWidth = 1.5;
+      ctx.stroke();
+      ctx.globalAlpha = 0.8;
+      ctx.fillStyle = revolutionColor(offset);
+      ctx.fill();
+      ctx.globalAlpha = 1;
+      continue;
+    }
     const color = revolutionColor(offset);
     ctx.beginPath();
     ctx.arc(x, y, 3.5, 0, Math.PI * 2);
