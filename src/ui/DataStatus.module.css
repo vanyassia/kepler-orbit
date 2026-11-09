@@ -18,6 +18,14 @@
   line-height: 1.3;
   color: var(--text-1);
   white-space: nowrap;
+  min-width: 0;
+}
+
+/* Если места всё же не хватило (длинная подпись и «эпоха … сут»), подпись кончается многоточием */
+.text {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .status[data-kind='online'] {
@@ -80,6 +88,7 @@
 }
 
 .warn {
+  flex: none;
   color: var(--warn);
   border-left: 1px solid color-mix(in srgb, var(--warn) 35%, transparent);
   padding-left: var(--sp-2);
@@ -113,16 +122,23 @@
   }
 }
 
-/* На узком экране — только точка, без рамки: места в шапке мало */
-@media (max-width: 900px) {
+/* Когда в шапке тесно — только точка, без рамки (порог согласован с TopBar.module.css).
+   Подпись прячется только с экрана: читалка по-прежнему слышит смену источника,
+   а мышью её видно во всплывающей подсказке */
+@media (max-width: 1260px) {
   .status {
+    position: relative;
     height: auto;
     padding: 0;
     border: 0;
     background: none;
   }
   .text {
-    display: none;
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip-path: inset(50%);
   }
   .warn {
     display: none;

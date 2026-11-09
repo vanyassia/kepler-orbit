@@ -48,7 +48,7 @@ export function TopBar() {
           title="Режим показа: только карта или глобус на весь экран. Выход — Esc"
         >
           <Presentation size={16} aria-hidden="true" />
-          <span>Показ</span>
+          <span className={styles.btnLabel}>Показ</span>
         </button>
         <button
           type="button"
@@ -59,7 +59,7 @@ export function TopBar() {
           title="Выгрузка данных: таблица трассы, элементы орбиты, картинка, видео"
         >
           <Download size={16} aria-hidden="true" />
-          <span className={styles.exportLabel}>Выгрузка</span>
+          <span className={styles.btnLabel}>Выгрузка</span>
         </button>
         <div className={styles.clocks} role="group" aria-label="Текущее время">
           <span>

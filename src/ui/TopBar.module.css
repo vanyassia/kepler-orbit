@@ -40,7 +40,10 @@
   display: flex;
   align-items: center;
   gap: var(--sp-4);
-  flex: none;
+  /* Поле поиска растёт только в свободное место, поэтому эта группа сжимается, лишь когда поиск
+     уже дошёл до своей наименьшей ширины: тогда укорачивается надпись источника (с многоточием) */
+  flex: 0 1 auto;
+  min-width: 0;
 }
 
 .iconBtn {
@@ -87,6 +90,8 @@
 }
 
 .clocks {
+  flex: none;
+  white-space: nowrap;
   display: flex;
   flex-direction: column;
   align-items: flex-end;
@@ -100,6 +105,26 @@
   font-size: var(--fs-micro);
 }
 
+/*
+ * Шапка уступает место полю поиска по шагам, а не сжимает его:
+ * сначала «Показ» и «Выгрузка» остаются значками (подпись — во всплывающей подсказке),
+ * затем плашка источника данных — одной точкой (DataStatus.module.css, тот же порог 1260 px).
+ */
+@media (max-width: 1400px) {
+  .exportBtn {
+    width: 36px;
+    padding: 0;
+  }
+  .btnLabel {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+    white-space: nowrap;
+  }
+}
+
 @media (max-width: 1100px) {
   .panelToggle {
     display: grid;
@@ -109,6 +134,13 @@
   }
   .brand {
     width: auto;
+  }
+}
+
+/* Часы есть и в нижней панели: у самой узкой «компьютерной» ширины их место отдаём поиску */
+@media (max-width: 780px) {
+  .clocks {
+    display: none;
   }
 }
 

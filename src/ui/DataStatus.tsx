@@ -42,7 +42,7 @@ export function DataStatus() {
     <div
       className={styles.status}
       data-kind={loading ? 'loading' : record.source}
-      title={[detail, stale ? 'элементам больше 3 суток: точность расчёта снижена' : null].filter(Boolean).join('; ') || undefined}
+      title={[SOURCE_LABELS[record.source], detail, stale ? `эпоха ${Math.round(epochAgeDays)} сут: точность расчёта снижена` : null].filter(Boolean).join('; ')}
     >
       <span className={styles.dot} />
       {/* Одна строка: источник; когда получены данные — во всплывающей подсказке и для читалки */}
