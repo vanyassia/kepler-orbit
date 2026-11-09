@@ -64,7 +64,7 @@ export function App() {
       </a>
       <TopBar />
       <Sidebar />
-      {sidebarOpen && <div className={styles.backdrop} onClick={() => setSidebarOpen(false)} aria-hidden="true" />}
+      {sidebarOpen && <div className={styles.backdrop} onClick={() => setSidebarOpen(false)} aria-hidden="true" data-sidebar-backdrop="" />}
       <main id="workspace" className={styles.main} tabIndex={-1}>
         <Workspace />
       </main>

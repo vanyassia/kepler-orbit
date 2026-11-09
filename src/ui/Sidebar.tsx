@@ -1,5 +1,5 @@
 import { Download, History, Plus, Presentation, X } from 'lucide-react';
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { customToRecord } from '../data/custom';
 import { isOrbiterId, ORBITERS } from '../data/orbiters';
 import { photoFor } from '../data/photos';
@@ -21,18 +21,79 @@ import styles from './Sidebar.module.css';
 import { fmt, fmtDateTime, fmtLat, fmtLon } from './format';
 import { satelliteTitle } from './satelliteTitle';
 
+/** Ширина, на которой панель выдвигается поверх вида (тот же порог, что в Sidebar.module.css). */
+const DRAWER_QUERY = '(max-width: 1100px)';
+
+function useDrawerMode(): boolean {
+  const [drawer, setDrawer] = useState(() => matchMedia(DRAWER_QUERY).matches);
+  useEffect(() => {
+    const mq = matchMedia(DRAWER_QUERY);
+    const onChange = () => setDrawer(mq.matches);
+    mq.addEventListener('change', onChange);
+    return () => mq.removeEventListener('change', onChange);
+  }, []);
+  return drawer;
+}
+
 export function Sidebar() {
   const open = useAppStore((s) => s.sidebarOpen);
   const setOpen = useAppStore((s) => s.setSidebarOpen);
+  // Окно выгрузки живёт в шапке: пока оно открыто, шапку не выключаем — окно само держит фокус
+  const exportOpen = useAppStore((s) => s.exportOpen);
+  const drawer = useDrawerMode();
+  const asideRef = useRef<HTMLElement>(null);
+  const modal = open && drawer;
+
   useEffect(() => {
     if (!open) return;
-    const onKey = (e: KeyboardEvent) => e.key === 'Escape' && setOpen(false);
+    const onKey = (e: KeyboardEvent) => {
+      // Esc в открытом окне (свой спутник, TLE, снимок) закрывает только окно, а не панель
+      if (e.key === 'Escape' && !document.querySelector('dialog[open]')) setOpen(false);
+    };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
   }, [open, setOpen]);
 
+  // Объявлено раньше эффекта фокуса: при закрытии страница включается до того, как фокус вернётся на кнопку
+  useEffect(() => {
+    const aside = asideRef.current;
+    if (!modal || exportOpen || !aside?.parentElement) return;
+    // Подложку не выключаем: касание мимо панели её закрывает
+    const others = [...aside.parentElement.children].filter((el): el is HTMLElement => el !== aside && el instanceof HTMLElement && !el.inert && !('sidebarBackdrop' in el.dataset));
+    others.forEach((el) => (el.inert = true));
+    return () => others.forEach((el) => (el.inert = false));
+  }, [modal, exportOpen]);
+
+  // Выдвинутая панель закрывает вид, как окно: фокус переходит в неё, остальная страница
+  // выключается (inert — Tab не уходит под панель), после закрытия фокус возвращается на кнопку
+  useEffect(() => {
+    const aside = asideRef.current;
+    if (!modal || !aside) return;
+    // Куда вернуть фокус. Обычно это кнопка панели, но к этому моменту она уже выключена (inert)
+    // и фокус ушёл на body — тогда ниже берём саму кнопку
+    const active = document.activeElement;
+    const back = active instanceof HTMLElement && active !== document.body && !aside.contains(active) ? active : null;
+    if (!aside.contains(document.activeElement)) aside.focus({ preventScroll: true });
+    return () => {
+      const toggle = document.querySelector<HTMLElement>('[aria-controls="sidebar"]');
+      // Фокус возвращаем, только если он остался в панели или потерялся (панель закрыли с клавиатуры)
+      const lost = !document.activeElement || document.activeElement === document.body || aside.contains(document.activeElement);
+      if (lost) (back?.isConnected ? back : toggle)?.focus({ preventScroll: true });
+    };
+  }, [modal]);
+
   return (
-    <aside id="sidebar" className={styles.sidebar} data-open={open} aria-label="Параметры спутника" data-chrome="">
+    <aside
+      id="sidebar"
+      ref={asideRef}
+      className={styles.sidebar}
+      data-open={open}
+      aria-label="Параметры спутника"
+      data-chrome=""
+      role={modal ? 'dialog' : undefined}
+      aria-modal={modal || undefined}
+      tabIndex={modal ? -1 : undefined}
+    >
       <button type="button" className={styles.close} onClick={() => setOpen(false)} aria-label="Закрыть панель">
         <X size={18} />
       </button>

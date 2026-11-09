@@ -5,9 +5,10 @@
  * хорошо видно, как аппарат быстро проносится у перицентра и долго висит у апоцентра.
  *
  * Наведение показывает значения в любой момент витка, щелчок (касание) переводит туда время.
+ * С клавиатуры графики — ползунок: стрелки двигают время по витку, Home/End — к перицентру.
  * Расчёт точек — src/physics/orbitProfile.ts.
  */
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { type KeyboardEvent, useEffect, useMemo, useRef, useState } from 'react';
 import { useThrottledSimTime } from '../hooks/useSimClock';
 import { RAD } from '../physics/constants';
 import type { OrbitProfile, ProfilePoint } from '../physics/orbitProfile';
@@ -107,6 +108,22 @@ export function OrbitCharts() {
 
   const go = (ms: number) => useAppStore.getState().setSimTime(ms);
 
+  // Клавиатура: шаг — сотая витка, PageUp/PageDown — десятая, Home/End — начало и конец витка
+  const onKey = (e: KeyboardEvent) => {
+    const step = { ArrowRight: 0.01, ArrowUp: 0.01, ArrowLeft: -0.01, ArrowDown: -0.01, PageUp: 0.1, PageDown: -0.1 }[e.key];
+    let target: number | null = null;
+    if (step !== undefined) target = now.timeMs + step * span;
+    else if (e.key === 'Home') target = profile.startMs;
+    else if (e.key === 'End') target = profile.endMs;
+    if (target === null) return;
+    e.preventDefault();
+    setHoverMs(null);
+    go(target);
+  };
+  const nowSec = Math.round((now.timeMs - profile.startMs) / 1000);
+  const valueText =
+    `${fmtDuration(nowSec)} после перицентра: ` + CHARTS.map((c) => `${c.label.replace(/ \S+$/, '').toLowerCase()} ${c.show(c.value(now))}`).join(', ');
+
   return (
     <section className={styles.section} aria-labelledby="orbit-charts-h">
       <h2 id="orbit-charts-h" className={styles.h2}>
@@ -115,6 +132,14 @@ export function OrbitCharts() {
       <div
         ref={boxRef}
         className={styles.charts}
+        role="slider"
+        tabIndex={0}
+        aria-label="Момент на витке"
+        aria-valuemin={0}
+        aria-valuemax={Math.round(span / 1000)}
+        aria-valuenow={nowSec}
+        aria-valuetext={valueText}
+        onKeyDown={onKey}
         onPointerMove={(e) => setHoverMs(msAt(e.clientX))}
         onPointerLeave={(e) => e.pointerType === 'mouse' && setHoverMs(null)}
         onPointerUp={(e) => {

@@ -8,6 +8,11 @@
   scrollbar-color: var(--line-strong) transparent;
 }
 
+/* Фокус ставится на саму выдвинутую панель как на начало окна: рамка вокруг всей панели не нужна */
+.sidebar:focus {
+  outline: none;
+}
+
 .card,
 .section {
   padding: var(--sp-4) var(--sp-4) var(--sp-4);
