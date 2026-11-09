@@ -437,6 +437,7 @@ export default function MapView() {
         lightsLayer: earth && nightSource ? lights : null,
         subsolar: sub,
         track,
+        trackSpanSec: o && span ? { back: span.back * o.T, forward: span.forward * o.T } : null,
         satLabel: track ? `${title}, ${fmt(track.current.h, 0)} км` : '',
         satNatural: st.record ? naturalSatellite(st.record.elements) : null,
         revs,

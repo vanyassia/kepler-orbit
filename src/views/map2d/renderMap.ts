@@ -16,6 +16,7 @@ import type { NightMasks } from './nightMask';
 import type { Revolutions, TrackWindow } from '../trackCache';
 import { ORBIT_COLOR, revolutionColor, SAT_COLOR } from '../trackCache';
 import { fmtDuration } from '../../ui/format';
+import { chooseSpot, type SpotMemory } from './labelSpot';
 
 export const COLORS = {
   bg: '#081120',
@@ -76,6 +77,8 @@ export interface MapScene {
   /** Подсолнечная точка, градусы. */
   subsolar: { lat: number; lon: number };
   track: TrackWindow | null;
+  /** Длина показанной трассы назад и вперёд, с: подписи у её концов («−1 ч 33 мин», «+3 ч 6 мин»). */
+  trackSpanSec: { back: number; forward: number } | null;
   satLabel: string;
   /** Естественный спутник: вместо значка аппарата — его тело. */
   satNatural: NaturalSatellite | null;
@@ -230,7 +233,7 @@ export function renderMap(ctx: CanvasRenderingContext2D, sc: MapScene): void {
   if (layers.cities) drawCities(ctx, v, sc.cities, sc.hoverCity, placed);
   if (sc.regions.length) drawRegionLabels(ctx, v, sc.regions, sc.bodyRadius, placed);
   if (sc.track) drawNodeLabels(ctx, v, sc.nodePoints, placed);
-  if (sc.track) drawTrackEnds(ctx, v, sc.track, placed);
+  if (sc.track && sc.trackSpanSec) drawTrackEnds(ctx, v, sc.track, sc.trackSpanSec, placed);
   if (satBox && sc.track) drawSatellite(ctx, satBox, sc.satLabel, sc.labelBg, sc.satNatural ?? trackHeading(sc.track));
 }
 
@@ -354,42 +357,53 @@ function drawNodeLabels(ctx: CanvasRenderingContext2D, v: View, nodes: { offset:
   }
 }
 
-/** Концы окна трассы: сколько времени назад начинается и через сколько кончается показанная трасса. */
-function drawTrackEnds(ctx: CanvasRenderingContext2D, v: View, track: TrackWindow, placed: Rect[]) {
-  const t = track.current.timeMs;
+/** Где стояли подписи концов трассы в прошлом кадре: [начало, конец]. */
+const endSpots: (SpotMemory | undefined)[] = [undefined, undefined];
+
+/**
+ * Концы окна трассы: сколько времени назад начинается и через сколько кончается показанная трасса.
+ * Текст — по длине окна, а не по крайней точке: точки стоят на сетке шага, и время до крайней
+ * меняется в пределах шага — подпись мигала бы «32 мин» / «33 мин».
+ */
+function drawTrackEnds(ctx: CanvasRenderingContext2D, v: View, track: TrackWindow, span: { back: number; forward: number }, placed: Rect[]) {
   const first = track.past[0];
   const last = track.future[track.future.length - 1];
   const ends: [TrackPoint | undefined, string][] = [
-    [track.past.length > 2 ? first : undefined, `−${fmtDuration((t - first.timeMs) / 1000)}`],
-    [track.future.length > 2 ? last : undefined, `+${fmtDuration((last.timeMs - t) / 1000)}`],
+    [track.past.length > 2 ? first : undefined, `−${fmtDuration(span.back)}`],
+    [track.future.length > 2 ? last : undefined, `+${fmtDuration(span.forward)}`],
   ];
   ctx.font = '500 11px "IBM Plex Mono", monospace';
   ctx.textBaseline = 'middle';
   ctx.textAlign = 'left';
-  for (const [p, text] of ends) {
-    if (!p) continue;
+  ends.forEach(([p, text], i) => {
+    if (!p) return;
     const [x, y] = toScreen(v, p.lon, p.lat);
-    if (x < -40 || y < -20 || x > v.w + 40 || y > v.h + 20) continue;
+    if (x < -40 || y < -20 || x > v.w + 40 || y > v.h + 20) return;
     ctx.beginPath();
     ctx.arc(x, y, 3, 0, Math.PI * 2);
     ctx.strokeStyle = 'rgba(200, 220, 245, 0.7)';
     ctx.lineWidth = 1.2;
     ctx.stroke();
-    // Справа, слева, сверху, снизу — первое свободное место. Конец витка может лежать
-    // по ту сторону от спутника, куда смотрит подпись: при отдалении она налезала бы на его метку
+    // Справа, слева, сверху, снизу. Конец витка может лежать по ту сторону от спутника, куда смотрит
+    // подпись: при отдалении она налезала бы на его метку. Место выбирается «липко» (chooseSpot):
+    // иначе при быстром времени подпись прыгает между местами каждый кадр и на глаз двоится
     const tw = ctx.measureText(text).width;
-    const spots: [number, number][] = [
-      [x + 7, y],
-      [x - 7 - tw, y],
-      [x - tw / 2, y - 13],
-      [x - tw / 2, y + 13],
-    ];
-    const spot = spots.map(([lx, ly]) => [lx, ly, [lx - 1, ly - 8, lx + tw + 2, ly + 8] as Rect] as const).find(([, , r]) => !overlaps(placed, r));
-    if (!spot) continue;
-    placed.push(spot[2]);
+    const spots = (
+      [
+        [x + 7, y],
+        [x - 7 - tw, y],
+        [x - tw / 2, y - 13],
+        [x - tw / 2, y + 13],
+      ] as const
+    ).map(([lx, ly]) => ({ lx, ly, r: [lx - 1, ly - 8, lx + tw + 2, ly + 8] as Rect }));
+    const { spot, mem } = chooseSpot(endSpots[i], spots.map((s) => !overlaps(placed, s.r)));
+    endSpots[i] = mem;
+    if (spot < 0) return;
+    const s = spots[spot];
+    placed.push(s.r);
     ctx.fillStyle = 'rgba(200, 220, 245, 0.85)';
-    textWithHalo(ctx, text, spot[0], spot[1]);
-  }
+    textWithHalo(ctx, text, s.lx, s.ly);
+  });
 }
 
 /** Угловой радиус региона, градусы: половина диаметра, делённая на радиус тела. */
