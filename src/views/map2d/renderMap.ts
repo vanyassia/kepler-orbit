@@ -445,6 +445,22 @@ function drawGridLabels(ctx: CanvasRenderingContext2D, v: View, bottomInset: num
     if (y < 14 || y > v.h - 14) continue;
     textWithHalo(ctx, `${Math.abs(lat)}°${lat > 0 ? 'с' : lat < 0 ? 'ю' : ''}`, left + 4, y);
   }
+  // Строка долгот лежит на льду Антарктиды: под ней тёмная полоса с мягкими краями,
+  // иначе светлые цифры на белом снимке не читаются
+  const mapL = left;
+  const mapR = Math.min(v.ox + v.s * WORLD_W, v.w);
+  const bandTop = bottom - 26;
+  const bandBottom = Math.min(bottom + 10, v.oy + v.s * WORLD_H);
+  if (mapR > mapL && bandBottom > bandTop) {
+    const g = ctx.createLinearGradient(0, bandTop, 0, bottom + 10);
+    g.addColorStop(0, 'rgba(5, 12, 24, 0)');
+    g.addColorStop(0.4, 'rgba(5, 12, 24, 0.55)');
+    g.addColorStop(0.75, 'rgba(5, 12, 24, 0.55)');
+    g.addColorStop(1, 'rgba(5, 12, 24, 0)');
+    ctx.fillStyle = g;
+    ctx.fillRect(mapL, bandTop, mapR - mapL, bandBottom - bandTop);
+  }
+  ctx.fillStyle = 'rgb(214, 228, 245)';
   ctx.textAlign = 'center';
   ctx.textBaseline = 'bottom';
   for (let lon = -180 + step; lon < 180; lon += step) {
@@ -571,13 +587,16 @@ function drawCities(ctx: CanvasRenderingContext2D, v: View, cities: City[], hove
       const lx = x + (onLeft ? -gap : gap);
       return { lx, rect: [onLeft ? lx - tw : lx, y - 7, onLeft ? lx : lx + tw, y + 7] as Rect };
     };
-    const left = c.labelSide === 'left';
+    // Подпись, которая вышла бы за край карты, переходит на другую сторону точки
+    const fits = (r: Rect) => r[0] >= 4 && r[2] <= v.w - 4;
+    let left = c.labelSide === 'left';
+    if (!fits(at(left).rect) && fits(at(!left).rect)) left = !left;
     let pos = at(left);
     // Выделенные места при наложении пробуют другую сторону; если и там занято — без подписи
     if (overlaps(placed, pos.rect) && hover !== c) {
       if (!ru) continue;
       pos = at(!left);
-      if (overlaps(placed, pos.rect)) continue;
+      if (overlaps(placed, pos.rect) || !fits(pos.rect)) continue;
     }
     placed.push(pos.rect);
     labels.set(c, { lx: pos.lx, y });

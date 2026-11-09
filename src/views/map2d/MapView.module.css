@@ -101,9 +101,12 @@
 }
 
 .credit {
-  color: var(--text-2);
+  /* Подложка: на телефоне строка источников ложится на белый лёд Антарктиды */
+  padding: 1px 6px;
+  border-radius: 4px;
+  background: var(--surface-label);
+  color: var(--text-1);
   font-size: var(--fs-note);
-  text-shadow: 0 0 3px rgb(5 12 24);
 }
 
 @media (max-width: 900px) {
