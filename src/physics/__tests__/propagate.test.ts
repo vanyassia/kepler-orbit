@@ -130,6 +130,29 @@ describe('Восходящие узлы', () => {
     }
     expect((times[1] - times[0]) / 1000).toBeCloseTo(orbit.T, 6);
   });
+
+  it('у Марса узел — на экваторе Марса: трасса Фобоса там пересекает экватор с юга на север', () => {
+    // Фобос, JPL Horizons; у Марса плоскость отсчёта элементов и экватор вращения расходятся (uShift ≠ 0)
+    const phobos = prepareOrbit({
+      name: 'Phobos',
+      noradId: 401,
+      body: 'mars',
+      epochMs: Date.parse('2026-11-09T10:58:50.815Z'),
+      meanMotion: (0.01305552713123261 * 86400) / 360,
+      eccentricity: 0.0146833335649726,
+      inclinationDeg: 0.7602810944104775,
+      raanDeg: 330.2066523098754,
+      argPerigeeDeg: 5.298716234888823,
+      meanAnomalyDeg: 152.1082581244244,
+    });
+    expect(Math.abs(phobos.uShift)).toBeGreaterThan(1); // поправка есть — проверка не пустая
+    const times = ascendingNodeTimes(phobos, phobos.epochMs, phobos.epochMs + 3 * phobos.T * 1000);
+    expect(times.length).toBeGreaterThanOrEqual(2);
+    for (const t of times) {
+      expect(Math.abs(subPointAt(phobos, t).lat * RAD)).toBeLessThan(1e-6);
+      expect(subPointAt(phobos, t + 60_000).lat).toBeGreaterThan(subPointAt(phobos, t - 60_000).lat);
+    }
+  });
 });
 
 describe('Эллипс орбиты', () => {

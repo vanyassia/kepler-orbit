@@ -261,11 +261,14 @@ export function meanAnomalyFromTrue(theta: number, e: number): number {
 }
 
 /**
- * Моменты прохождения восходящего узла (u = 0, т. е. ϑ = −ω) в интервале [t1, t2].
- * Восходящий узел — традиционное начало витка; используется для засечек на шкале времени.
+ * Моменты прохождения восходящего узла на экваторе тела в интервале [t1, t2]:
+ * u + uShift = 0, т. е. ϑ = −ω − uShift. Там же, где трасса пересекает экватор с юга на север.
+ * У Земли и Луны uShift = 0; у Марса это поправка на полюс вращения (до нескольких градусов,
+ * у Фобоса и Деймоса — десятки), без неё граница витка уходила бы с экватора.
+ * Восходящий узел — традиционное начало витка: засечки на шкале времени, цвета витков трассы.
  */
 export function ascendingNodeTimes(orbit: PreparedOrbit, t1Ms: number, t2Ms: number): number[] {
-  const Mnode = meanAnomalyFromTrue(wrap2Pi(-orbit.omega), orbit.e);
+  const Mnode = meanAnomalyFromTrue(wrap2Pi(-orbit.omega - orbit.uShift), orbit.e);
   const periodMs = orbit.T * 1000;
   // Ближайший момент M = M_узла после эпохи, затем сдвиг на целое число периодов
   const firstAfterEpoch = orbit.epochMs + (wrap2Pi(Mnode - orbit.M0) / orbit.n) * 1000;
