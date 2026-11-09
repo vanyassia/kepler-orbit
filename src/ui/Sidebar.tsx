@@ -1,4 +1,4 @@
-import { Download, Plus, Presentation, X } from 'lucide-react';
+import { Download, History, Plus, Presentation, X } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
 import { customToRecord } from '../data/custom';
 import { isOrbiterId, ORBITERS } from '../data/orbiters';
@@ -225,7 +225,20 @@ function Telemetry() {
         <Row label="Истинная аномалия ν" value={fmt(s.theta * RAD, 2)} unit="°" />
         <Row label="Аргумент широты u" value={fmt(s.u * RAD, 2)} unit="°" />
         <Row label="Радиальная скорость Vr" value={fmt(s.Vr, 4)} unit="км/с" />
-        <Row label="Виток от эпохи" value={String(s.revolution)} />
+        <Row
+          label="Виток от эпохи"
+          value={String(s.revolution)}
+          action={
+            <button
+              type="button"
+              className={styles.rowAction}
+              onClick={() => useAppStore.getState().setSimTime(orbit.epochMs)}
+              title={`Перейти к эпохе элементов: ${fmtDateTime(orbit.epochMs)} UTC`}
+            >
+              <History size={12} aria-hidden="true" />к эпохе
+            </button>
+          }
+        />
       </dl>
     </section>
   );
@@ -272,11 +285,12 @@ function Big({ label, value, unit: unitProp }: { label: string; value: string; u
   );
 }
 
-function Row({ label, value, unit }: { label: string; value: string; unit?: string }) {
+function Row({ label, value, unit, action }: { label: string; value: string; unit?: string; action?: React.ReactNode }) {
   return (
     <div className={styles.row}>
       <dt>{label}</dt>
       <dd>
+        {action}
         <span className="num">{value}</span>
         {unit && <span className={styles.unit}>{unit === '°' ? unit : '\u00a0' + unit}</span>}
       </dd>

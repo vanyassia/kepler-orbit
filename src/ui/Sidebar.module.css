@@ -315,6 +315,34 @@
   font-size: var(--fs-caption);
 }
 
+/* Маленькая тихая кнопка в строке (например, «к эпохе» у витка) */
+.rowAction {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  margin-inline-end: var(--sp-3);
+  padding: 1px 6px;
+  border: 1px solid var(--line-strong);
+  border-radius: 4px;
+  background: transparent;
+  color: var(--text-2);
+  font: inherit;
+  font-size: var(--fs-caption);
+  line-height: 1.4;
+  vertical-align: 1px;
+  cursor: pointer;
+}
+
+.rowAction:hover {
+  color: var(--text-1);
+  border-color: var(--field-edge);
+}
+
+.rowAction:focus-visible {
+  outline: 2px solid var(--sat);
+  outline-offset: 1px;
+}
+
 .unit {
   color: var(--text-2);
 }
