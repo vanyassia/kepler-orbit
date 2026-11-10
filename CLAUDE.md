@@ -89,11 +89,13 @@ src/views/globe3d/  3D-глобус: three.js + react-three-fiber
   textures.ts + streamTexture.ts   снимки уходят в видеокарту порциями (без остановки кадров)
   satelliteModel.ts  модель аппарата: постоянные 44 px на экране, панели вдоль нормали к орбите
   issModel.ts        своя модель МКС (data/orbiters.ts isIss): ферма поперёк хода, 8 золотистых крыльев, модули; 52 px
+  historicModels.ts  свои модели «Востока» (шар, два конуса, кольцо баллонов, сопло; 52 px) и Спутника-1 (шар и 4 антенны; 48 px);
+                     какую модель брать — data/orbiters.ts ownLook ('iss' | 'vostok' | 'sputnik')
   naturalModel.ts    Луна, Фобос, Деймос вместо модели аппарата: одной стороной к планете, не меньше 10–18 px
   LabelLayer.ts (подписи DOM поверх холста), DynamicLine.ts (линии с частичной загрузкой), shaders.ts
 src/views/map2d/    2D-карта: Canvas 2D + d3-zoom
   MapView.tsx        цикл кадров, масштаб, подгонка по высоте на телефоне, слежение за спутником
-  renderMap.ts       слои карты и значок спутника (повёрнут по ходу полёта); у МКС свой значок — drawIss
+  renderMap.ts       слои карты и значок спутника (повёрнут по ходу полёта); свои значки — drawIss, drawVostok, drawSputnik
   nightMask.ts, geo.ts (границы Natural Earth), follow.ts (слежение за спутником)
 src/views/      общее для обоих видов
   snapshot.ts        картинка вида (PNG): карта и глобус регистрируют свой холст; подписи глобуса дорисовываются из DOM;

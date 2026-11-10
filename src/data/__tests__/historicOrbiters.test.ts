@@ -90,3 +90,13 @@ describe('полёты с Байконура: Восток-1 и Спутник-1
     expect(POPULAR_SATELLITES.some((p) => p.noradId === SPUTNIK1_ID)).toBe(true);
   });
 });
+
+describe('свои значки и модели', () => {
+  it('МКС, Восток-1 и Спутник-1 — со своим видом, остальные — с общим', async () => {
+    const { ownLook } = await import('../orbiters');
+    expect(ownLook({ noradId: 25544 })).toBe('iss');
+    expect(ownLook({ noradId: VOSTOK1_ID, body: 'earth' })).toBe('vostok');
+    expect(ownLook({ noradId: SPUTNIK1_ID, body: 'earth' })).toBe('sputnik');
+    for (const el of [{ noradId: 20580 }, { noradId: -9711, body: 'mars' as const }, { noradId: VOSTOK1_ID, body: 'mars' as const }]) expect(ownLook(el)).toBeNull();
+  });
+});

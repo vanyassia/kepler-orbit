@@ -4,7 +4,7 @@
  * трасса → подсолнечная точка → города → начала витков → спутник.
  */
 import { cityShown, type City } from '../../data/cities';
-import type { NaturalSatellite } from '../../data/orbiters';
+import type { NaturalSatellite, OwnLook } from '../../data/orbiters';
 import type { Region } from '../../data/regions';
 import { REGION_COLOR } from '../../data/regions';
 import type { TrackPoint } from '../../physics/groundTrack';
@@ -82,8 +82,8 @@ export interface MapScene {
   satLabel: string;
   /** Естественный спутник: вместо значка аппарата — его тело. */
   satNatural: NaturalSatellite | null;
-  /** Выбрана МКС — у неё свой значок (drawIss). */
-  satIss: boolean;
+  /** Свой значок аппарата: МКС (drawIss), Восток (drawVostok), Спутник-1 (drawSputnik); null — общий значок. */
+  satLook: OwnLook | null;
   /** Витки нашей модели: цвет трассы и подписи начала витков. */
   revs: Revolutions | null;
   /** Начала витков на показанной трассе (точные подспутниковые точки в моменты узлов); offset ≤ 0 — прошедшие. */
@@ -236,7 +236,7 @@ export function renderMap(ctx: CanvasRenderingContext2D, sc: MapScene): void {
   if (sc.regions.length) drawRegionLabels(ctx, v, sc.regions, sc.bodyRadius, placed);
   if (sc.track) drawNodeLabels(ctx, v, sc.nodePoints, placed);
   if (sc.track && sc.trackSpanSec) drawTrackEnds(ctx, v, sc.track, sc.trackSpanSec, placed);
-  if (satBox && sc.track) drawSatellite(ctx, satBox, sc.satLabel, sc.labelBg, sc.satNatural ?? trackHeading(sc.track), sc.satIss);
+  if (satBox && sc.track) drawSatellite(ctx, satBox, sc.satLabel, sc.labelBg, sc.satNatural ?? trackHeading(sc.track), sc.satLook);
 }
 
 function hexToRgb(hex: string): [number, number, number] {
@@ -680,7 +680,7 @@ export function trackHeading(track: TrackWindow): number {
  * по две золотистые солнечные батареи с каждой стороны (у каждой крыло вперёд и назад),
  * у середины — белые радиаторы. Значок повёрнут по направлению движения по трассе.
  */
-function drawIss(ctx: CanvasRenderingContext2D, x: number, y: number, heading: number) {
+export function drawIss(ctx: CanvasRenderingContext2D, x: number, y: number, heading: number) {
   ctx.save();
   // Ореол
   const g = ctx.createRadialGradient(x, y, 0, x, y, 24);
@@ -750,6 +750,155 @@ function drawIss(ctx: CanvasRenderingContext2D, x: number, y: number, heading: n
     ctx.fillRect(trussX - 4.5, yr, 4, 2);
     ctx.strokeRect(trussX - 4.5, yr, 4, 2);
   }
+  ctx.restore();
+}
+
+/** Ореол под значком аппарата. */
+function halo(ctx: CanvasRenderingContext2D, x: number, y: number, r: number) {
+  const g = ctx.createRadialGradient(x, y, 0, x, y, r);
+  g.addColorStop(0, 'rgba(255, 181, 71, 0.4)');
+  g.addColorStop(1, 'rgba(255, 181, 71, 0)');
+  ctx.fillStyle = g;
+  ctx.beginPath();
+  ctx.arc(x, y, r, 0, Math.PI * 2);
+  ctx.fill();
+}
+
+/** Металлический шар с бликом (свет сверху слева): радиус r, цвета от блика к тени. */
+function metalBall(ctx: CanvasRenderingContext2D, cx: number, cy: number, r: number, light: string, mid: string, dark: string) {
+  const g = ctx.createRadialGradient(cx - r * 0.35, cy - r * 0.4, r * 0.1, cx, cy, r);
+  g.addColorStop(0, light);
+  g.addColorStop(0.55, mid);
+  g.addColorStop(1, dark);
+  ctx.beginPath();
+  ctx.arc(cx, cy, r, 0, Math.PI * 2);
+  ctx.fillStyle = g;
+  ctx.fill();
+  ctx.strokeStyle = '#2b323d';
+  ctx.lineWidth = 0.8;
+  ctx.stroke();
+}
+
+/**
+ * Значок «Востока» (вид сбоку, нос — по ходу полёта): впереди шар спускаемого аппарата с иллюминатором
+ * и двумя штыревыми антеннами, за ним приборный отсек из двух конусов, на их стыке — кольцо шаровых
+ * баллонов, сзади — сопло тормозного двигателя.
+ */
+export function drawVostok(ctx: CanvasRenderingContext2D, x: number, y: number, heading: number) {
+  ctx.save();
+  halo(ctx, x, y, 24);
+  ctx.translate(x, y);
+  ctx.rotate(heading);
+  ctx.shadowColor = 'rgba(0, 0, 0, 0.55)';
+  ctx.shadowBlur = 4;
+  ctx.shadowOffsetY = 1.5;
+
+  // Сопло тормозного двигателя
+  ctx.beginPath();
+  ctx.moveTo(-12.5, -1.6);
+  ctx.lineTo(-15.5, -2.6);
+  ctx.lineTo(-15.5, 2.6);
+  ctx.lineTo(-12.5, 1.6);
+  ctx.closePath();
+  ctx.fillStyle = '#5b6370';
+  ctx.fill();
+  ctx.strokeStyle = '#232830';
+  ctx.lineWidth = 0.7;
+  ctx.stroke();
+
+  // Приборный отсек: два конуса основаниями друг к другу
+  const body = ctx.createLinearGradient(0, -6.5, 0, 6.5);
+  body.addColorStop(0, '#eef1f5');
+  body.addColorStop(0.5, '#b9c1cc');
+  body.addColorStop(1, '#6f7886');
+  ctx.beginPath();
+  ctx.moveTo(-0.5, -2.8);
+  ctx.lineTo(-6.5, -6.4);
+  ctx.lineTo(-12.8, -3);
+  ctx.lineTo(-12.8, 3);
+  ctx.lineTo(-6.5, 6.4);
+  ctx.lineTo(-0.5, 2.8);
+  ctx.closePath();
+  ctx.fillStyle = body;
+  ctx.fill();
+  ctx.strokeStyle = '#2b323d';
+  ctx.lineWidth = 0.8;
+  ctx.stroke();
+  ctx.shadowColor = 'transparent';
+  // Жалюзи системы терморегулирования на заднем конусе
+  ctx.strokeStyle = 'rgba(43, 50, 61, 0.55)';
+  ctx.lineWidth = 0.6;
+  for (const xs of [-8.6, -10.4]) {
+    ctx.beginPath();
+    ctx.moveTo(xs, -4.9 + (xs + 6.5) * -0.3);
+    ctx.lineTo(xs, 4.9 - (xs + 6.5) * -0.3);
+    ctx.stroke();
+  }
+  // Кольцо шаровых баллонов на стыке конусов
+  for (const yb of [-5.6, -3.4, -1.1, 1.1, 3.4, 5.6]) metalBall(ctx, -6.5, yb, 1.25, '#ffffff', '#c7ced8', '#7d8693');
+
+  // Спускаемый аппарат: шар в тёмной теплозащите со светлым бликом
+  metalBall(ctx, 5, 0, 6.2, '#e6e9ee', '#9aa2ad', '#4a515c');
+  // Иллюминатор и люк
+  ctx.beginPath();
+  ctx.arc(6.8, -2.6, 1.2, 0, Math.PI * 2);
+  ctx.fillStyle = '#1d3554';
+  ctx.fill();
+  ctx.strokeStyle = '#dfe6ef';
+  ctx.lineWidth = 0.6;
+  ctx.stroke();
+  ctx.beginPath();
+  ctx.arc(3.6, 1.8, 1.9, 0, Math.PI * 2);
+  ctx.strokeStyle = 'rgba(35, 40, 48, 0.6)';
+  ctx.stroke();
+  // Штыревые антенны вперёд
+  ctx.strokeStyle = '#dfe6ef';
+  ctx.lineWidth = 0.9;
+  ctx.beginPath();
+  ctx.moveTo(9.5, -3.4);
+  ctx.lineTo(15.5, -5.6);
+  ctx.moveTo(9.5, 3.4);
+  ctx.lineTo(15.5, 5.6);
+  ctx.stroke();
+  ctx.restore();
+}
+
+/**
+ * Значок Спутника-1 (вид сверху): полированный шар и четыре штыревые антенны, отведённые назад
+ * от хода полёта (две длиннее, две короче — как у настоящего: 2,9 и 2,4 м).
+ */
+export function drawSputnik(ctx: CanvasRenderingContext2D, x: number, y: number, heading: number) {
+  ctx.save();
+  halo(ctx, x, y, 22);
+  ctx.translate(x, y);
+  ctx.rotate(heading);
+  ctx.shadowColor = 'rgba(0, 0, 0, 0.55)';
+  ctx.shadowBlur = 4;
+  ctx.shadowOffsetY = 1.5;
+  // Антенны: тёмная обводка, поверх светлый металл
+  const antennas: [number, number, number, number][] = [
+    [2.5, -3.6, -17.5, -10],
+    [2.5, 3.6, -17.5, 10],
+    [3.6, -1.6, -14.5, -4.6],
+    [3.6, 1.6, -14.5, 4.6],
+  ];
+  for (const [w, color] of [
+    [2, '#2b323d'],
+    [1, '#e3e8ef'],
+  ] as const) {
+    ctx.strokeStyle = color;
+    ctx.lineWidth = w;
+    ctx.lineCap = 'round';
+    ctx.beginPath();
+    for (const [x0, y0, x1, y1] of antennas) {
+      ctx.moveTo(x0, y0);
+      ctx.lineTo(x1, y1);
+    }
+    ctx.stroke();
+    ctx.shadowColor = 'transparent';
+  }
+  // Полированный шар
+  metalBall(ctx, 3, 0, 5.4, '#ffffff', '#c9d0d9', '#5d6672');
   ctx.restore();
 }
 
@@ -902,11 +1051,13 @@ function drawMarsMoon(ctx: CanvasRenderingContext2D, x: number, y: number, kind:
 }
 
 /** Значок спутника с подписью: аппарат, повёрнутый по ходу (look — угол курса), или тело естественного спутника. */
-function drawSatellite(ctx: CanvasRenderingContext2D, box: ReturnType<typeof satelliteLabelBox>, label: string, labelBg: string, look: number | NaturalSatellite, iss = false) {
+function drawSatellite(ctx: CanvasRenderingContext2D, box: ReturnType<typeof satelliteLabelBox>, label: string, labelBg: string, look: number | NaturalSatellite, own: OwnLook | null = null) {
   const { x, y, w, lx, ly } = box;
   if (look === 'moon') drawMoonDisc(ctx, x, y);
   else if (typeof look === 'string') drawMarsMoon(ctx, x, y, look);
-  else if (iss) drawIss(ctx, x, y, look);
+  else if (own === 'iss') drawIss(ctx, x, y, look);
+  else if (own === 'vostok') drawVostok(ctx, x, y, look);
+  else if (own === 'sputnik') drawSputnik(ctx, x, y, look);
   else drawSpacecraft(ctx, x, y, look);
 
   // Подпись

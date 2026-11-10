@@ -6,7 +6,7 @@ import { zoom, zoomIdentity } from 'd3-zoom';
 import { useEffect, useRef, useState } from 'react';
 import { cityShown, type City } from '../../data/cities';
 import { placesFor } from '../../data/landmarks';
-import { isIss, naturalSatellite } from '../../data/orbiters';
+import { naturalSatellite, ownLook } from '../../data/orbiters';
 import { REGIONS } from '../../data/regions';
 import { BODIES } from '../../physics/bodies';
 import { greenwichToGeo } from '../../physics/frames';
@@ -441,7 +441,7 @@ export default function MapView() {
         trackSpanSec: o && span ? { back: span.back * o.T, forward: span.forward * o.T } : null,
         satLabel: track ? `${title}, ${fmt(track.current.h, 0)} км` : '',
         satNatural: st.record ? naturalSatellite(st.record.elements) : null,
-        satIss: !!st.record && isIss(st.record.elements),
+        satLook: st.record ? ownLook(st.record.elements) : null,
         revs,
         nodePoints,
         cities: placesFor(st.body, st.record?.elements.noradId),

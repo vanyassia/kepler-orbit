@@ -6,7 +6,7 @@
  */
 import type { BodyId } from '../physics/bodies';
 import type { SatelliteRecord } from './celestrak';
-import { HISTORIC_ORBITERS, historicById, historicRecord } from './historicOrbiters';
+import { HISTORIC_ORBITERS, historicById, historicRecord, SPUTNIK1_ID, VOSTOK1_ID } from './historicOrbiters';
 import { MOON_NAIF_ID } from './popular';
 
 export interface Orbiter {
@@ -59,6 +59,17 @@ export const ISS_NORAD = 25544;
 /** МКС — рисуется своим значком на карте и своей моделью на глобусе (ферма, восемь золотистых панелей, модули). */
 export function isIss(el: { noradId: number; body?: BodyId }): boolean {
   return el.noradId === ISS_NORAD && (el.body ?? 'earth') === 'earth';
+}
+
+/** Аппараты со своим значком на карте и своей моделью на глобусе (у остальных — общий значок аппарата). */
+export type OwnLook = 'iss' | 'vostok' | 'sputnik';
+
+export function ownLook(el: { noradId: number; body?: BodyId }): OwnLook | null {
+  if (isIss(el)) return 'iss';
+  if ((el.body ?? 'earth') !== 'earth') return null;
+  if (el.noradId === VOSTOK1_ID) return 'vostok';
+  if (el.noradId === SPUTNIK1_ID) return 'sputnik';
+  return null;
 }
 
 /** Спутник по умолчанию для каждого тела. */
