@@ -309,6 +309,7 @@ function OrbitElements() {
   const orbit = useAppStore((s) => s.orbit);
   if (!orbit) return null;
   const el = orbit.elements;
+  const earth = orbit.body.id === 'earth';
   return (
     <section className={styles.section}>
       <h2 className={styles.h2}>Элементы орбиты</h2>
@@ -321,8 +322,9 @@ function OrbitElements() {
         <Row label="Средняя аномалия M₀" value={fmt(el.meanAnomalyDeg, 4)} unit="°" />
         <Row label="Среднее движение N" value={fmt(el.meanMotion, 5)} unit="об/сут" />
         <Row label="Период T" value={fmt(orbit.T / 60, 2)} unit="мин" />
-        <Row label="Высота перигея" value={fmt(orbit.hPerigee, 1)} unit="км" />
-        <Row label="Высота апогея" value={fmt(orbit.hApogee, 1)} unit="км" />
+        {/* Перигей и апогей — только у Земли (как в листке); у Луны и Марса — перицентр и апоцентр */}
+        <Row label={earth ? 'Высота перигея' : 'Высота перицентра'} value={fmt(orbit.hPerigee, 1)} unit="км" />
+        <Row label={earth ? 'Высота апогея' : 'Высота апоцентра'} value={fmt(orbit.hApogee, 1)} unit="км" />
       </dl>
     </section>
   );
