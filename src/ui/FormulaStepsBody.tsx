@@ -44,6 +44,10 @@ export default function FormulaStepsBody() {
     const tMin = s.dt / 60;
     const nDegMin = orbit.n * RAD * 60;
     const iDeg = orbit.iEq * RAD;
+    // Начальное приближение — то же, что в solveKepler (kepler.ts): при e ≥ 0,8 берётся E₀ = π
+    const e0 = orbit.e < 0.8 ? 'M+e\\sin M' : '\\pi\\ (e\\ge0{,}8)';
+    // У Марса шаги 5.5–5.6 считаются от экватора вращения: u сдвинут на Δu (формула (20))
+    const uEqDeg = ((((s.u + orbit.uShift) * RAD) % 360) + 360) % 360;
     return [
       {
         no: '2',
@@ -69,7 +73,7 @@ export default function FormulaStepsBody() {
       {
         no: '5.2',
         title: `Уравнение Кеплера (метод Ньютона, итераций: ${s.keplerIterations})`,
-        tex: `\\begin{aligned}&E-e\\sin E=M,\\quad E_0=M+e\\sin M\\\\&E_{\\text{новое}}=E-\\frac{E-e\\sin E-M}{1-e\\cos E}\\;\\Rightarrow\\;E=${n(s.E * RAD, 4)}^\\circ\\end{aligned}`,
+        tex: `\\begin{aligned}&E-e\\sin E=M,\\quad E_0=${e0}\\\\&E_{\\text{новое}}=E-\\frac{E-e\\sin E-M}{1-e\\cos E}\\;\\Rightarrow\\;E=${n(s.E * RAD, 4)}^\\circ\\end{aligned}`,
       },
       {
         no: '5.3',
@@ -79,7 +83,9 @@ export default function FormulaStepsBody() {
       {
         no: '5.4',
         title: 'Аргумент широты',
-        tex: `u=\\omega+\\nu=${n(s.u * RAD, 4)}^\\circ\\ (\\text{mod}\\ 360^\\circ)`,
+        tex: orbit.uShift
+          ? `u=\\omega+\\nu+\\varDelta u=${n(uEqDeg, 4)}^\\circ\\quad(\\varDelta u=${n(orbit.uShift * RAD, 4)}^\\circ)`
+          : `u=\\omega+\\nu=${n(s.u * RAD, 4)}^\\circ\\ (\\text{mod}\\ 360^\\circ)`,
       },
       {
         no: '5.5',
