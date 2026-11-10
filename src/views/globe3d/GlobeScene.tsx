@@ -25,7 +25,7 @@ import {
 import { LineMaterial } from 'three/examples/jsm/lines/LineMaterial.js';
 import type { OrbitControls as OrbitControlsImpl } from 'three-stdlib';
 import { PLACES } from '../../data/landmarks';
-import { naturalSatellite } from '../../data/orbiters';
+import { isIss, naturalSatellite } from '../../data/orbiters';
 import { REGIONS } from '../../data/regions';
 import type { BodyId, CentralBody } from '../../physics/bodies';
 import { BODIES } from '../../physics/bodies';
@@ -45,6 +45,7 @@ import { LabelLayer, OFFSET } from './LabelLayer';
 import { atmosphereShader, cloudsShader, earthShader } from './shaders';
 import { useEarthTextures } from './textures';
 import { createNaturalModels, loadMoonSurface, placeNatural } from './naturalModel';
+import { createIssModel, ISS_SPAN } from './issModel';
 import { createSatelliteModel, SATELLITE_SPAN } from './satelliteModel';
 
 const TRACK_R = 1.0025;
@@ -199,6 +200,8 @@ export function GlobeScene({ overlay, onReady }: { overlay: React.RefObject<HTML
   const satGroup = useRef<Group>(null!);
   /** Модель аппарата (satelliteModel.ts) и свет Солнца для неё; Земля и линии светом не освещаются. */
   const satModel = useMemo(() => createSatelliteModel(), []);
+  /** Своя модель МКС (issModel.ts) — вместо общей модели аппарата. */
+  const issModel = useMemo(() => createIssModel(), []);
   /** Естественные спутники (Луна, Фобос, Деймос) — тела вместо модели аппарата (naturalModel.ts). */
   const naturalModels = useMemo(() => createNaturalModels(), []);
   const satGlow = useRef<Sprite>(null!);
@@ -632,13 +635,18 @@ export function GlobeScene({ overlay, onReady }: { overlay: React.RefObject<HTML
       fwd.addScaledVector(dir, -fwd.dot(dir)).normalize();
       const side = tmp.n.crossVectors(fwd, dir);
       satModel.quaternion.setFromRotationMatrix(tmp.m.makeBasis(fwd, dir, side));
+      issModel.quaternion.copy(satModel.quaternion);
       const ppu = pixelsPerUnit(size.height, (camera as PerspectiveCamera).fov, Math.max(0.05, camera.position.distanceTo(satPos)));
       satModel.scale.setScalar(44 / SATELLITE_SPAN / ppu);
+      // МКС чуть крупнее (около 52 пикселей вдоль фермы): у неё больше мелких частей
+      issModel.scale.setScalar(52 / ISS_SPAN / ppu);
       // Естественный спутник: настоящий размер, но не меньше нескольких пикселей — иначе издали его не видно
       const natural = st.record ? naturalSatellite(st.record.elements) : null;
       // С борта камера стоит на самом аппарате: его модель, свечение и радиус-вектор не рисуются
       const onBoard = st.camera === 'board';
-      satModel.visible = !natural && !onBoard;
+      const iss = !!st.record && isIss(st.record.elements);
+      satModel.visible = !natural && !iss && !onBoard;
+      issModel.visible = iss && !onBoard;
       satGlow.current.visible = !natural && !onBoard;
       for (const [kind, mesh] of Object.entries(naturalModels)) mesh.visible = kind === natural && !onBoard;
       lines.radius.visible = !onBoard;
@@ -883,6 +891,7 @@ export function GlobeScene({ overlay, onReady }: { overlay: React.RefObject<HTML
           <primitive object={lines.radius} />
           <group ref={satGroup}>
             <primitive object={satModel} />
+            <primitive object={issModel} />
             <primitive object={naturalModels.moon} />
             <primitive object={naturalModels.phobos} />
             <primitive object={naturalModels.deimos} />

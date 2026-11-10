@@ -82,6 +82,8 @@ export interface MapScene {
   satLabel: string;
   /** Естественный спутник: вместо значка аппарата — его тело. */
   satNatural: NaturalSatellite | null;
+  /** Выбрана МКС — у неё свой значок (drawIss). */
+  satIss: boolean;
   /** Витки нашей модели: цвет трассы и подписи начала витков. */
   revs: Revolutions | null;
   /** Начала витков на показанной трассе (точные подспутниковые точки в моменты узлов); offset ≤ 0 — прошедшие. */
@@ -234,7 +236,7 @@ export function renderMap(ctx: CanvasRenderingContext2D, sc: MapScene): void {
   if (sc.regions.length) drawRegionLabels(ctx, v, sc.regions, sc.bodyRadius, placed);
   if (sc.track) drawNodeLabels(ctx, v, sc.nodePoints, placed);
   if (sc.track && sc.trackSpanSec) drawTrackEnds(ctx, v, sc.track, sc.trackSpanSec, placed);
-  if (satBox && sc.track) drawSatellite(ctx, satBox, sc.satLabel, sc.labelBg, sc.satNatural ?? trackHeading(sc.track));
+  if (satBox && sc.track) drawSatellite(ctx, satBox, sc.satLabel, sc.labelBg, sc.satNatural ?? trackHeading(sc.track), sc.satIss);
 }
 
 function hexToRgb(hex: string): [number, number, number] {
@@ -671,6 +673,112 @@ export function trackHeading(track: TrackWindow): number {
 }
 
 /** Солнечная панель вдоль оси y от y0 до y1: синие ячейки в алюминиевой рамке. */
+/**
+ * Значок МКС (вид сверху): модули вдоль хода полёта, поперёк — длинная ферма, на её концах
+ * по две золотистые солнечные батареи с каждой стороны (у каждой крыло вперёд и назад),
+ * у середины — белые радиаторы. Значок повёрнут по направлению движения по трассе.
+ */
+function drawIss(ctx: CanvasRenderingContext2D, x: number, y: number, heading: number) {
+  ctx.save();
+  // Ореол
+  const g = ctx.createRadialGradient(x, y, 0, x, y, 24);
+  g.addColorStop(0, 'rgba(255, 181, 71, 0.4)');
+  g.addColorStop(1, 'rgba(255, 181, 71, 0)');
+  ctx.fillStyle = g;
+  ctx.beginPath();
+  ctx.arc(x, y, 24, 0, Math.PI * 2);
+  ctx.fill();
+
+  ctx.translate(x, y);
+  ctx.rotate(heading);
+  ctx.shadowColor = 'rgba(0, 0, 0, 0.55)';
+  ctx.shadowBlur = 4;
+  ctx.shadowOffsetY = 1.5;
+
+  const trussX = 1.5;
+  // Солнечные батареи: на каждом конце фермы по две, крылья вперёд и назад от фермы
+  for (const yc of [-15.3, -9.6, 9.6, 15.3]) {
+    for (const dir of [-1, 1]) issWing(ctx, trussX + dir * 1.3, trussX + dir * 10.5, yc);
+  }
+  ctx.shadowColor = 'transparent';
+
+  // Модули по ходу полёта: сзади российский сегмент, впереди американский
+  const hull = (x0: number, x1: number, h: number, color: string) => {
+    ctx.beginPath();
+    ctx.roundRect(x0, -h / 2, x1 - x0, h, h / 2);
+    ctx.fillStyle = color;
+    ctx.fill();
+    ctx.strokeStyle = '#3d4654';
+    ctx.lineWidth = 0.6;
+    ctx.stroke();
+  };
+  // Синие панели «Звезды»
+  ctx.fillStyle = '#2c5fa8';
+  ctx.fillRect(-9.6, -6.5, 2.2, 4.5);
+  ctx.fillRect(-9.6, 2, 2.2, 4.5);
+  hull(-11, -5, 3.4, '#d5dae2'); // Звезда
+  hull(-5.5, -1, 3.2, '#d5dae2'); // Заря
+  hull(-1.2, 6.2, 3.4, '#f1f4f8'); // Юнити и Дестини
+  hull(5.8, 8.6, 3, '#f1f4f8'); // Гармония
+  // «Коламбус» и «Кибо» поперёк у «Гармонии»
+  ctx.beginPath();
+  ctx.roundRect(5.9, -4.6, 2.6, 3.2, 1.2);
+  ctx.roundRect(5.7, 1.4, 3, 4.6, 1.3);
+  ctx.fillStyle = '#f1f4f8';
+  ctx.fill();
+  ctx.strokeStyle = '#3d4654';
+  ctx.lineWidth = 0.6;
+  ctx.stroke();
+
+  // Ферма поперёк хода
+  ctx.beginPath();
+  ctx.moveTo(trussX, -17.5);
+  ctx.lineTo(trussX, 17.5);
+  ctx.strokeStyle = '#3d4654';
+  ctx.lineWidth = 2.6;
+  ctx.stroke();
+  ctx.strokeStyle = '#c9d4e2';
+  ctx.lineWidth = 1.4;
+  ctx.stroke();
+  // Радиаторы у середины фермы
+  ctx.fillStyle = '#f7f8fa';
+  ctx.strokeStyle = '#7f8ea3';
+  ctx.lineWidth = 0.5;
+  for (const yr of [-7.2, 5.2]) {
+    ctx.fillRect(trussX - 4.5, yr, 4, 2);
+    ctx.strokeRect(trussX - 4.5, yr, 4, 2);
+  }
+  ctx.restore();
+}
+
+/** Крыло солнечной батареи МКС: золотистое полотно с ячейками от x0 до x1, по центру — yc. */
+function issWing(ctx: CanvasRenderingContext2D, x0: number, x1: number, yc: number) {
+  const h = 3.2;
+  const left = Math.min(x0, x1);
+  const w = Math.abs(x1 - x0);
+  const g = ctx.createLinearGradient(left, yc - h / 2, left + w, yc + h / 2);
+  g.addColorStop(0, '#f0bd62');
+  g.addColorStop(0.5, '#b07628');
+  g.addColorStop(1, '#dca24a');
+  ctx.fillStyle = g;
+  ctx.fillRect(left, yc - h / 2, w, h);
+  ctx.beginPath();
+  const cells = 4;
+  for (let k = 1; k < cells; k++) {
+    const cx = left + (w * k) / cells;
+    ctx.moveTo(cx, yc - h / 2);
+    ctx.lineTo(cx, yc + h / 2);
+  }
+  ctx.moveTo(left, yc);
+  ctx.lineTo(left + w, yc);
+  ctx.strokeStyle = 'rgba(70, 40, 8, 0.6)';
+  ctx.lineWidth = 0.6;
+  ctx.stroke();
+  ctx.strokeStyle = '#5c3b0e';
+  ctx.lineWidth = 0.8;
+  ctx.strokeRect(left, yc - h / 2, w, h);
+}
+
 function solarPanel(ctx: CanvasRenderingContext2D, y0: number, y1: number) {
   const w = 8;
   const g = ctx.createLinearGradient(-w / 2, y0, w / 2, y1);
@@ -792,10 +900,11 @@ function drawMarsMoon(ctx: CanvasRenderingContext2D, x: number, y: number, kind:
 }
 
 /** Значок спутника с подписью: аппарат, повёрнутый по ходу (look — угол курса), или тело естественного спутника. */
-function drawSatellite(ctx: CanvasRenderingContext2D, box: ReturnType<typeof satelliteLabelBox>, label: string, labelBg: string, look: number | NaturalSatellite) {
+function drawSatellite(ctx: CanvasRenderingContext2D, box: ReturnType<typeof satelliteLabelBox>, label: string, labelBg: string, look: number | NaturalSatellite, iss = false) {
   const { x, y, w, lx, ly } = box;
   if (look === 'moon') drawMoonDisc(ctx, x, y);
   else if (typeof look === 'string') drawMarsMoon(ctx, x, y, look);
+  else if (iss) drawIss(ctx, x, y, look);
   else drawSpacecraft(ctx, x, y, look);
 
   // Подпись

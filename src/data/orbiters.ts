@@ -52,6 +52,14 @@ export function naturalSatellite(el: { noradId: number; body?: BodyId }): Natura
   return null;
 }
 
+/** Номер МКС в каталоге NORAD. */
+export const ISS_NORAD = 25544;
+
+/** МКС — рисуется своим значком на карте и своей моделью на глобусе (ферма, восемь золотистых панелей, модули). */
+export function isIss(el: { noradId: number; body?: BodyId }): boolean {
+  return el.noradId === ISS_NORAD && (el.body ?? 'earth') === 'earth';
+}
+
 /** Спутник по умолчанию для каждого тела. */
 export const DEFAULT_SATELLITE: Record<BodyId, number> = { earth: 25544, moon: -85, mars: -74 };
 
