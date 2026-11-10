@@ -49,7 +49,7 @@ function earthRaan(omDeg, jdTdb) {
 
 async function horizons(params) {
   const url = `${API}?format=json&OBJ_DATA='NO'&MAKE_EPHEM='YES'&CSV_FORMAT='YES'&` + Object.entries(params).map(([k, v]) => `${k}='${encodeURIComponent(v)}'`).join('&');
-  const res = await fetch(url);
+  const res = await fetch(url, { signal: AbortSignal.timeout(60_000) });
   const json = await res.json();
   const r = json.result ?? '';
   const i = r.indexOf('$$SOE');
@@ -58,8 +58,20 @@ async function horizons(params) {
   return { name, row: r.slice(i + 5).trim().split('\n')[0].split(',').map((x) => x.trim()) };
 }
 
+const dir = join(ROOT, 'public', 'data');
+const file = join(dir, 'orbiters.json');
+
+// Прежний снимок: аппарат, на который Horizons не ответил, остаётся с прежними элементами, а не исчезает с сайта
+let previous = [];
+try {
+  previous = JSON.parse(readFileSync(file, 'utf8')).items ?? [];
+} catch {
+  // снимка ещё нет — соберём заново
+}
+
 const items = [];
 const checks = [];
+let fresh = 0;
 for (const { id, body } of list) {
   try {
     const elementsAt = (d) =>
@@ -93,7 +105,15 @@ for (const { id, body } of list) {
       meanMotionDegPerSec: Number(N),
       semiMajorAxisKm: Number(A),
     };
+    // Ответ без чисел (изменился формат таблицы) не должен попасть в снимок
+    for (const k of ['eccentricity', 'inclinationDeg', 'raanDeg', 'argPerigeeDeg', 'meanAnomalyDeg', 'meanMotionDegPerSec', 'semiMajorAxisKm']) {
+      if (!Number.isFinite(item[k])) throw new Error(`в ответе Horizons нет числа ${k}`);
+    }
+    if (!Number.isFinite(epochMs) || !(item.meanMotionDegPerSec > 0) || !(item.eccentricity >= 0 && item.eccentricity < 1)) {
+      throw new Error('элементы Horizons не описывают замкнутую орбиту');
+    }
     items.push(item);
+    fresh++;
     console.log(`✓ ${id} ${name}: a = ${item.semiMajorAxisKm.toFixed(0)} км, e = ${item.eccentricity.toFixed(4)}`);
 
     if (process.argv.includes('--fixture')) {
@@ -115,17 +135,24 @@ for (const { id, body } of list) {
       checks.push({ naifId: id, body, timeUtc: t.toISOString(), subLon: Number(subLon), subLat: Number(subLat), sunLon: Number(sunLon), sunLat: Number(sunLat) });
     }
   } catch (e) {
-    console.warn(`✗ ${id}: ${e.message}`);
+    const old = previous.find((x) => x.naifId === id && x.body === body);
+    if (old) items.push(old);
+    console.warn(`✗ ${id}: ${e.message}${old ? ` — оставлена прежняя запись (эпоха ${old.epoch})` : ' — прежней записи нет'}`);
   }
 }
 
-const dir = join(ROOT, 'public', 'data');
+// Ни одного свежего ответа — сеть или Horizons недоступны: снимок не трогаем, запуск считается неудачным
+if (fresh === 0) {
+  console.error('JPL Horizons не ответил ни на один запрос — снимок оставлен без изменений');
+  process.exit(1);
+}
+
 mkdirSync(dir, { recursive: true });
 writeFileSync(
-  join(dir, 'orbiters.json'),
+  file,
   JSON.stringify({ savedAt: new Date().toISOString(), source: 'JPL Horizons (ssd.jpl.nasa.gov), REF_PLANE=BODY', items }, null, 2) + '\n',
 );
-console.log(`Сохранено ${items.length} аппаратов → public/data/orbiters.json`);
+console.log(`Сохранено ${items.length} аппаратов (свежих ${fresh}, прежних ${items.length - fresh}) → public/data/orbiters.json`);
 
 if (checks.length) {
   const f = join(ROOT, 'src', 'physics', '__tests__', 'fixtures');
