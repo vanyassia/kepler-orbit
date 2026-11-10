@@ -144,8 +144,15 @@ export function prepareOrbit(el: OrbitalElements): PreparedOrbit {
  */
 function equatorElements(body: CentralBody, t0: number, i: number, raan: number, S0: number) {
   const conv = (v: Vec3) => greenwichToInertial(body.toFixed(v, t0), S0);
-  const h = conv({ x: Math.sin(raan) * Math.sin(i), y: -Math.cos(raan) * Math.sin(i), z: Math.cos(i) });
-  const node = conv({ x: Math.cos(raan), y: Math.sin(raan), z: 0 });
+  const h0 = { x: Math.sin(raan) * Math.sin(i), y: -Math.cos(raan) * Math.sin(i), z: Math.cos(i) };
+  const node0 = { x: Math.cos(raan), y: Math.sin(raan), z: 0 };
+  const h = conv(h0);
+  const node = conv(node0);
+  // Система элементов совпадает с экватором вращения (Земля, Луна): элементы остаются как есть.
+  // Иначе у экваториальной орбиты (i = 0) узел по нормали не определить, и λ_Ω с ab в «Расчёте по шагам»
+  // расходились бы с листком (λ_Ω ≠ Ω − S), хотя сама подспутниковая точка верна.
+  const same = (a: Vec3, b: Vec3) => Math.abs(a.x - b.x) < 1e-12 && Math.abs(a.y - b.y) < 1e-12 && Math.abs(a.z - b.z) < 1e-12;
+  if (same(h, h0) && same(node, node0)) return { i, raan, uShift: 0 };
   const iEq = Math.acos(Math.max(-1, Math.min(1, h.z)));
   const raanEq = Math.atan2(h.x, -h.y);
   const nx = Math.cos(raanEq);

@@ -214,3 +214,36 @@ describe('Лёгкий расчёт подспутниковой точки', ()
     }
   });
 });
+
+describe('Экваториальная орбита (i = 0): промежуточные величины — как в листке', () => {
+  const base = { name: 't', noradId: 1, epochMs: Date.UTC(2026, 10, 10), meanMotion: 2, eccentricity: 0.1, raanDeg: 123, argPerigeeDeg: 40, meanAnomalyDeg: 10 };
+  const wrap = (deg: number) => ((deg + 540) % 360) - 180;
+
+  it.each(['earth', 'moon'] as const)('%s: λ_Ω = Ω − S, ab = u, узел не «прыгает»', (body) => {
+    const o = prepareOrbit({ ...base, body, inclinationDeg: 0 });
+    expect(o.iEq).toBe(0);
+    expect(o.uShift).toBe(0);
+    expect(wrap(o.lambdaNode * RAD)).toBeCloseTo(wrap(123 - o.S0 * RAD), 9);
+    const s = propagate(o, base.epochMs + 3_600_000);
+    expect(wrap(s.ab * RAD)).toBeCloseTo(wrap(s.u * RAD), 9);
+    expect(s.lat).toBe(0);
+  });
+
+  it('подспутниковая точка при i = 0 и при i → 0 одна и та же', () => {
+    const a = propagate(prepareOrbit({ ...base, inclinationDeg: 0 }), base.epochMs + 5_000_000);
+    const b = propagate(prepareOrbit({ ...base, inclinationDeg: 1e-9 }), base.epochMs + 5_000_000);
+    expect(a.lon).toBeCloseTo(b.lon, 9);
+    expect(a.ab).toBeCloseTo(b.ab, 9);
+  });
+
+  it('у Земли и Луны элементы при любом наклонении не пересчитываются', () => {
+    for (const body of ['earth', 'moon'] as const) {
+      for (const inc of [0, 0.05, 51.6, 90, 97.4, 180]) {
+        const o = prepareOrbit({ ...base, body, inclinationDeg: inc });
+        expect(o.iEq).toBe(o.i);
+        expect(o.raanEq).toBe(o.raan);
+        expect(o.uShift).toBe(0);
+      }
+    }
+  });
+});
