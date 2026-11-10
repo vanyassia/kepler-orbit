@@ -370,8 +370,10 @@ const endSpots: (SpotMemory | undefined)[] = [undefined, undefined];
 function drawTrackEnds(ctx: CanvasRenderingContext2D, v: View, track: TrackWindow, span: { back: number; forward: number }, placed: Rect[]) {
   const first = track.past[0];
   const last = track.future[track.future.length - 1];
+  // Исторический полёт: трасса начинается со старта, а не за span.back до текущего момента
+  const cutAtLaunch = first && track.current.timeMs - first.timeMs < span.back * 1000 * 0.98;
   const ends: [TrackPoint | undefined, string][] = [
-    [track.past.length > 2 ? first : undefined, `−${fmtDuration(span.back)}`],
+    [track.past.length > 2 ? first : undefined, cutAtLaunch ? 'старт' : `−${fmtDuration(span.back)}`],
     [track.future.length > 2 ? last : undefined, `+${fmtDuration(span.forward)}`],
   ];
   ctx.font = '500 11px "IBM Plex Mono", monospace';

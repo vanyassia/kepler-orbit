@@ -1,11 +1,12 @@
 /**
  * Объекты на поверхности Луны и Марса — аналог городов на карте Земли.
- * Выделены (как Москва и Смоленск) места посадок советских аппаратов.
+ * Выделены (как Москва и Смоленск) места посадок советских аппаратов; на Земле — Байконур и посадка Гагарина.
  * Координаты планетоцентрические, восточная долгота положительна (IAU).
  */
 import type { BodyId } from '../physics/bodies';
 import type { City } from './cities';
 import { CITIES } from './cities';
+import { BAIKONUR, GAGARIN_LANDING } from './historicOrbiters';
 
 const MOON: City[] = [
   { name: 'Луна-9', lat: 7.08, lon: -64.37, highlight: true },
@@ -34,7 +35,10 @@ const MARS: City[] = [
   { name: 'Гора Арсия', lat: -8.26, lon: -120.09, labelSide: 'left' },
 ];
 
-export const PLACES: Record<BodyId, City[]> = { earth: CITIES, moon: MOON, mars: MARS };
+// Земля: к городам — Байконур и место посадки Гагарина (трасса Востока-1 идёт от одного к другому)
+const EARTH: City[] = [...CITIES, { ...BAIKONUR, highlight: true }, { ...GAGARIN_LANDING, highlight: true }];
+
+export const PLACES: Record<BodyId, City[]> = { earth: EARTH, moon: MOON, mars: MARS };
 
 /** Как называется слой отметок на поверхности. */
 export const PLACES_LABEL: Record<BodyId, string> = { earth: 'Города', moon: 'Места посадок и кратеры', mars: 'Места посадок и объекты' };

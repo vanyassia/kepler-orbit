@@ -13,6 +13,7 @@ import type { CustomSatellite } from '../data/custom';
 import { CUSTOM_ID_BASE, customToRecord, isCustomId, isStoredCustom } from '../data/custom';
 import type { TunePatch } from '../data/orbitTune';
 import { shapeOf, tuneElements } from '../data/orbitTune';
+import { historicFlight } from '../data/historicOrbiters';
 import { DEFAULT_SATELLITE, isOrbiterId, loadOrbiter } from '../data/orbiters';
 import type { BodyId } from '../physics/bodies';
 import type { PreparedOrbit } from '../physics/propagate';
@@ -105,6 +106,11 @@ interface AppState {
    */
   anchorSim: number;
   anchorReal: number;
+  /**
+   * Исторический полёт (Восток-1): момент, на котором часы сами встают на паузу, — пролёт над местом посадки.
+   * null — у выбранного спутника такого момента нет.
+   */
+  flightEnd: number | null;
 
   view: ViewMode;
   camera: CameraMode;
@@ -151,6 +157,20 @@ interface AppState {
 
 let loadSeq = 0;
 
+/** Скорость, с которой показывается исторический полёт: 108 минут Гагарина — за неполные две минуты. */
+export const FLIGHT_SPEED = 60;
+
+/**
+ * Часы при смене спутника. Исторический полёт с Байконура начинается с момента старта и идёт ×60;
+ * после него, при выборе любого другого спутника, часы возвращаются к текущему времени.
+ */
+export function clockOnSelect(prevId: number | null | undefined, nextId: number, realNow: number, wallNow: number) {
+  const flight = historicFlight(nextId);
+  if (flight) return { simTime: flight.startMs, anchorSim: flight.startMs, anchorReal: realNow, speed: FLIGHT_SPEED, playing: true, flightEnd: flight.endMs };
+  if (prevId != null && historicFlight(prevId)) return { simTime: wallNow, anchorSim: wallNow, anchorReal: realNow, speed: 1, playing: true, flightEnd: null };
+  return { flightEnd: null };
+}
+
 export const useAppStore = create<AppState>()(
   persist(
     (set, get) => ({
@@ -182,6 +202,7 @@ export const useAppStore = create<AppState>()(
   speed: 1,
   anchorSim: Date.now(),
   anchorReal: performance.now(),
+  flightEnd: null,
 
   view: '2d',
   camera: 'free',
@@ -225,7 +246,8 @@ export const useAppStore = create<AppState>()(
     try {
       const rec = isOrbiterId(id) ? await loadOrbiter(id) : await loadByNorad(id);
       if (seq !== loadSeq) return; // пользователь уже выбрал другой спутник
-      set({ record: rec, body: rec.elements.body ?? 'earth', orbit: prepareOrbit(rec.elements), loading: false, pendingNorad: null, tuneBase: null });
+      const clock = clockOnSelect(get().record?.elements.noradId, rec.elements.noradId, performance.now(), Date.now());
+      set({ record: rec, body: rec.elements.body ?? 'earth', orbit: prepareOrbit(rec.elements), loading: false, pendingNorad: null, tuneBase: null, ...clock });
     } catch (e) {
       if (seq !== loadSeq) return;
       set({ loading: false, pendingNorad: null, error: e instanceof Error ? e.message : String(e) });
@@ -233,7 +255,8 @@ export const useAppStore = create<AppState>()(
   },
   setRecord: (rec) => {
     loadSeq++;
-    set({ record: rec, body: rec.elements.body ?? 'earth', orbit: prepareOrbit(rec.elements), loading: false, error: null, pendingNorad: null, lastNorad: rec.elements.noradId, tuneBase: null });
+    const clock = clockOnSelect(get().record?.elements.noradId, rec.elements.noradId, performance.now(), Date.now());
+    set({ ...clock, record: rec, body: rec.elements.body ?? 'earth', orbit: prepareOrbit(rec.elements), loading: false, error: null, pendingNorad: null, lastNorad: rec.elements.noradId, tuneBase: null });
   },
   tuneOrbit: (patch) => {
     const s = get();
@@ -262,8 +285,15 @@ export const useAppStore = create<AppState>()(
 
   setSimTime: (t) => set({ simTime: t, anchorSim: t, anchorReal: performance.now() }),
   tick: (realNow) => {
-    const { playing, speed, anchorSim, anchorReal } = get();
-    if (playing) set({ simTime: anchorSim + (realNow - anchorReal) * speed });
+    const { playing, speed, anchorSim, anchorReal, simTime, flightEnd } = get();
+    if (!playing) return;
+    const t = anchorSim + (realNow - anchorReal) * speed;
+    // Исторический полёт: часы встают на паузу над местом посадки (один раз — дальше можно пустить снова)
+    if (flightEnd !== null && simTime < flightEnd && t >= flightEnd) {
+      set({ simTime: flightEnd, anchorSim: flightEnd, anchorReal: realNow, playing: false });
+      return;
+    }
+    set({ simTime: t });
   },
   setPlaying: (p) => set((s) => ({ playing: p, anchorSim: s.simTime, anchorReal: performance.now() })),
   setSpeed: (v) => set((s) => ({ speed: v, anchorSim: s.simTime, anchorReal: performance.now() })),

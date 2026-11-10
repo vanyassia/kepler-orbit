@@ -4,7 +4,7 @@ import { useThrottledSimTime, useWallClock } from '../hooks/useSimClock';
 import { ascendingNodeTimes } from '../physics/propagate';
 import { SPEEDS, useAppStore } from '../state/store';
 import styles from './Timeline.module.css';
-import { fmt, fmtDateTime, fmtTime } from './format';
+import { fmtDateTime, fmtOffset, fmtTime } from './format';
 import { rovingKeyDown, rovingTabIndex } from './roving';
 
 const HALF_WINDOW_MS = 24 * 3_600_000;
@@ -119,7 +119,7 @@ export function Timeline() {
             <span className={styles.offset}>
               {' '}
               {offsetH > 0 ? '+' : '−'}
-              {Math.abs(offsetH) < 1 ? `${Math.round(Math.abs(offsetH) * 60)}\u00a0мин` : `${fmt(Math.abs(offsetH), 1)}\u00a0ч`}
+              {fmtOffset(offsetH)}
             </span>
           )}
         </div>

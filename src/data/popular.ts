@@ -2,6 +2,8 @@
  * Быстрый выбор известных спутников Земли. Номера NORAD сверены с каталогом CelesTrak.
  * Группы идут в порядке показа; featured — короткий список в боковой панели.
  */
+import { SPUTNIK1_ID, VOSTOK1_ID } from './historicOrbiters';
+
 export interface PopularSatellite {
   noradId: number;
   /** Название по-русски для интерфейса. */
@@ -104,6 +106,9 @@ export const POPULAR_GROUPS: PopularGroup[] = [
   {
     label: 'История',
     satellites: [
+      // Исторические орбиты (historicOrbiters.ts): при выборе часы переходят к моменту старта
+      { noradId: VOSTOK1_ID, title: 'Восток-1', note: 'Гагарин, 12.04.1961, один виток', featured: true },
+      { noradId: SPUTNIK1_ID, title: 'Спутник-1', note: 'Первый спутник, 04.10.1957' },
       { noradId: 5, title: 'Авангард-1', note: 'Старейший спутник на орбите, 1958' },
       { noradId: 340, title: 'Телстар-1', note: 'Спутник связи, запущен в 1962' },
       { noradId: 7530, title: 'AO-7', note: 'Радиолюбительский спутник, 1974' },

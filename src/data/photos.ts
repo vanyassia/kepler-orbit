@@ -52,6 +52,10 @@ export const PHOTOS: Record<string, SatellitePhoto> = {
   'earth:33053': { image: 'fermi', commons: 'Fermi_Gamma-ray_Space_Telescope_spacecraft_model.png', kind: 'render', caption: 'Гамма-телескоп «Ферми»', author: NASA, license: PD },
   'earth:301': { image: 'moon', commons: 'FullMoon2010.jpg', kind: 'photo', caption: 'Полная Луна, снимок в телескоп с Земли, 2010', author: 'Gregory H. Revera', license: 'CC BY-SA 3.0' },
 
+  // Исторические полёты
+  'earth:-9611': { image: 'vostok', commons: 'Vostok_spacecraft.jpg', kind: 'model', caption: 'Макет корабля «Восток» на выставке «Россия в космосе», Франкфурт, 2002', author: 'HPH', license: 'CC BY-SA 3.0' },
+  'earth:-9571': { image: 'sputnik-1', commons: 'Sputnik_asm.jpg', kind: 'model', caption: 'Копия Спутника-1 в Национальном музее авиации и космонавтики США', author: 'NSSDC, NASA', license: PD },
+
   // Россия: Земля и погода
   'earth:57166': METEOR,
   'earth:59051': METEOR,

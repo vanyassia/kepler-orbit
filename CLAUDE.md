@@ -20,7 +20,7 @@
 ```bash
 npm run dev               # сервер разработки http://localhost:5173 (во встроенном браузере: preview_start с именем kepler-dev)
 npx tsc -b                # проверка типов
-npx vitest run            # все тесты (сейчас около 450)
+npx vitest run            # все тесты (сейчас около 470)
 npm run build             # сборка в dist/
 npm run deploy            # сборка и выкладка на GitHub Pages (scripts/deploy.sh, ветка gh-pages)
 npm run update:fallback   # свежий снимок элементов спутников Земли → public/data/fallback-gp.json
@@ -58,8 +58,11 @@ src/data/      источники элементов орбит и справо�
   celestrak.ts   CelesTrak GP API → кэш localStorage (2 ч) → встроенный снимок → ручной TLE
   orbiters.ts    спутники Луны и Марса и сама Луна вокруг Земли (NAIF 301) из снимка JPL Horizons (у Horizons нет CORS);
                  у Земли Ω из Horizons сдвигается на 90° + прецессия (scripts/update-orbiters.mjs, earthRaan)
-  historicOrbiters.ts  Марс-2, -3, -5, Фобос-2 по опубликованным параметрам (Ω, ω, M₀ условные)
-  popular.ts     52 спутника Земли по группам; custom.ts — свои спутники; tle.ts, omm.ts — форматы
+  historicOrbiters.ts  исторические орбиты: Марс-2, -3, -5, Фобос-2 (Ω, ω, M₀ условные); Восток-1 и Спутник-1 —
+                 плоскость через Байконур в момент старта (anglesOverSite), при выборе часы переходят к старту ×60
+                 (store clockOnSelect), у Востока-1 пауза над местом посадки (flightEnd), после — снова «сейчас»;
+                 трасса до старта не рисуется (TrackSource.fromMs)
+  popular.ts     52 спутника Земли по группам (и Восток-1, Спутник-1 в группе «История»); custom.ts — свои спутники; tle.ts, omm.ts — форматы
   orbitTemplates.ts  шаблоны окна «Свой спутник» (геостационарная, «Молния», ССО, полярная; у Луны и Марса свои)
   orbitTune.ts   ползунки «Изменить орбиту»: hп, e, i → элементы листка (перицентр на месте, апоцентр ≤ 1 млн км)
   cities.ts, landmarks.ts, regions.ts — города, места посадок, регионы Луны и Марса

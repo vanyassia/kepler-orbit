@@ -1,6 +1,7 @@
 import { Download, History, Plus, Presentation, X } from 'lucide-react';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { customToRecord } from '../data/custom';
+import { historicById } from '../data/historicOrbiters';
 import { isOrbiterId, ORBITERS } from '../data/orbiters';
 import { photoFor } from '../data/photos';
 import { POPULAR_GROUPS, POPULAR_SATELLITES } from '../data/popular';
@@ -187,7 +188,7 @@ function SatelliteCard() {
         </button>
       </div>
       {tuned && <p className={styles.satNote}>Орбита изменена ползунками в разделе «Изменить орбиту».</p>}
-      {record.source === 'historic' && <p className={styles.satNote}>Форма орбиты по опубликованным данным. Углы Ω и ω и положение на орбите условные.</p>}
+      {record.source === 'historic' && <p className={styles.satNote}>{historicById(el.noradId)?.detail}</p>}
       {error && (
         <p className={styles.error} role="alert">
           {error}

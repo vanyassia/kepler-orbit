@@ -77,6 +77,30 @@ export function fmtDuration(seconds: number): string {
   return `${Math.floor(hrs / 24)} сут ${hrs % 24} ч`;
 }
 
+/**
+ * Сдвиг времени симуляции от текущего, без знака: «25 мин», «5,5 ч», «12 сут», «65 лет».
+ * Исторические полёты уводят часы на десятки лет назад — часы там считать бессмысленно.
+ */
+export function fmtOffset(hours: number): string {
+  const h = Math.abs(hours);
+  if (h < 1) return `${Math.round(h * 60)}\u00a0мин`;
+  if (h < 48) return `${fmt(h, 1)}\u00a0ч`;
+  const days = h / 24;
+  if (days < 730) return `${fmt(days, 0)}\u00a0сут`;
+  // Полные годы — коротко, чтобы влезть в постоянную ширину часов: «65 лет»
+  const years = Math.floor(days / 365.25);
+  return `${years}\u00a0${yearsWord(years)}`;
+}
+
+/** «1 год», «3 года», «65 лет». */
+function yearsWord(n: number): string {
+  const m10 = n % 10;
+  const m100 = n % 100;
+  if (m10 === 1 && m100 !== 11) return 'год';
+  if (m10 >= 2 && m10 <= 4 && (m100 < 12 || m100 > 14)) return 'года';
+  return 'лет';
+}
+
 /** Возраст данных: «5 мин назад», «3 ч назад», «2 сут назад». */
 export function fmtAge(ms: number): string {
   const s = ms / 1000;

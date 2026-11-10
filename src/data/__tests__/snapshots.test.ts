@@ -21,7 +21,8 @@ const orbiters = JSON.parse(readFileSync(join(dataDir, 'orbiters.json'), 'utf8')
 };
 
 describe('Снимок CelesTrak (fallback-gp.json)', () => {
-  const earth = POPULAR_SATELLITES.filter((p) => p.noradId !== MOON_NAIF_ID);
+  // Луна и исторические орбиты (отрицательные номера) берутся не из CelesTrak
+  const earth = POPULAR_SATELLITES.filter((p) => p.noradId > 0 && p.noradId !== MOON_NAIF_ID);
 
   it.each(earth.map((p) => [p.title, p.noradId] as const))('%s (NORAD %i) есть в снимке', (_title, id) => {
     const rec = gp.items.find((r) => Number(r.NORAD_CAT_ID) === id);

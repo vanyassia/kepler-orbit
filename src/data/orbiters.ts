@@ -6,7 +6,7 @@
  */
 import type { BodyId } from '../physics/bodies';
 import type { SatelliteRecord } from './celestrak';
-import { HISTORIC_ORBITERS, historicRecord } from './historicOrbiters';
+import { HISTORIC_ORBITERS, historicById, historicRecord } from './historicOrbiters';
 import { MOON_NAIF_ID } from './popular';
 
 export interface Orbiter {
@@ -35,7 +35,8 @@ export const ORBITERS: Orbiter[] = [
   { naifId: -3, body: 'mars', title: 'Mangalyaan', note: 'Индийский орбитер, данные до ноября 2022' },
   { naifId: 401, body: 'mars', title: 'Фобос', note: 'Естественный спутник, T ≈ 7,7 ч' },
   { naifId: 402, body: 'mars', title: 'Деймос', note: 'Естественный спутник, T ≈ 30,3 ч' },
-  ...HISTORIC_ORBITERS.map((o): Orbiter => ({ naifId: o.id, body: 'mars', title: o.title, note: o.note })),
+  // Исторические орбиты; у Земли (Восток-1, Спутник-1) они стоят в списке popular.ts
+  ...HISTORIC_ORBITERS.map((o): Orbiter => ({ naifId: o.id, body: o.body, title: o.title, note: o.note })),
 ];
 
 /** Спутник из снимка JPL Horizons, а не из каталога CelesTrak. */
@@ -82,7 +83,7 @@ let snapshot: Promise<{ savedAt: string; items: OrbiterSnapshotItem[] }> | null 
 
 /** Элементы спутника Луны или Марса из снимка JPL Horizons. */
 export async function loadOrbiter(naifId: number): Promise<SatelliteRecord> {
-  const historic = HISTORIC_ORBITERS.find((o) => o.id === naifId);
+  const historic = historicById(naifId);
   if (historic) return historicRecord(historic);
   // no-cache: сайт разрешает кэшировать файлы 10 минут, а старый снимок не подходит к новому списку
   snapshot ??= fetch(`${import.meta.env.BASE_URL}data/orbiters.json`, { cache: 'no-cache' }).then((r) => {

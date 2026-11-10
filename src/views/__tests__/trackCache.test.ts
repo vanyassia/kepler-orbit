@@ -87,3 +87,23 @@ describe('Окно трассы очень долгих орбит', () => {
     expect(forward).toBeCloseTo(2 * back, 10);
   });
 });
+
+describe('Исторический полёт: трасса начинается со старта', () => {
+  it('у Востока-1 в момент старта прошедшей трассы нет, через полвитка она начинается у Байконура', async () => {
+    const { historicById, historicRecord, VOSTOK1_ID, BAIKONUR } = await import('../../data/historicOrbiters');
+    const orbit = prepareOrbit(historicRecord(historicById(VOSTOK1_ID)!).elements);
+    const start = orbit.epochMs;
+    const src = orbitSource(orbit);
+    expect(src.fromMs).toBe(start);
+    const c = new TrackCache();
+    // В момент старта прошедшая часть — только текущая точка
+    expect(c.get(src, start, 1, 2)!.past).toHaveLength(1);
+    // Через полвитка первая точка прошедшей части — не раньше старта и рядом с Байконуром
+    const w = new TrackCache().get(src, start + (orbit.T * 1000) / 2, 1, 2)!;
+    expect(w.past[0].timeMs).toBeGreaterThanOrEqual(start);
+    expect(w.past[0].timeMs - start).toBeLessThan(src.stepSec * 1000);
+    expect(Math.abs(w.past[0].lat - BAIKONUR.lat)).toBeLessThan(1);
+    // Будущее до старта (если часы увели раньше) тоже не рисуется
+    expect(new TrackCache().get(src, start - 3_600_000, 1, 2)!.future.slice(1).every((p) => p.timeMs >= start)).toBe(true);
+  });
+});

@@ -2,6 +2,7 @@
  * Скользящий кэш трассы: точки считаются с запасом в четверть витка с каждой стороны
  * и пересчитываются, только когда окно отображения выходит за пределы кэша.
  */
+import { historicFlight } from '../data/historicOrbiters';
 import { ROTATION_PERIOD } from '../physics/bodies';
 import { RAD } from '../physics/constants';
 import type { TrackPoint } from '../physics/groundTrack';
@@ -21,6 +22,8 @@ export interface TrackSource {
   stepSec: number;
   /** Подспутниковая точка в момент t; null — модель не дала положения. */
   at: (t: number) => TrackPoint | null;
+  /** Исторический полёт: раньше старта трассы нет (виток до старта не рисуется). */
+  fromMs: number;
 }
 
 const sources = new WeakMap<object, TrackSource>();
@@ -33,6 +36,7 @@ export function orbitSource(orbit: PreparedOrbit): TrackSource {
       key: orbit,
       periodSec: orbit.T,
       stepSec: trackStepSeconds(orbit),
+      fromMs: historicFlight(orbit.elements.noradId)?.startMs ?? -Infinity,
       at: (t) => {
         const p = subPointAt(orbit, t);
         return { timeMs: t, lat: p.lat * RAD, lon: p.lon * RAD, h: p.h };
@@ -97,7 +101,7 @@ export class TrackCache {
       this.from = Math.floor((a - margin) / stepMs) * stepMs;
       this.to = b + margin;
       this.points = [];
-      for (let tt = this.from; tt <= this.to; tt += stepMs) this.points.push(src.at(tt));
+      for (let tt = this.from; tt <= this.to; tt += stepMs) this.points.push(tt < src.fromMs ? null : src.at(tt));
       this.span = '';
     }
     const current = src.at(t);
