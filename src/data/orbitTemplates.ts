@@ -25,6 +25,14 @@ export interface OrbitTemplate {
   meanAnomalyDeg: number;
   /** Пояснение под полями: чем орбита интересна. */
   note: string;
+  /** Повторяющаяся трасса: n витков ровно за m звёздных суток тела. */
+  repeat?: RepeatCycle;
+}
+
+/** Цикл повторяющейся трассы: n витков за m звёздных суток тела. */
+export interface RepeatCycle {
+  n: number;
+  m: number;
 }
 
 /** Большая полуось по периоду: a = ∛(μ·(T/2π)²). */
@@ -168,3 +176,85 @@ export const ORBIT_TEMPLATES: OrbitTemplate[] = [
 ];
 
 export const templatesFor = (body: BodyId) => ORBIT_TEMPLATES.filter((t) => t.body === body);
+
+/* ── Повторяющаяся трасса («цветок») ──────────────────────────────────────────────────────────────
+ * В задаче двух тел плоскость орбиты в пространстве неподвижна, а тело под ней поворачивается
+ * за звёздные сутки T_сут. Если за n витков проходит ровно m звёздных суток (n·T = m·T_сут),
+ * спутник возвращается в ту же точку над поверхностью — трасса замыкается в узор.
+ * Отсюда период T = m·T_сут / n, а высота круговой орбиты — по третьему закону Кеплера.
+ */
+
+/** Пределы полей n и m в окне: больше витков — узор превращается в сплошную сетку. */
+export const REPEAT_N_MAX = 60;
+export const REPEAT_M_MAX = 20;
+
+/** Узор, который открывается по умолчанию: немного «лепестков», чтобы цветок читался сразу. */
+export const REPEAT_DEFAULTS: Record<BodyId, RepeatCycle & { inclinationDeg: number }> = {
+  earth: { n: 5, m: 1, inclinationDeg: 60 },
+  moon: { n: 7, m: 1, inclinationDeg: 60 },
+  mars: { n: 5, m: 1, inclinationDeg: 60 },
+};
+
+/** Период повторяющейся орбиты, с: T = m·T_сут / n. */
+export const repeatPeriod = (body: BodyId, c: RepeatCycle) => (c.m * ROTATION_PERIOD[body]) / c.n;
+
+/** Высота круговой орбиты, на которой трасса замыкается за n витков и m суток (0,1 км). */
+export const repeatHeight = (body: BodyId, c: RepeatCycle) => circularHeight(body, repeatPeriod(body, c));
+
+/** Наибольший общий делитель: 10 витков за 2 суток — тот же узор, что 5 витков за 1 сутки. */
+export function gcd(a: number, b: number): number {
+  while (b) [a, b] = [b, a % b];
+  return a;
+}
+
+/** Проверка n и m: целые, в пределах, и орбита выходит над поверхностью и не дальше 1 млн км. */
+export function repeatError(body: BodyId, c: RepeatCycle): string | null {
+  const whole = (v: number, max: number) => Number.isInteger(v) && v >= 1 && v <= max;
+  if (!whole(c.n, REPEAT_N_MAX)) return `Число витков — целое, от 1 до ${REPEAT_N_MAX}`;
+  if (!whole(c.m, REPEAT_M_MAX)) return `Число суток — целое, от 1 до ${REPEAT_M_MAX}`;
+  const h = repeatHeight(body, c);
+  if (h < 1) return 'Слишком много витков за эти сутки: орбита ушла бы под поверхность';
+  if (h > 1_000_000) return 'Слишком мало витков: орбита дальше 1 000 000 км';
+  return null;
+}
+
+/** Название спутника по шаблону: «Цветок 5/1». */
+export const repeatName = (c: RepeatCycle) => `Цветок ${c.n}/${c.m}`;
+
+/** Название поставлено шаблоном (его можно заменить при выборе другого шаблона). */
+export const isTemplateName = (name: string) => ORBIT_TEMPLATES.some((t) => t.satName === name) || /^Цветок \d+\/\d+$/.test(name);
+
+/** Слово после числа: 1 виток, 2 витка, 5 витков. */
+function plural(n: number, one: string, few: string, many: string): string {
+  const m10 = n % 10;
+  const m100 = n % 100;
+  return `${n}\u00a0${m10 === 1 && m100 !== 11 ? one : m10 >= 2 && m10 <= 4 && (m100 < 12 || m100 > 14) ? few : many}`;
+}
+const revs = (n: number) => plural(n, 'виток', 'витка', 'витков');
+const days = (n: number) => plural(n, 'сутки', 'суток', 'суток');
+
+/** Как называются сутки тела в пояснении. */
+const DAY_NAME: Record<BodyId, string> = {
+  earth: 'звёздные сутки Земли — 23 ч 56 мин',
+  moon: 'звёздные сутки Луны — 27,3 земных суток',
+  mars: 'звёздные сутки Марса — 24 ч 37 мин',
+};
+
+/** Шаблон «Повторяющаяся трасса» для выбранных n и m (поля окна пересчитываются при их смене). */
+export function repeatTemplate(body: BodyId, c: RepeatCycle, inclinationDeg: number): OrbitTemplate {
+  const h = repeatHeight(body, c);
+  const g = gcd(c.n, c.m);
+  const same = g > 1 ? ` Это тот же узор, что ${revs(c.n / g)} за ${days(c.m / g)}.` : '';
+  return {
+    id: 'repeat',
+    label: 'Повторяющаяся трасса',
+    satName: repeatName(c),
+    body,
+    hPeri: h,
+    hApo: h,
+    inclinationDeg,
+    ...zeroAngles,
+    repeat: c,
+    note: `Ровно ${revs(c.n)} за ${days(c.m)} (${DAY_NAME[body]}): тело поворачивается под орбитой, и спутник возвращается в ту же точку — трасса замыкается в узор.${same} На карте и глобусе показан весь цикл.`,
+  };
+}

@@ -12,6 +12,7 @@ import { BODIES } from '../physics/bodies';
 import { SECONDS_PER_DAY, TWO_PI } from '../physics/constants';
 import type { OrbitalElements } from '../physics/propagate';
 import type { SatelliteRecord } from './celestrak';
+import type { RepeatCycle } from './orbitTemplates';
 
 export interface CustomSatellite {
   /** Номер в приложении: от CUSTOM_ID_BASE и выше (не пересекается с NORAD и NAIF). */
@@ -28,6 +29,8 @@ export interface CustomSatellite {
   meanAnomalyDeg: number;
   /** Эпоха — момент создания, мс Unix (UTC). */
   epochMs: number;
+  /** Создан шаблоном «Повторяющаяся трасса»: n витков за m звёздных суток (трасса показывается целым циклом). */
+  repeat?: RepeatCycle;
 }
 
 /** Номера своих спутников: 9 000 001, 9 000 002… — выше любого номера NORAD. */
@@ -44,9 +47,15 @@ export function isStoredCustom(x: unknown): x is CustomSatellite {
     typeof c.name === 'string' &&
     (c.body === 'earth' || c.body === 'moon' || c.body === 'mars') &&
     nums.every((k) => typeof c[k] === 'number' && Number.isFinite(c[k])) &&
-    isCustomId(c.id as number)
+    isCustomId(c.id as number) &&
+    (c.repeat === undefined || isRepeat(c.repeat))
   );
 }
+
+const isRepeat = (x: unknown) => {
+  const r = x as Record<string, unknown> | null;
+  return !!r && typeof r === 'object' && Number.isInteger(r.n) && Number.isInteger(r.m) && (r.n as number) > 0 && (r.m as number) > 0;
+};
 
 /** Большая полуось и эксцентриситет по высотам перицентра и апоцентра. */
 export function shapeFromHeights(hPeri: number, hApo: number, R: number): { a: number; e: number } {
@@ -72,6 +81,7 @@ export function customToElements(c: CustomSatellite): OrbitalElements {
     raanDeg: c.raanDeg,
     argPerigeeDeg: c.argPerigeeDeg,
     meanAnomalyDeg: c.meanAnomalyDeg,
+    ...(c.repeat && { repeatRevs: c.repeat.n }),
   };
 }
 

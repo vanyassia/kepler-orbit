@@ -4,8 +4,8 @@ import type { CustomSatellite } from '../data/custom';
 import { CUSTOM_DEFAULTS, periodOf, shapeFromHeights, validateCustom, wrapDeg } from '../data/custom';
 import type { BodyId } from '../physics/bodies';
 import { BODIES } from '../physics/bodies';
-import type { OrbitTemplate } from '../data/orbitTemplates';
-import { ORBIT_TEMPLATES, templatesFor } from '../data/orbitTemplates';
+import type { OrbitTemplate, RepeatCycle } from '../data/orbitTemplates';
+import { isTemplateName, REPEAT_DEFAULTS, REPEAT_M_MAX, REPEAT_N_MAX, repeatError, repeatTemplate, templatesFor } from '../data/orbitTemplates';
 import { useAppStore } from '../state/store';
 import styles from './CustomOrbitDialog.module.css';
 import { fmt, fmtDuration } from './format';
@@ -32,9 +32,19 @@ const str = (v: number) => String(v).replace('.', ',');
 
 const DEFAULT_NAME = 'Мой спутник';
 
-/** Поля совпадают с шаблоном (тогда его кнопка подсвечена). */
-function matches(t: OrbitTemplate, v: Record<Field, string>): boolean {
-  return (['hPeri', 'hApo', 'inclinationDeg', 'raanDeg', 'argPerigeeDeg', 'meanAnomalyDeg'] as const).every((k) => Math.abs(parse(v[k]) - t[k]) < 1e-9);
+/**
+ * Поля совпадают с шаблоном (тогда его кнопка подсвечена). У повторяющейся трассы важны только высоты:
+ * наклонение и углы узора не ломают, их можно менять.
+ */
+function matches(t: OrbitTemplate, v: Record<Field, string>, heightsOnly = false): boolean {
+  const keys = heightsOnly ? (['hPeri', 'hApo'] as const) : (['hPeri', 'hApo', 'inclinationDeg', 'raanDeg', 'argPerigeeDeg', 'meanAnomalyDeg'] as const);
+  return keys.every((k) => Math.abs(parse(v[k]) - t[k]) < 1e-9);
+}
+
+/** Поля n и m по умолчанию для тела; on — открыт ли шаблон, last — последние верные n и m. */
+function cycleFields(body: BodyId) {
+  const d = REPEAT_DEFAULTS[body];
+  return { on: false, n: String(d.n), m: String(d.m), last: { n: d.n, m: d.m } as RepeatCycle };
 }
 
 function initial(body: BodyId): Record<Field, string> {
@@ -64,6 +74,8 @@ function CustomOrbitForm({ onClose }: { onClose: () => void }) {
   const [body, setBody] = useState<BodyId>(() => useAppStore.getState().body);
   const [values, setValues] = useState(() => initial(useAppStore.getState().body));
   const [submitted, setSubmitted] = useState(false);
+  // Поля «витков» и «суток» шаблона «Повторяющаяся трасса» — строки, как и остальные поля
+  const [cycle, setCycle] = useState(() => cycleFields(useAppStore.getState().body));
   const idBase = useId();
 
   // Закрывать вручную не нужно: вместе с компонентом элемент уходит из DOM (и из верхнего слоя)
@@ -92,12 +104,13 @@ function CustomOrbitForm({ onClose }: { onClose: () => void }) {
     // Высоты и наклонение — пример для нового тела (у Луны и Марса другие масштабы орбит)
     const d = CUSTOM_DEFAULTS[id];
     setValues((v) => ({ ...v, hPeri: String(d.hPeri), hApo: String(d.hApo), inclinationDeg: String(d.inclinationDeg).replace('.', ',') }));
+    setCycle(cycleFields(id));
   };
 
   // Шаблон заполняет поля; название меняется, только если его ещё не вводили вручную
   const applyTemplate = (t: OrbitTemplate) =>
     setValues((v) => ({
-      name: v.name.trim() === DEFAULT_NAME || ORBIT_TEMPLATES.some((x) => x.satName === v.name.trim()) ? t.satName : v.name,
+      name: v.name.trim() === DEFAULT_NAME || isTemplateName(v.name.trim()) ? t.satName : v.name,
       hPeri: str(t.hPeri),
       hApo: str(t.hApo),
       inclinationDeg: str(t.inclinationDeg),
@@ -105,8 +118,37 @@ function CustomOrbitForm({ onClose }: { onClose: () => void }) {
       argPerigeeDeg: str(t.argPerigeeDeg),
       meanAnomalyDeg: str(t.meanAnomalyDeg),
     }));
-  const templates = templatesFor(body);
-  const active = templates.find((t) => matches(t, values));
+  // Шаблон «Повторяющаяся трасса» собирается из текущих n и m; если они неверны — из последних верных
+  const rc: RepeatCycle = { n: parse(cycle.n), m: parse(cycle.m) };
+  const cycleErr = repeatError(body, rc);
+  const repeatTpl = repeatTemplate(body, cycleErr ? cycle.last : rc, cycle.on ? parse(values.inclinationDeg) : REPEAT_DEFAULTS[body].inclinationDeg);
+  const templates = [...templatesFor(body), repeatTpl];
+  // Шаблон выбран, пока высоты те же, что он поставил (при неверном вводе n или m высоты не меняются —
+  // поля не пропадают на полуслове); наклонение и углы узор не ломают
+  const active = cycle.on && matches(repeatTpl, values, true) ? repeatTpl : templates.find((t) => t !== repeatTpl && matches(t, values));
+  const repeat = active === repeatTpl && !cycleErr ? rc : undefined;
+
+  const chooseTemplate = (t: OrbitTemplate) => {
+    setCycle((c) => ({ ...c, on: t === repeatTpl }));
+    applyTemplate(t === repeatTpl ? { ...t, inclinationDeg: REPEAT_DEFAULTS[body].inclinationDeg } : t);
+  };
+
+  // Новые n или m: высоты пересчитываются сразу, наклонение и углы остаются как есть
+  const changeCycle = (key: 'n' | 'm', text: string) => {
+    const next = { ...cycle, [key]: text };
+    const c: RepeatCycle = { n: parse(next.n), m: parse(next.m) };
+    if (!repeatError(body, c)) {
+      next.last = c;
+      const t = repeatTemplate(body, c, 0);
+      setValues((v) => ({
+        ...v,
+        name: v.name.trim() === DEFAULT_NAME || isTemplateName(v.name.trim()) ? t.satName : v.name,
+        hPeri: str(t.hPeri),
+        hApo: str(t.hApo),
+      }));
+    }
+    setCycle(next);
+  };
 
   const submit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -116,7 +158,17 @@ function CustomOrbitForm({ onClose }: { onClose: () => void }) {
       if (first) document.getElementById(`${idBase}-${first}`)?.focus();
       return;
     }
-    addCustom({ ...sat, raanDeg: wrapDeg(sat.raanDeg), argPerigeeDeg: wrapDeg(sat.argPerigeeDeg), meanAnomalyDeg: wrapDeg(sat.meanAnomalyDeg) });
+    if (active === repeatTpl && cycleErr) {
+      document.getElementById(`${idBase}-cycle-n`)?.focus();
+      return;
+    }
+    addCustom({
+      ...sat,
+      raanDeg: wrapDeg(sat.raanDeg),
+      argPerigeeDeg: wrapDeg(sat.argPerigeeDeg),
+      meanAnomalyDeg: wrapDeg(sat.meanAnomalyDeg),
+      ...(repeat && { repeat }),
+    });
     onClose();
   };
 
@@ -151,6 +203,36 @@ function CustomOrbitForm({ onClose }: { onClose: () => void }) {
     );
   };
 
+  const cycleInput = (key: 'n' | 'm', label: string, max: number) => {
+    const id = `${idBase}-cycle-${key}`;
+    return (
+      <div className={styles.cycleField}>
+        <label htmlFor={id}>{label}</label>
+        <div className={styles.inputWrap}>
+          <input
+            id={id}
+            className={styles.input}
+            inputMode="numeric"
+            autoComplete="off"
+            maxLength={3}
+            value={cycle[key]}
+            onChange={(e) => changeCycle(key, e.target.value)}
+            onKeyDown={(e) => {
+              // Стрелки меняют число на единицу
+              if (e.key !== 'ArrowUp' && e.key !== 'ArrowDown') return;
+              e.preventDefault();
+              const v = parse(cycle[key]);
+              const nv = Math.min(max, Math.max(1, (Number.isInteger(v) ? v : 1) + (e.key === 'ArrowUp' ? 1 : -1)));
+              changeCycle(key, String(nv));
+            }}
+            aria-invalid={!!cycleErr}
+            aria-describedby={cycleErr ? `${idBase}-cycle-err` : undefined}
+          />
+        </div>
+      </div>
+    );
+  };
+
   return (
     <dialog ref={ref} className={base.dialog} onClose={onClose} aria-labelledby={`${idBase}-title`}>
       <form onSubmit={submit} className={base.form} noValidate>
@@ -175,12 +257,27 @@ function CustomOrbitForm({ onClose }: { onClose: () => void }) {
           </span>
           <div className={styles.templateChips} role="group" aria-labelledby={`${idBase}-tpl`}>
             {templates.map((t) => (
-              <button key={t.id} type="button" className={styles.templateChip} aria-pressed={active?.id === t.id} onClick={() => applyTemplate(t)}>
+              <button key={t.id} type="button" className={styles.templateChip} aria-pressed={active?.id === t.id} onClick={() => chooseTemplate(t)}>
                 {t.label}
               </button>
             ))}
           </div>
         </div>
+
+        {active === repeatTpl && (
+          <div className={styles.cycle}>
+            <div className={styles.cycleRow}>
+              {cycleInput('n', 'Витков', REPEAT_N_MAX)}
+              <span className={styles.cycleWord}>за</span>
+              {cycleInput('m', 'Суток', REPEAT_M_MAX)}
+            </div>
+            {cycleErr && (
+              <span id={`${idBase}-cycle-err`} className={base.error}>
+                {cycleErr}
+              </span>
+            )}
+          </div>
+        )}
 
         <div className={styles.grid}>
           {field('name', 'Название', undefined, true)}

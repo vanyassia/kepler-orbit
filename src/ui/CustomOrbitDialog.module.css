@@ -159,3 +159,35 @@
     height: 40px;
   }
 }
+
+/* Повторяющаяся трасса: «Витков [5] за Суток [1]» под кнопками шаблонов */
+.cycle {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-1);
+}
+
+.cycleRow {
+  display: flex;
+  align-items: flex-end;
+  gap: var(--sp-3);
+}
+
+.cycleField {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-1);
+  width: 96px;
+}
+
+.cycleField label {
+  color: var(--text-1);
+  font-size: var(--fs-caption);
+}
+
+.cycleWord {
+  height: 36px;
+  line-height: 36px;
+  color: var(--text-2);
+  font-size: var(--fs-caption);
+}

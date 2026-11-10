@@ -265,13 +265,17 @@ export const useAppStore = create<AppState>()(
     // Менять можно только свои спутники: орбиты настоящих аппаратов не подменяем
     const custom = isCustomId(id) ? s.customSats.find((x) => x.id === id) : undefined;
     if (!custom) return;
-    const elements = tuneElements(s.record.elements, patch);
-    const record = { ...s.record, elements };
     const tuneBase = s.tuneBase ?? { record: s.record, custom };
+    let elements = tuneElements(s.record.elements, patch);
+    // Повторяющаяся трасса держится, пока период тот же, что при создании (меняли только наклонение)
+    const base = tuneBase.custom;
+    const repeat = base?.repeat && Math.abs(elements.meanMotion / tuneBase.record.elements.meanMotion - 1) < 1e-9 ? base.repeat : undefined;
+    elements = { ...elements, repeatRevs: repeat?.n };
+    const record = { ...s.record, elements };
     loadSeq++; // загрузка другого спутника, начатая раньше, уже не нужна
     // Свой спутник запоминает новую орбиту (одним обновлением — без лишней перерисовки)
     const sh = shapeOf(elements);
-    const next = { ...custom, hPeri: sh.hPeri, hApo: sh.hApo, inclinationDeg: elements.inclinationDeg };
+    const next = { ...custom, hPeri: sh.hPeri, hApo: sh.hApo, inclinationDeg: elements.inclinationDeg, repeat };
     const customSats = s.customSats.map((x) => (x.id === id ? next : x));
     set({ record, orbit: prepareOrbit(elements), tuneBase, customSats });
   },
