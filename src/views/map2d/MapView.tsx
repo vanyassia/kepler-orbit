@@ -5,7 +5,7 @@ import type { ZoomBehavior, ZoomTransform } from 'd3-zoom';
 import { zoom, zoomIdentity } from 'd3-zoom';
 import { useEffect, useRef, useState } from 'react';
 import { cityShown, type City } from '../../data/cities';
-import { PLACES } from '../../data/landmarks';
+import { placesFor } from '../../data/landmarks';
 import { isIss, naturalSatellite } from '../../data/orbiters';
 import { REGIONS } from '../../data/regions';
 import { BODIES } from '../../physics/bodies';
@@ -36,7 +36,8 @@ const MAX_ZOOM = 20;
 function nearestCity(view: View, sx: number, sy: number, maxPx: number): City | null {
   let best: City | null = null;
   let bestD = maxPx;
-  for (const c of PLACES[useAppStore.getState().body]) {
+  const st = useAppStore.getState();
+  for (const c of placesFor(st.body, st.record?.elements.noradId)) {
     if (!cityShown(c, view.s)) continue;
     const [cx, cy] = toScreen(view, c.lon, c.lat);
     const d = Math.hypot(cx - sx, cy - sy);
@@ -443,7 +444,7 @@ export default function MapView() {
         satIss: !!st.record && isIss(st.record.elements),
         revs,
         nodePoints,
-        cities: PLACES[st.body],
+        cities: placesFor(st.body, st.record?.elements.noradId),
         regions: st.layers.regions ? REGIONS[st.body] : [],
         bodyRadius: b.radius,
         labelBg: (() => {

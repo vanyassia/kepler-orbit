@@ -1,12 +1,12 @@
 /**
  * Объекты на поверхности Луны и Марса — аналог городов на карте Земли.
- * Выделены (как Москва и Смоленск) места посадок советских аппаратов; на Земле — Байконур и посадка Гагарина.
+ * Выделены (как Москва и Смоленск) места посадок советских аппаратов; на Земле у Востока-1 и Спутника-1 — Байконур и посадка Гагарина.
  * Координаты планетоцентрические, восточная долгота положительна (IAU).
  */
 import type { BodyId } from '../physics/bodies';
 import type { City } from './cities';
 import { CITIES } from './cities';
-import { BAIKONUR, GAGARIN_LANDING } from './historicOrbiters';
+import { historicById } from './historicOrbiters';
 
 const MOON: City[] = [
   { name: 'Луна-9', lat: 7.08, lon: -64.37, highlight: true },
@@ -35,10 +35,26 @@ const MARS: City[] = [
   { name: 'Гора Арсия', lat: -8.26, lon: -120.09, labelSide: 'left' },
 ];
 
-// Земля: к городам — Байконур и место посадки Гагарина (трасса Востока-1 идёт от одного к другому)
-const EARTH: City[] = [...CITIES, { ...BAIKONUR, highlight: true }, { ...GAGARIN_LANDING, highlight: true }];
+export const PLACES: Record<BodyId, City[]> = { earth: CITIES, moon: MOON, mars: MARS };
 
-export const PLACES: Record<BodyId, City[]> = { earth: EARTH, moon: MOON, mars: MARS };
+const withFlight = new Map<number, City[]>();
+
+/**
+ * Отметки на поверхности для выбранного спутника. У исторического полёта с Байконура к городам
+ * добавляются его места: старт и посадка (Восток-1) или только старт (Спутник-1). У остальных
+ * спутников этих отметок нет — Байконур и посадка Гагарина к ним отношения не имеют.
+ */
+export function placesFor(body: BodyId, satId: number | undefined): City[] {
+  const o = satId === undefined ? undefined : historicById(satId);
+  if (!o?.launch || o.body !== body) return PLACES[body];
+  let list = withFlight.get(o.id);
+  if (!list) {
+    const sites = [o.launch, o.landing].filter((x) => x !== undefined);
+    list = [...PLACES[body], ...sites.map((x) => ({ ...x, highlight: true }))];
+    withFlight.set(o.id, list);
+  }
+  return list;
+}
 
 /** Как называется слой отметок на поверхности. */
 export const PLACES_LABEL: Record<BodyId, string> = { earth: 'Города', moon: 'Места посадок и кратеры', mars: 'Места посадок и объекты' };

@@ -24,7 +24,7 @@ import {
 } from 'three';
 import { LineMaterial } from 'three/examples/jsm/lines/LineMaterial.js';
 import type { OrbitControls as OrbitControlsImpl } from 'three-stdlib';
-import { PLACES } from '../../data/landmarks';
+import { placesFor } from '../../data/landmarks';
 import { isIss, naturalSatellite } from '../../data/orbiters';
 import { REGIONS } from '../../data/regions';
 import type { BodyId, CentralBody } from '../../physics/bodies';
@@ -365,7 +365,7 @@ export function GlobeScene({ overlay, onReady }: { overlay: React.RefObject<HTML
       }
     }
     if (layers.cities) {
-      for (const c of PLACES[bodyId].filter((x) => x.highlight)) {
+      for (const c of placesFor(bodyId, record?.elements.noradId).filter((x) => x.highlight)) {
         specs.push({
           id: `city-${c.name}`,
           text: c.name,
@@ -792,8 +792,9 @@ export function GlobeScene({ overlay, onReady }: { overlay: React.RefObject<HTML
     labelLayer.current?.update(camera, size.width, size.height);
   });
 
-  const ruCities = PLACES[bodyId].filter((c) => c.highlight);
-  const capitals = PLACES[bodyId].filter((c) => !c.highlight);
+  const places = placesFor(bodyId, record?.elements.noradId);
+  const ruCities = places.filter((c) => c.highlight);
+  const capitals = places.filter((c) => !c.highlight);
 
   return (
     <>
