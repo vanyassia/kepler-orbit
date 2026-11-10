@@ -1,7 +1,7 @@
 /**
  * Получение элементов орбит из CelesTrak GP API с запасными вариантами:
  *
- *   свежий кэш (< 2 ч) → CelesTrak онлайн → устаревший кэш → встроенный снимок → ошибка.
+ *   свежий кэш (< 2 ч) → CelesTrak онлайн → устаревший кэш или встроенный снимок (у кого эпоха позже) → ошибка.
  *
  * API: https://celestrak.org/NORAD/elements/gp.php?CATNR=25544&FORMAT=json
  *      https://celestrak.org/NORAD/elements/gp.php?NAME=ISS&FORMAT=json (поиск по подстроке)
@@ -156,21 +156,20 @@ async function loadByNoradImpl(noradId: number, opts: LoaderOptions): Promise<Sa
     networkError = e;
   }
 
-  if (cached?.data.length) {
-    const [rec] = toRecords(cached.data, 'cache', cached.savedAt);
-    if (rec) return rec;
-  }
-
+  // Сети нет. Из сохранённого — кэша браузера и встроенного снимка — берём элементы с более поздней эпохой:
+  // расхождение расчёта с настоящим положением растёт с возрастом элементов, а снимок на сайте
+  // обновляется каждый день и часто свежее кэша, который остался с прошлого захода.
+  const fromCache = cached?.data.length ? toRecords(cached.data, 'cache', cached.savedAt)[0] : undefined;
+  let fromSnapshot: SatelliteRecord | undefined;
   try {
     const snap = await loadFallback(fetchImpl);
     const found = snap.items.find((r) => Number(r.NORAD_CAT_ID) === noradId);
-    if (found) {
-      const [rec] = toRecords([found], 'fallback', Date.parse(snap.savedAt));
-      if (rec) return rec;
-    }
+    if (found) [fromSnapshot] = toRecords([found], 'fallback', Date.parse(snap.savedAt));
   } catch {
-    // снимок тоже недоступен — сообщим исходную ошибку
+    // снимок тоже недоступен — остаётся кэш или исходная ошибка
   }
+  const saved = fromCache && fromSnapshot ? (fromSnapshot.elements.epochMs > fromCache.elements.epochMs ? fromSnapshot : fromCache) : (fromCache ?? fromSnapshot);
+  if (saved) return saved;
   throw networkError instanceof Error ? networkError : new Error('Не удалось загрузить данные спутника');
 }
 

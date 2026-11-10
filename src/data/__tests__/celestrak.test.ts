@@ -23,15 +23,20 @@ class MemoryStorage implements KeyValueStorage {
 const NOW = Date.UTC(2026, 9, 22, 12);
 
 /** Подставной fetch: CelesTrak отвечает заданным образом, снимок — из public/data. */
-function mockFetch(celestrak: () => Promise<Response>) {
+function mockFetch(celestrak: () => Promise<Response>, snapshotText = snapshot) {
   return vi.fn(async (input: RequestInfo | URL) => {
     const url = String(input);
-    if (url.includes('fallback-gp.json')) return new Response(snapshot);
+    if (url.includes('fallback-gp.json')) return new Response(snapshotText);
     return celestrak();
   }) as unknown as typeof fetch;
 }
 
 const offline = () => Promise.reject(new TypeError('Failed to fetch'));
+
+/** Снимок с одной записью МКС на заданную эпоху (в файле iss.json эпоха 21.10.2026). */
+const snapshotWithIss = (epoch: string) => JSON.stringify({ savedAt: epoch + 'Z', items: [{ ...(JSON.parse(issJson) as OmmRecord[])[0], EPOCH: epoch }] });
+const olderSnapshot = snapshotWithIss('2026-10-10T00:00:00');
+const newerSnapshot = snapshotWithIss('2026-10-30T00:00:00');
 
 beforeEach(() => resetFallbackCache());
 
@@ -53,12 +58,27 @@ describe('Загрузка по номеру NORAD', () => {
     expect(fetchImpl).not.toHaveBeenCalled();
   });
 
-  it('нет сети, кэш устарел → устаревший кэш', async () => {
+  it('нет сети, кэш устарел, в снимке элементы старше → устаревший кэш', async () => {
     const storage = new MemoryStorage();
     await loadByNorad(25544, { fetchImpl: mockFetch(async () => new Response(issJson)), storage, now: NOW });
-    const rec = await loadByNorad(25544, { fetchImpl: mockFetch(offline), storage, now: NOW + CACHE_TTL_MS + 1 });
+    const rec = await loadByNorad(25544, { fetchImpl: mockFetch(offline, olderSnapshot), storage, now: NOW + CACHE_TTL_MS + 1 });
     expect(rec.source).toBe('cache');
     expect(rec.fetchedAt).toBe(NOW);
+  });
+
+  it('нет сети, кэш устарел, в снимке элементы свежее → встроенный снимок', async () => {
+    const storage = new MemoryStorage();
+    await loadByNorad(25544, { fetchImpl: mockFetch(async () => new Response(issJson)), storage, now: NOW });
+    const rec = await loadByNorad(25544, { fetchImpl: mockFetch(offline, newerSnapshot), storage, now: NOW + CACHE_TTL_MS + 1 });
+    expect(rec.source).toBe('fallback');
+    expect(rec.elements.epochMs).toBe(Date.UTC(2026, 9, 30));
+  });
+
+  it('нет сети, кэш устарел, снимок недоступен → устаревший кэш', async () => {
+    const storage = new MemoryStorage();
+    await loadByNorad(25544, { fetchImpl: mockFetch(async () => new Response(issJson)), storage, now: NOW });
+    const rec = await loadByNorad(25544, { fetchImpl: (() => Promise.reject(new TypeError('Failed to fetch'))) as unknown as typeof fetch, storage, now: NOW + CACHE_TTL_MS + 1 });
+    expect(rec.source).toBe('cache');
   });
 
   it('нет сети и кэша → встроенный снимок', async () => {
