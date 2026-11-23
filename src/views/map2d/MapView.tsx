@@ -17,7 +17,7 @@ import { LayersMenu, RevsControl } from '../../ui/LayersMenu';
 import { PassChip } from '../../ui/PassFinder';
 import { fmt, fmtLat, fmtLon } from '../../ui/format';
 import { labelTitle } from '../../ui/satelliteTitle';
-import { ensureFullImage, LIGHT_DEVICE, NIGHT_LIGHTS, SURFACE, SURFACE_CREDIT, useProgressiveImage } from '../assets';
+import { ensureFullImage, LIGHT_DEVICE, NIGHT_LIGHTS, SURFACE, surfaceCredit, useProgressiveImage, VENUS_CLOUDS } from '../assets';
 import { registerSnapshot } from '../snapshot';
 import { frameDue, peakAngularRateDeg, simMsPerShift } from '../frameRate';
 import { pickLevel } from '../imageChunks';
@@ -83,7 +83,8 @@ export default function MapView() {
   const [borders, setBorders] = useState<BorderPaths | null>(null);
 
   const body = useAppStore((s) => s.body);
-  const day = useProgressiveImage(SURFACE[body]);
+  const venusClouds = useAppStore((s) => s.layers.venusClouds);
+  const day = useProgressiveImage(body === 'venus' && venusClouds ? VENUS_CLOUDS : SURFACE[body]);
   // Ночные огни и границы государств — только у Земли
   const night = useProgressiveImage(body === 'earth' ? NIGHT_LIGHTS : []);
   const fineBordersRef = useRef(false);
@@ -577,7 +578,17 @@ export default function MapView() {
       />
       <PassChip />
       <div className={styles.toolbar} data-chrome="">
-        <LayersMenu keys={body === 'earth' ? ['imagery', 'night', 'borders', 'grid', 'cities'] : body === 'saturn' ? ['imagery', 'night', 'grid'] : ['regions', 'imagery', 'night', 'grid', 'cities']}>
+        <LayersMenu
+          keys={
+            body === 'earth'
+              ? ['imagery', 'night', 'borders', 'grid', 'cities']
+              : body === 'saturn'
+                ? ['imagery', 'night', 'grid']
+                : body === 'venus'
+                  ? ['venusClouds', 'regions', 'imagery', 'night', 'grid', 'cities']
+                  : ['regions', 'imagery', 'night', 'grid', 'cities']
+          }
+        >
           <MapRevsControl />
         </LayersMenu>
         <div className={styles.zoom}>
@@ -598,7 +609,7 @@ export default function MapView() {
       <Legend listRef={legendRef} />
       <div className={styles.footer} ref={footerRef}>
         <span ref={coordsRef} className={`${styles.coords} num`} data-chrome="" />
-        <span className={styles.credit}>{SURFACE_CREDIT[body]}</span>
+        <span className={styles.credit}>{surfaceCredit(body, venusClouds)}</span>
       </div>
     </div>
   );

@@ -42,7 +42,7 @@ import { axisToScene, geoToLocal, toScene } from './coords';
 import { DynamicLine } from './DynamicLine';
 import type { LabelSpec } from './LabelLayer';
 import { LabelLayer, OFFSET } from './LabelLayer';
-import { atmosphereShader, cloudsShader, earthShader } from './shaders';
+import { atmosphereShader, cloudsShader, earthShader, venusCloudShift } from './shaders';
 import { useEarthTextures } from './textures';
 import { createNaturalModels, loadMoonSurface, placeNatural } from './naturalModel';
 import { createSputnikModel, createVostokModel, SPUTNIK_SPAN, VOSTOK_SPAN } from './historicModels';
@@ -260,6 +260,7 @@ export function GlobeScene({ overlay, onReady }: { overlay: React.RefObject<HTML
           cloudsMap,
           sunDir,
           cloudShift,
+          dayShift: { value: 0 },
           cloudsOn: { value: 1 },
           nightOn,
           normalStrength: { value: 0.9 },
@@ -302,12 +303,18 @@ export function GlobeScene({ overlay, onReady }: { overlay: React.RefObject<HTML
   /** Начала следующих витков (в ГСК) — для подписей «+k»; null — узла нет в окне. */
   const nodeLocal = useRef<(Vector3 | null)[]>([]);
 
-  // Подстановка загруженных текстур; огни городов, океаны, рельеф и облака — только у Земли
+  // Подстановка загруженных текстур; огни городов, океаны, рельеф и облака Земли — только у Земли,
+  // а у Венеры по переключателю подставляется плотный облачный покров
   const blank = useMemo(() => ({ black: solid(0, 0, 0), flat: solid(128, 128, 255) }), []);
+  const venusCloudsReady = useRef(false);
   useEffect(() => {
     const u = mats.earth.uniforms;
     const earth = bodyId === 'earth';
-    if (tex.day) u.dayMap.value = tex.day;
+    const venusCloudsOn = bodyId === 'venus' && layers.venusClouds && !!tex.venusClouds;
+    venusCloudsReady.current = venusCloudsOn;
+    const dayTex = venusCloudsOn ? tex.venusClouds : tex.day;
+    if (dayTex) u.dayMap.value = dayTex;
+    if (!venusCloudsOn) u.dayShift.value = 0;
     u.nightMap.value = earth && tex.night ? tex.night : blank.black;
     u.normalMap.value = earth && tex.normal ? tex.normal : blank.flat;
     u.specMap.value = earth && tex.specular ? tex.specular : blank.black;
@@ -318,7 +325,7 @@ export function GlobeScene({ overlay, onReady }: { overlay: React.RefObject<HTML
     u.duskStrength.value = look.dusk;
     u.nightAmbient.value = look.nightAmbient;
     if (look.atmo) mats.atmosphere.uniforms.atmoColor.value.set(...look.atmo);
-  }, [tex.day, tex.night, tex.normal, tex.specular, tex.clouds, mats, bodyId, blank]);
+  }, [tex.day, tex.night, tex.normal, tex.specular, tex.clouds, tex.venusClouds, layers.venusClouds, mats, bodyId, blank]);
 
   // Глобус готов, когда загружен хотя бы первый (лёгкий) дневной снимок
   useEffect(() => {
@@ -638,6 +645,7 @@ export function GlobeScene({ overlay, onReady }: { overlay: React.RefObject<HTML
     const sd = b.sunDirection(t);
     mats.earth.uniforms.sunDir.value.set(sd.x, sd.z, -sd.y);
     mats.earth.uniforms.cloudShift.value = -((t / 86_400_000) * 0.02) % 1;
+    mats.earth.uniforms.dayShift.value = venusCloudsReady.current ? venusCloudShift(t) : 0;
     sunSprite.current.position.set(sd.x * 420, sd.z * 420, -sd.y * 420);
     sunLight.current.position.set(sd.x * 10, sd.z * 10, -sd.y * 10);
 

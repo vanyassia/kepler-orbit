@@ -7,7 +7,7 @@ import type { WebGLRenderer } from 'three';
 import { LinearMipmapLinearFilter, NoColorSpace, RedFormat, RepeatWrapping, SRGBColorSpace, Texture } from 'three';
 import type { Quality } from '../../state/store';
 import type { BodyId } from '../../physics/bodies';
-import { LIGHT_DEVICE, loadImage, NIGHT_LIGHTS, SURFACE, TEXTURES } from '../assets';
+import { LIGHT_DEVICE, loadImage, NIGHT_LIGHTS, SURFACE, TEXTURES, VENUS_CLOUDS } from '../assets';
 import type { TextureKind } from './streamTexture';
 import { releaseTexture, streamTexture } from './streamTexture';
 
@@ -31,6 +31,7 @@ export interface EarthTextures {
   day: Texture | null;
   night: Texture | null;
   clouds: Texture | null;
+  venusClouds: Texture | null;
   normal: Texture | null;
   specular: Texture | null;
   stars: Texture | null;
@@ -100,10 +101,12 @@ export function useEarthTextures(quality: Quality, gl: WebGLRenderer, body: Body
   // Огни, облака, рельеф и маска океанов есть только у Земли — для Луны и Марса не скачиваются
   const shown = !!day;
   const earth = shown && body === 'earth';
+  const venus = shown && body === 'venus';
   const night = useTex(gl, earth ? [...NIGHT_LIGHTS] : NONE, 'color', anisotropy, epoch);
   const clouds = useTex(gl, earth ? [TEXTURES.clouds] : NONE, 'mask', anisotropy, epoch);
+  const venusClouds = useTex(gl, venus ? [...VENUS_CLOUDS] : NONE, 'color', anisotropy, epoch);
   const normal = useTex(gl, earth ? [TEXTURES.normal] : NONE, 'data', anisotropy, epoch);
   const specular = useTex(gl, earth ? [TEXTURES.specular] : NONE, 'mask', 1, epoch);
   const stars = useTex(gl, shown ? [TEXTURES.stars] : NONE, 'color', 1, epoch);
-  return { day, night, clouds, normal, specular, stars };
+  return { day, night, clouds, venusClouds, normal, specular, stars };
 }

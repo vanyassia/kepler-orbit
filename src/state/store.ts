@@ -33,6 +33,8 @@ export interface Layers {
   /** 3D: оси, экватор, линия узлов, апсиды */
   helpers: boolean;
   clouds: boolean;
+  /** Венера: плотный облачный слой вместо радиолокационной карты поверхности */
+  venusClouds: boolean;
   /** Регионы Луны и Марса (названия IAU, справочник USGS) */
   regions: boolean;
 }
@@ -151,6 +153,7 @@ interface AppState {
   setCamera: (c: CameraMode) => void;
   setQuality: (q: Quality) => void;
   toggleLayer: (k: keyof Layers) => void;
+  setVenusClouds: (on: boolean) => void;
   setRevs: (back: number, forward: number) => void;
   setSidebarOpen: (open: boolean) => void;
   setExportOpen: (open: boolean) => void;
@@ -235,6 +238,7 @@ export const useAppStore = create<AppState>()(
     cities: true,
     helpers: false,
     clouds: true,
+    venusClouds: false,
     regions: true,
   },
   revsBack: 1,
@@ -350,6 +354,8 @@ export const useAppStore = create<AppState>()(
   setCamera: (c) => set({ camera: c }),
   setQuality: (q) => set({ quality: q }),
   toggleLayer: (k) => set((s) => ({ layers: { ...s.layers, [k]: !s.layers[k] } })),
+  setVenusClouds: (on) =>
+    set((s) => (s.layers.venusClouds === on && s.layers.imagery ? s : { layers: { ...s.layers, venusClouds: on, imagery: true } })),
   setRevs: (back, forward) => set({ revsBack: back, revsForward: forward }),
   setSidebarOpen: (open) => set({ sidebarOpen: open }),
   setExportOpen: (open) => set({ exportOpen: open }),

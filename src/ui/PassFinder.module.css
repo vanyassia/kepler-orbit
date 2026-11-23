@@ -285,6 +285,13 @@ li:first-child .pass {
   }
 }
 
+/* На Венере в узкой области под переключателем видов стоит переключатель облаков */
+@container (max-width: 900px) {
+  :global(:root[data-body='venus']) .chip {
+    top: calc(var(--sp-3) + 92px);
+  }
+}
+
 @media (pointer: coarse) {
   .chip button {
     width: 36px;

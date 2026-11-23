@@ -1,4 +1,4 @@
-import { Columns2, Globe2, Map, RotateCw, Satellite, SatelliteDish } from 'lucide-react';
+import { Cloud, Columns2, Globe2, Map, Mountain, RotateCw, Satellite, SatelliteDish } from 'lucide-react';
 import { lazy, Suspense, useDeferredValue, useEffect, useRef, ViewTransition } from 'react';
 import { DEFAULT_SATELLITE } from '../data/orbiters';
 import type { ViewMode } from '../state/store';
@@ -21,6 +21,13 @@ const VIEWS: { id: ViewMode; label: string; icon: typeof Map }[] = [
   { id: '2d', label: 'Карта', icon: Map },
 ];
 const VIEW_IDS = VIEWS.map((v) => v.id);
+
+type VenusLayerMode = 'surface' | 'clouds';
+const VENUS_MODES: { id: VenusLayerMode; label: string; hint: string; icon: typeof Cloud }[] = [
+  { id: 'surface', label: 'Поверхность', hint: 'Радиолокационная карта поверхности Венеры (Magellan)', icon: Mountain },
+  { id: 'clouds', label: 'Облака', hint: 'Плотный облачный слой Венеры (супервращение за ~4 суток)', icon: Cloud },
+];
+const VENUS_MODE_IDS = VENUS_MODES.map((m) => m.id);
 
 /**
  * Область визуализации: 3D-глобус и/или 2D-карта.
@@ -76,6 +83,7 @@ export function Workspace() {
           </button>
         ))}
       </div>
+      <VenusSurfaceSwitch />
       {!hasRecord && (error || loading) && <EmptyState error={error} />}
       <RecordingChip />
       {globeOpened && (
@@ -103,6 +111,42 @@ export function Workspace() {
           </section>
         </ViewTransition>
       )}
+    </div>
+  );
+}
+
+/** Переключатель вида Венеры: радиолокационная поверхность Magellan или плотный облачный покров. */
+function VenusSurfaceSwitch() {
+  const body = useAppStore((s) => s.body);
+  const venusClouds = useAppStore((s) => s.layers.venusClouds);
+  const setVenusClouds = useAppStore((s) => s.setVenusClouds);
+  if (body !== 'venus') return null;
+  const current: VenusLayerMode = venusClouds ? 'clouds' : 'surface';
+  const select = (mode: VenusLayerMode) => setVenusClouds(mode === 'clouds');
+  return (
+    <div
+      className={styles.venusSwitch}
+      data-chrome=""
+      role="radiogroup"
+      aria-label="Слой Венеры"
+      style={{ viewTransitionName: 'venus-switch' }}
+      onKeyDown={(e) => rovingKeyDown(e, VENUS_MODE_IDS, current, select)}
+    >
+      {VENUS_MODES.map(({ id, label, hint, icon: Icon }) => (
+        <button
+          key={id}
+          type="button"
+          role="radio"
+          aria-checked={current === id}
+          tabIndex={rovingTabIndex(current === id)}
+          className={styles.venusTab}
+          title={hint}
+          onClick={() => select(id)}
+        >
+          <Icon size={14} aria-hidden="true" />
+          <span>{label}</span>
+        </button>
+      ))}
     </div>
   );
 }

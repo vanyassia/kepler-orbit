@@ -20,7 +20,7 @@ import { cassiniWindow } from '../data/orbiters';
 import { BODIES } from '../physics/bodies';
 import type { PreparedOrbit } from '../physics/propagate';
 import { useAppStore } from '../state/store';
-import { SURFACE_CREDIT } from '../views/assets';
+import { surfaceCredit } from '../views/assets';
 import type { SnapshotKind } from '../views/snapshot';
 import { canRecordVideo, startRecording, useRecorder } from '../views/recorder';
 import { canSnapshot, canvasToPng, captureView } from '../views/snapshot';
@@ -222,7 +222,7 @@ function ExportForm({ orbit, onClose }: { orbit: PreparedOrbit; onClose: () => v
 
   const snapshotCaption = () => ({
     title: `${meta.satellite} · ${fmtDateTime(useAppStore.getState().simTime)} UTC`,
-    credit: `Кеплер · ${SURFACE_CREDIT[el.body ?? 'earth']}`,
+    credit: `Кеплер · ${surfaceCredit(el.body ?? 'earth', useAppStore.getState().layers.venusClouds)}`,
   });
 
   const run = async (action: 'download' | 'share' | 'copy') => {

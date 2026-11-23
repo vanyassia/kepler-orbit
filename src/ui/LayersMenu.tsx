@@ -13,6 +13,7 @@ const LABELS: Record<keyof Layers, string> = {
   cities: 'Города',
   helpers: 'Экватор, узлы, апсиды',
   clouds: 'Облака',
+  venusClouds: 'Облачный слой',
   regions: 'Регионы (названия IAU)',
 };
 
@@ -65,7 +66,11 @@ export function LayersMenu({ keys, children }: { keys: (keyof Layers)[]; childre
             <label key={k} className={styles.item}>
               <input type="checkbox" checked={layers[k]} onChange={() => toggle(k)} />
               <span className={styles.box} aria-hidden="true" />
-              {k === 'cities' ? PLACES_LABEL[body] : k === 'imagery' && body === 'saturn' ? 'Снимок облачного слоя' : LABELS[k]}
+              {k === 'cities'
+                ? PLACES_LABEL[body]
+                : k === 'imagery' && (body === 'saturn' || (body === 'venus' && layers.venusClouds))
+                  ? 'Снимок облачного слоя'
+                  : LABELS[k]}
             </label>
           ))}
           {children && <div className={styles.extra}>{children}</div>}

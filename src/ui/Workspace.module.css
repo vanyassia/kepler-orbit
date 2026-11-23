@@ -78,6 +78,48 @@
   color: var(--text-0);
 }
 
+/* Переключатель поверхности и облаков Венеры — в том же стиле, что и переключатель видов */
+.venusSwitch {
+  position: absolute;
+  top: var(--sp-3);
+  left: var(--sp-3);
+  z-index: 20;
+  display: flex;
+  padding: 3px;
+  border: 1px solid var(--line-strong);
+  border-radius: var(--r-chip);
+  background: var(--surface-overlay);
+}
+
+.venusTab {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  height: 30px;
+  padding: 0 var(--sp-3);
+  border: 0;
+  border-radius: var(--r-chip);
+  background: none;
+  color: var(--text-1);
+  font-family: var(--font-display);
+  font-size: var(--fs-body);
+  font-weight: 500;
+  white-space: nowrap;
+  touch-action: manipulation;
+  transition:
+    color var(--dur) var(--ease),
+    background var(--dur) var(--ease);
+}
+
+.venusTab:hover {
+  color: var(--text-0);
+}
+
+.venusTab[aria-checked='true'] {
+  background: var(--bg-3);
+  color: var(--text-0);
+}
+
 .loading {
   display: grid;
   place-items: center;
@@ -168,10 +210,20 @@
     left: var(--sp-3);
     transform: none;
   }
+
+  .venusSwitch {
+    top: calc(var(--sp-3) + 46px);
+  }
 }
 
 @container (max-width: 640px) {
   .tab span {
     display: none;
+  }
+
+  .venusTab {
+    height: 28px;
+    padding: 0 10px;
+    font-size: var(--fs-caption);
   }
 }

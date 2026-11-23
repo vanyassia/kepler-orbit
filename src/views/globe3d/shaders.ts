@@ -3,6 +3,15 @@
  * Освещение — по реальному направлению на Солнце (формула (15)), в мировых координатах сцены.
  */
 
+/** Период супервращения облачного покрова Венеры: ≈ 4 земных суток на запад. */
+export const VENUS_CLOUD_PERIOD_MS = 4 * 86_400_000;
+
+/** Сдвиг текстуры облаков Венеры по долготе (доля оборота в [0, 1); рост u смещает облака на запад). */
+export function venusCloudShift(timeMs: number): number {
+  const frac = (timeMs / VENUS_CLOUD_PERIOD_MS) % 1;
+  return frac < 0 ? frac + 1 : frac === 0 ? 0 : frac;
+}
+
 const worldVertex = /* glsl */ `
   varying vec2 vUv;
   varying vec3 vWorldNormal;
@@ -27,6 +36,7 @@ export const earthShader = {
     uniform sampler2D cloudsMap;
     uniform vec3 sunDir;
     uniform float cloudShift;
+    uniform float dayShift;
     uniform float cloudsOn;
     uniform float nightOn;
     uniform float normalStrength;
@@ -54,7 +64,7 @@ export const earthShader = {
 
       // Серый фон снимка облаков (≈0,1–0,15) отсекаем, чтобы не было сплошной дымки
       float cloud = smoothstep(0.18, 0.8, texture2D(cloudsMap, vUv + vec2(cloudShift, 0.0)).r) * cloudsOn;
-      vec3 day = texture2D(dayMap, vUv).rgb;
+      vec3 day = texture2D(dayMap, vUv + vec2(dayShift, 0.0)).rgb;
       float ocean = texture2D(specMap, vUv).r;
 
       // Блик Солнца на воде (модель Блинна — Фонга)

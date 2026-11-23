@@ -38,6 +38,7 @@ const sources = {
   'sss_mars.jpg': 'https://www.solarsystemscope.com/textures/download/8k_mars.jpg',
   'sss_saturn.jpg': 'https://www.solarsystemscope.com/textures/download/8k_saturn.jpg',
   'sss_venus.jpg': 'https://www.solarsystemscope.com/textures/download/8k_venus_surface.jpg',
+  'sss_venus_atmo.jpg': 'https://www.solarsystemscope.com/textures/download/4k_venus_atmosphere.jpg',
 };
 
 /** Качество WebP; файлов нет в списке — остаются в JPEG. */
@@ -55,6 +56,8 @@ const WEBP = {
   'mars_2k.jpg': 90,
   'venus_8k.jpg': 80,
   'venus_2k.jpg': 88,
+  'venus_clouds_4k.jpg': 88,
+  'venus_clouds_2k.jpg': 88,
   'saturn_4k.jpg': 86,
   'saturn_2k.jpg': 88,
 };
@@ -91,6 +94,8 @@ const outputs = [
   ['sss_mars.jpg', 'mars_2k.jpg', 2048, 82],
   ['sss_venus.jpg', 'venus_8k.jpg', 8192, 84],
   ['sss_venus.jpg', 'venus_2k.jpg', 2048, 82],
+  ['sss_venus_atmo.jpg', 'venus_clouds_4k.jpg', 4096, 96],
+  ['sss_venus_atmo.jpg', 'venus_clouds_2k.jpg', 2048, 96],
   ['sss_saturn.jpg', 'saturn_4k.jpg', 4096, 96],
   ['sss_saturn.jpg', 'saturn_2k.jpg', 2048, 96],
 ];

@@ -23,9 +23,11 @@ export const TEXTURES = {
   mars2k: `${base}textures/mars_2k.webp`,
   mars8k: `${base}textures/mars_8k.jpg`, // зернистый снимок: в WebP того же качества почти не становится легче
   venus2k: `${base}textures/venus_2k.webp`,
+  venus8k: `${base}textures/venus_8k.webp`,
+  venusClouds2k: `${base}textures/venus_clouds_2k.webp`,
+  venusClouds4k: `${base}textures/venus_clouds_4k.webp`,
   saturn2k: `${base}textures/saturn_2k.webp`,
   saturn4k: `${base}textures/saturn_4k.webp`,
-  venus8k: `${base}textures/venus_8k.webp`,
 } as const;
 
 /** Значки тел в переключателе: 160×80 пикселей, а не полные снимки. */
@@ -60,6 +62,11 @@ export const SURFACE: Record<BodyId, readonly string[]> = LIGHT_DEVICE
 /** Ночные огни Земли. */
 export const NIGHT_LIGHTS: readonly string[] = LIGHT_DEVICE ? [TEXTURES.night2k] : [TEXTURES.night2k, TEXTURES.night8k];
 
+/** Плотный облачный слой Венеры (2K → 4K). */
+export const VENUS_CLOUDS: readonly string[] = LIGHT_DEVICE
+  ? [TEXTURES.venusClouds2k]
+  : [TEXTURES.venusClouds2k, TEXTURES.venusClouds4k];
+
 /** Подпись об источниках снимков. */
 export const SURFACE_CREDIT: Record<BodyId, string> = {
   earth: 'NASA Blue Marble, Black Marble; Natural Earth',
@@ -68,6 +75,14 @@ export const SURFACE_CREDIT: Record<BodyId, string> = {
   venus: 'Solar System Scope (CC BY 4.0) по данным NASA Magellan',
   saturn: 'Облачный слой: Solar System Scope (CC BY 4.0)',
 };
+
+/** Подпись об источнике облачного слоя Венеры. */
+export const VENUS_CLOUDS_CREDIT = 'Облачный слой: Solar System Scope (CC BY 4.0)';
+
+/** Подпись об источнике активного снимка тела. */
+export function surfaceCredit(body: BodyId, venusClouds = false): string {
+  return body === 'venus' && venusClouds ? VENUS_CLOUDS_CREDIT : SURFACE_CREDIT[body];
+}
 
 const cache = new Map<string, Promise<HTMLImageElement>>();
 

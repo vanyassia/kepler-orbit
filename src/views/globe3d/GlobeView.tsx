@@ -106,7 +106,17 @@ export default function GlobeView() {
             </button>
           ))}
         </div>
-        <LayersMenu keys={body === 'earth' ? ['night', 'clouds', 'helpers', 'cities'] : body === 'saturn' ? ['night', 'helpers'] : ['regions', 'night', 'helpers', 'cities']}>
+        <LayersMenu
+          keys={
+            body === 'earth'
+              ? ['night', 'clouds', 'helpers', 'cities']
+              : body === 'saturn'
+                ? ['night', 'helpers']
+                : body === 'venus'
+                  ? ['venusClouds', 'regions', 'night', 'helpers', 'cities']
+                  : ['regions', 'night', 'helpers', 'cities']
+          }
+        >
           {!historical && <RevsControl />}
           {body === 'saturn' ? <p className={styles.quality}>{SURFACE_CREDIT.saturn}</p> : <div className={styles.quality}>
             <span>Детализация снимка</span>
