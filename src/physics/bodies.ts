@@ -143,7 +143,7 @@ export function venusOrientation(timeMs: number): { alpha0: number; delta0: numb
 
 /**
  * Формула (19). Гелиоцентрическое положение планеты по приближённым элементам орбиты
- * (Standish, JPL «Approximate Positions of the Planets», 1800–2050 гг.), в ICRF, а. е.
+ * (Standish, JPL «Approximate Positions of the Planets»), в ICRF, а. е.
  * Решается то же уравнение Кеплера (5), что и для спутников.
  */
 function planetHeliocentric(
@@ -187,7 +187,7 @@ export const marsHeliocentric = (timeMs: number): Vec3 =>
     Om: [49.55953891, -0.29257343],
   });
 
-/** Гелиоцентрическое положение Венеры (Standish, JPL, 1800–2050 гг.), в ICRF, а. е. */
+/** Гелиоцентрическое положение Венеры (Standish, JPL, таблица 2a: 3000 г. до н. э. — 3000 г. н. э.), в ICRF, а. е. */
 export const venusHeliocentric = (timeMs: number): Vec3 =>
   planetHeliocentric(timeMs, {
     a: [0.72332102, -0.00000026],

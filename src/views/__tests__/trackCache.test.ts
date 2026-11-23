@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { prepareOrbit, propagate } from '../../physics/propagate';
-import { RAD } from '../../physics/constants';
-import { MAX_WINDOW_POINTS, orbitSource, TrackCache, trackSpan } from '../trackCache';
+import { DEG, RAD } from '../../physics/constants';
+import { MAX_WINDOW_POINTS, orbitSource, TrackCache, trackSpan, type TrackSource } from '../trackCache';
 
 const T0 = Date.UTC(2026, 9, 31, 12);
 const elements = (meanMotion: number, eccentricity = 0.001) => ({
@@ -61,6 +61,58 @@ describe('Скользящий кэш трассы', () => {
     for (let k = 1; k < all.length; k++) expect(all[k].timeMs).toBeGreaterThan(all[k - 1].timeMs);
     expect(all[0].timeMs).toBeLessThanOrEqual(T0 + 500 - 2 * orbit.T * 1000 + src.stepSec * 1000);
     expect(all[all.length - 1].timeMs).toBeGreaterThanOrEqual(T0 + 500 + 3 * orbit.T * 1000 - src.stepSec * 1000);
+  });
+
+  it('промежуточные точки уходят с начала и добавляются в конец окна при сдвиге времени', () => {
+    const fast: TrackSource = {
+      key: {},
+      periodSec: 100,
+      stepSec: 8,
+      fromMs: -Infinity,
+      at: (timeMs) => {
+        const lon = [8000, 208_000].reduce((lon, start) => lon + Math.max(0, Math.min(20, (timeMs - start) / 400)), 0);
+        return { timeMs, lat: 0, lon, h: 100 };
+      },
+    };
+    const cache = new TrackCache();
+    for (const time of [109_999, 110_000, 110_001, 110_000, 109_999]) {
+      const w = cache.get(fast, time, 1, 1)!;
+      expect(w.past[0].timeMs).toBe(time <= 110_000 ? 10_000 : 12_000);
+      expect(w.future.at(-1)?.timeMs).toBe(time >= 110_000 ? 210_000 : 208_000);
+    }
+    // В момент совпадения с расчётной точкой её заменяет текущая точка.
+    cache.get(fast, 9999, 1, 1);
+    const w = cache.get(fast, 10_000, 1, 1)!;
+    expect(w.future[1].timeMs).toBe(12_000);
+  });
+
+  it('на восьми витках «Акацуки» сохраняется детализация у каждого перицентра', () => {
+    const orbit = prepareOrbit({
+      ...elements(0.0003772408189842064 * 240, 0.9417604620249725),
+      body: 'venus',
+      inclinationDeg: 160.5675,
+      raanDeg: 313.4762,
+      argPerigeeDeg: 347.7812,
+      meanAnomalyDeg: 68.7073,
+    });
+    const cache = new TrackCache();
+    const src = orbitSource(orbit);
+    for (const time of [T0, T0 + 0.24 * orbit.T * 1000]) {
+      const { past, future } = cache.get(src, time, 5, 8)!;
+      for (const points of [past, future]) {
+        expect(points.length).toBeLessThanOrEqual(MAX_WINDOW_POINTS);
+        let maxArc = 0;
+        for (let i = 1; i < points.length; i++) {
+          const a = points[i - 1];
+          const b = points[i];
+          const hav = Math.sin((b.lat - a.lat) * DEG / 2) ** 2
+            + Math.cos(a.lat * DEG) * Math.cos(b.lat * DEG) * Math.sin((b.lon - a.lon) * DEG / 2) ** 2;
+          maxArc = Math.max(maxArc, 2 * Math.asin(Math.sqrt(hav)) * RAD);
+        }
+        expect(maxArc).toBeLessThan(2);
+      }
+      expect(future.at(-1)!.timeMs - time).toBeGreaterThan(7.99 * orbit.T * 1000);
+    }
   });
 
   it('окно длинной орбиты вмещается в линии глобуса (Спектр-Р, 8 витков вперёд)', () => {

@@ -59,6 +59,11 @@ describe('Снимок JPL Horizons (orbiters.json)', () => {
   const historic = new Set(HISTORIC_ORBITERS.map((o) => o.id));
   const fromHorizons = ORBITERS.filter((o) => !historic.has(o.naifId));
 
+  it('у каждого аппарата одна запись для его центрального тела', () => {
+    const keys = orbiters.items.map((item) => `${item.body}:${item.naifId}`);
+    expect(new Set(keys).size).toBe(keys.length);
+  });
+
   it.each(fromHorizons.map((o) => [o.title, o.naifId, o.body] as const))('%s (NAIF %i) есть в снимке', (_title, id, body) => {
     const it = orbiters.items.find((x) => x.naifId === id);
     expect(it, `аппарата ${id} нет в снимке`).toBeDefined();

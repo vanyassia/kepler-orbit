@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /**
- * Снимок элементов орбит спутников Луны и Марса (и самой Луны вокруг Земли) из JPL Horizons → public/data/orbiters.json.
+ * Снимок элементов орбит спутников Луны, Марса и Венеры (и самой Луны вокруг Земли) из JPL Horizons → public/data/orbiters.json.
  *
  * Запрашиваются оскулирующие элементы (EPHEM_TYPE=ELEMENTS) относительно центра тела
  * в системе «экватор тела и узел даты» (REF_PLANE=BODY) на текущий час; если эфемериды аппарата
@@ -61,10 +61,15 @@ async function horizons(params) {
 const dir = join(ROOT, 'public', 'data');
 const file = join(dir, 'orbiters.json');
 
-// Прежний снимок: аппарат, на который Horizons не ответил, остаётся с прежними элементами, а не исчезает с сайта
-let previous = [];
+const key = (body, id) => `${body}:${id}`;
+// При сбое или ответе со старой эпохой сохраняем самую свежую запись из прежнего снимка.
+const previous = new Map();
 try {
-  previous = JSON.parse(readFileSync(file, 'utf8')).items ?? [];
+  for (const item of JSON.parse(readFileSync(file, 'utf8')).items ?? []) {
+    const k = key(item.body, item.naifId);
+    const old = previous.get(k);
+    if (!old || item.epoch > old.epoch) previous.set(k, item);
+  }
 } catch {
   // снимка ещё нет — соберём заново
 }
@@ -73,6 +78,8 @@ const items = [];
 const checks = [];
 let fresh = 0;
 for (const { id, body } of list) {
+  const old = previous.get(key(body, id));
+  let item;
   try {
     const elementsAt = (d) =>
       horizons({
@@ -97,7 +104,7 @@ for (const { id, body } of list) {
     });
     const [jdTdb, , EC, , IN, OM, W, , N, MA, , A] = row;
     const epochMs = (Number(jdTdb) - 2440587.5) * 86_400_000 - TDB_MINUS_UTC_MS;
-    const item = {
+    const candidate = {
       naifId: id,
       body,
       name,
@@ -112,20 +119,30 @@ for (const { id, body } of list) {
     };
     // Ответ без чисел (изменился формат таблицы) не должен попасть в снимок
     for (const k of ['eccentricity', 'inclinationDeg', 'raanDeg', 'argPerigeeDeg', 'meanAnomalyDeg', 'meanMotionDegPerSec', 'semiMajorAxisKm']) {
-      if (!Number.isFinite(item[k])) throw new Error(`в ответе Horizons нет числа ${k}`);
+      if (!Number.isFinite(candidate[k])) throw new Error(`в ответе Horizons нет числа ${k}`);
     }
-    if (!Number.isFinite(epochMs) || !(item.meanMotionDegPerSec > 0) || !(item.eccentricity >= 0 && item.eccentricity < 1)) {
+    if (!(candidate.meanMotionDegPerSec > 0) || !(candidate.eccentricity >= 0 && candidate.eccentricity < 1)) {
       throw new Error('элементы Horizons не описывают замкнутую орбиту');
     }
-    items.push(item);
+    if (old && candidate.epoch < old.epoch) {
+      throw new Error(`Horizons вернул более раннюю эпоху (${candidate.epoch})`);
+    }
+    item = candidate;
     fresh++;
     console.log(`✓ ${id} ${name}: a = ${item.semiMajorAxisKm.toFixed(0)} км, e = ${item.eccentricity.toFixed(4)}`);
+  } catch (e) {
+    if (old) items.push(old);
+    console.warn(`✗ ${id}: ${e.message}${old ? ` — оставлена прежняя запись (эпоха ${old.epoch})` : ' — прежней записи нет'}`);
+    continue;
+  }
+  items.push(item);
 
-    if (process.argv.includes('--fixture')) {
+  if (process.argv.includes('--fixture')) {
+    try {
       // Контроль: наблюдатель — сам КА, цель — центральное тело; величины 14 и 15 —
       // точка под наблюдателем (подспутниковая) и подсолнечная точка на теле.
       // Через 10 минут после эпохи; округление — чтобы 11:09:59,999 не превратилось в запрос на 11:09
-      const t = new Date(Math.round((epochMs + TDB_MINUS_UTC_MS + 600_000) / 60_000) * 60_000);
+      const t = new Date(Math.round((Date.parse(item.epoch) + TDB_MINUS_UTC_MS + 600_000) / 60_000) * 60_000);
       const obs = await horizons({
         COMMAND: TARGET[body],
         EPHEM_TYPE: 'OBSERVER',
@@ -138,11 +155,9 @@ for (const { id, body } of list) {
       });
       const [, , , subLon, subLat, sunLon, sunLat] = obs.row;
       checks.push({ naifId: id, body, timeUtc: t.toISOString(), subLon: Number(subLon), subLat: Number(subLat), sunLon: Number(sunLon), sunLat: Number(sunLat) });
+    } catch (e) {
+      console.warn(`✗ ${id}: контрольная точка Horizons недоступна — ${e.message}`);
     }
-  } catch (e) {
-    const old = previous.find((x) => x.naifId === id && x.body === body);
-    if (old) items.push(old);
-    console.warn(`✗ ${id}: ${e.message}${old ? ` — оставлена прежняя запись (эпоха ${old.epoch})` : ' — прежней записи нет'}`);
   }
 }
 
