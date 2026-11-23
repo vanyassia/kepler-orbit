@@ -4,7 +4,7 @@ import { prepareOrbit, type OrbitalElements } from '../../physics/propagate';
 import { useAppStore } from '../../state/store';
 import { orbitSource, TrackCache } from '../../views/trackCache';
 import { buildTrackTable } from '../exportData';
-import { CASSINI_WINDOW, isOrbiterId, legacyBodyFor, loadOrbiter } from '../orbiters';
+import { CASSINI_WINDOW, isOrbiterId, legacyBodyFor, loadOrbiter, ownLook } from '../orbiters';
 
 vi.hoisted(() => {
   vi.stubGlobal('localStorage', { getItem: () => null, setItem: () => {}, removeItem: () => {} });
@@ -12,6 +12,12 @@ vi.hoisted(() => {
 afterEach(() => vi.restoreAllMocks());
 
 describe('Каталог Сатурна', () => {
+  it('выбирает модель «Кассини» только для аппарата у Сатурна', () => {
+    expect(ownLook({ body: 'saturn', noradId: -82 })).toBe('cassini');
+    expect(ownLook({ body: 'saturn', noradId: 602 })).toBeNull();
+    expect(ownLook({ body: 'earth', noradId: -82 })).toBeNull();
+  });
+
   it('различает идентификаторы Титана и земных спутников, сохраняя старые ссылки', () => {
     expect(isOrbiterId('saturn', 606)).toBe(true);
     expect(isOrbiterId('earth', 606)).toBe(false);

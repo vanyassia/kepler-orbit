@@ -56,9 +56,11 @@ export const CASSINI_WINDOW = {
   endMs: Date.UTC(2017, 8, 12, 5, 27),
 };
 
+const isCassini = (body: BodyId | undefined, id: number | undefined) => body === 'saturn' && id === -82;
+
 /** Границы витка № 292 по журналу NASA; общие для часов, трассы и выгрузки. */
 export const cassiniWindow = (body: BodyId | undefined, id: number | undefined) =>
-  body === 'saturn' && id === -82 ? CASSINI_WINDOW : null;
+  isCassini(body, id) ? CASSINI_WINDOW : null;
 
 export type NaturalSatellite = 'moon' | 'phobos' | 'deimos' | 'enceladus' | 'titan';
 
@@ -81,11 +83,12 @@ export function isIss(el: { noradId: number; body?: BodyId }): boolean {
   return el.noradId === ISS_NORAD && (el.body ?? 'earth') === 'earth';
 }
 
-/** Аппараты со своим значком на карте и своей моделью на глобусе (у остальных — общий значок аппарата). */
-export type OwnLook = 'iss' | 'vostok' | 'sputnik';
+/** Аппараты со своей моделью на глобусе; у первых трёх также свой значок на карте. */
+export type OwnLook = 'iss' | 'vostok' | 'sputnik' | 'cassini';
 
 export function ownLook(el: { noradId: number; body?: BodyId }): OwnLook | null {
   if (isIss(el)) return 'iss';
+  if (isCassini(el.body, el.noradId)) return 'cassini';
   if ((el.body ?? 'earth') !== 'earth') return null;
   if (el.noradId === VOSTOK1_ID) return 'vostok';
   if (el.noradId === SPUTNIK1_ID) return 'sputnik';

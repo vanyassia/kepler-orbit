@@ -48,6 +48,7 @@ import { createNaturalModels, loadMoonSurface, placeNatural } from './naturalMod
 import { createSputnikModel, createVostokModel, SPUTNIK_SPAN, VOSTOK_SPAN } from './historicModels';
 import { createIssModel, ISS_SPAN } from './issModel';
 import { createSatelliteModel, SATELLITE_SPAN } from './satelliteModel';
+import { CASSINI_SPAN, createCassiniModel, disposeCassiniModel } from './cassiniModel';
 import { SATURN_POLAR_RATIO, SATURN_RING_INNER, SATURN_RING_OUTER, saturnGlobeGeometry, saturnRingMaterial } from './saturn';
 
 const TRACK_R = 1.0025;
@@ -89,6 +90,12 @@ const SAT_OFFSETS = [
   [-1, -1.3, -14, 0],
   [0, 0.3, 14, 0],
   [-1, 0.3, -14, 0],
+] as const;
+const CASSINI_OFFSETS = [
+  [0, -1.4, 37, -18],
+  [-1, -1.4, -37, -18],
+  [0, 0.2, 37, 18],
+  [-1, 0.2, -37, 18],
 ] as const;
 const NODE_OFFSETS = [
   [0, -1.1, 8, 0],
@@ -220,6 +227,11 @@ export function GlobeScene({ overlay, onReady }: { overlay: React.RefObject<HTML
   /** Свои модели первых аппаратов (historicModels.ts): «Восток» и Спутник-1. */
   const vostokModel = useMemo(() => createVostokModel(), []);
   const sputnikModel = useMemo(() => createSputnikModel(), []);
+  const showCassini = !!record && ownLook(record.elements) === 'cassini';
+  const cassiniModel = useMemo(() => showCassini ? createCassiniModel() : null, [showCassini]);
+  useEffect(() => () => {
+    if (cassiniModel) disposeCassiniModel(cassiniModel);
+  }, [cassiniModel]);
   /** Естественные спутники (Луна, Фобос, Деймос) — тела вместо модели аппарата (naturalModel.ts). */
   const naturalModels = useMemo(() => createNaturalModels(), []);
   const satGlow = useRef<Sprite>(null!);
@@ -364,7 +376,7 @@ export function GlobeScene({ overlay, onReady }: { overlay: React.RefObject<HTML
           useAppStore.getState().camera === 'board' ? earthGroup.current.localToWorld(out.copy(subMarker.current.position)) : out.copy(satGroup.current.position),
         priority: 0,
         always: true,
-        offsets: SAT_OFFSETS,
+        offsets: showCassini && !board ? CASSINI_OFFSETS : SAT_OFFSETS,
       });
     }
     if (orbit) {
@@ -424,7 +436,7 @@ export function GlobeScene({ overlay, onReady }: { overlay: React.RefObject<HTML
     }
     labelSpecs.current = specs;
     labelLayer.current?.setSpecs(specs);
-  }, [orbit, record, geometry, layers.cities, layers.helpers, revsBack, revsForward, bodyId, regionsOn, board]);
+  }, [orbit, record, geometry, layers.cities, layers.helpers, revsBack, revsForward, bodyId, regionsOn, board, showCassini]);
 
   // Приближение в виде с борта: множитель к углу обзора (колёсико, щипок, «+» и «−»)
   const boardZoom = useRef(1);
@@ -670,11 +682,19 @@ export function GlobeScene({ overlay, onReady }: { overlay: React.RefObject<HTML
       // С борта камера стоит на самом аппарате: его модель, свечение и радиус-вектор не рисуются
       const onBoard = st.camera === 'board';
       const own = st.record ? ownLook(st.record.elements) : null;
-      satModel.visible = !natural && !own && !onBoard;
+      satModel.visible = !natural && (!own || (own === 'cassini' && !cassiniModel)) && !onBoard;
       issModel.visible = own === 'iss' && !onBoard;
       vostokModel.visible = own === 'vostok' && !onBoard;
       sputnikModel.visible = own === 'sputnik' && !onBoard;
-      satGlow.current.visible = !natural && !onBoard;
+      if (cassiniModel) {
+        cassiniModel.visible = own === 'cassini' && !onBoard;
+        // Ориентация условная, с небольшим разворотом тарелки для различимого силуэта.
+        cassiniModel.quaternion.copy(satModel.quaternion);
+        cassiniModel.rotateX(-1.17);
+        cassiniModel.rotateY(2.65);
+        cassiniModel.scale.setScalar(80 / CASSINI_SPAN / ppu);
+      }
+      satGlow.current.visible = !natural && own !== 'cassini' && !onBoard;
       for (const [kind, mesh] of Object.entries(naturalModels)) mesh.visible = kind === natural && !onBoard;
       lines.radius.visible = !onBoard;
       // Пунктир будущей трассы: с борта штрихи короче — иначе первый штрих на полэкрана, а за ним «обрыв»
@@ -928,6 +948,7 @@ export function GlobeScene({ overlay, onReady }: { overlay: React.RefObject<HTML
             <primitive object={issModel} />
             <primitive object={vostokModel} />
             <primitive object={sputnikModel} />
+            {cassiniModel && <primitive object={cassiniModel} />}
             <primitive object={naturalModels.moon} />
             <primitive object={naturalModels.phobos} />
             <primitive object={naturalModels.deimos} />
