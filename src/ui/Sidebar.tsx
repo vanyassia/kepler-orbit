@@ -2,7 +2,7 @@ import { Download, History, Plus, Presentation, X } from 'lucide-react';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { customToRecord } from '../data/custom';
 import { historicById } from '../data/historicOrbiters';
-import { isOrbiterId, ORBITERS } from '../data/orbiters';
+import { cassiniWindow, ORBITERS } from '../data/orbiters';
 import { photoFor } from '../data/photos';
 import { POPULAR_GROUPS, POPULAR_SATELLITES } from '../data/popular';
 import { BODIES } from '../physics/bodies';
@@ -158,7 +158,7 @@ function SatelliteCard() {
           </div>
         ) : (
           <div>
-            <dt>{isOrbiterId(el.noradId) ? 'NAIF' : 'NORAD'}</dt>
+            <dt>{record.source === 'horizons' ? 'NAIF' : 'NORAD'}</dt>
             <dd className="num">{el.noradId}</dd>
           </div>
         )}
@@ -189,6 +189,7 @@ function SatelliteCard() {
       </div>
       {tuned && <p className={styles.satNote}>Орбита изменена ползунками в разделе «Изменить орбиту».</p>}
       {record.source === 'historic' && <p className={styles.satNote}>{historicById(el.noradId)?.detail}</p>}
+      {cassiniWindow(el.body, el.noradId) && <p className={styles.satNote}>Виток № 292, 5–12 сентября 2017 года. Расчёт по элементам орбиты на начало витка.</p>}
       {error && (
         <p className={styles.error} role="alert">
           {error}
@@ -225,7 +226,7 @@ function QuickPicks() {
       aria-pressed={current === p.noradId}
       data-pending={pending === p.noradId || undefined}
       title={p.note}
-      onClick={() => void loadNorad(p.noradId)}
+      onClick={() => void loadNorad(p.noradId, body)}
     >
       {p.title}
     </button>
@@ -282,6 +283,7 @@ function Telemetry() {
         <Big label="Высота h" value={fmt(s.h, 1)} unit="км" />
         <Big label="Скорость V" value={fmt(s.V, 3)} unit="км/с" />
       </div>
+      {orbit.body.id === 'saturn' && <p className={styles.satNote}>Высота отсчитывается от экваториального радиуса 60 268 км.</p>}
       <dl className={styles.rows}>
         <Row label="Радиус-вектор r" value={fmt(s.r, 1)} unit="км" />
         <Row label="Истинная аномалия ν" value={fmt(s.theta * RAD, 2)} unit="°" />

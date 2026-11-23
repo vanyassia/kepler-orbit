@@ -16,7 +16,7 @@ import {
   tableToText,
   toInputValue,
 } from '../data/exportData';
-import { isOrbiterId } from '../data/orbiters';
+import { cassiniWindow } from '../data/orbiters';
 import { BODIES } from '../physics/bodies';
 import type { PreparedOrbit } from '../physics/propagate';
 import { useAppStore } from '../state/store';
@@ -144,14 +144,16 @@ function ExportForm({ orbit, onClose }: { orbit: PreparedOrbit; onClose: () => v
     satellite: satelliteTitle(el).title,
     body: BODIES[el.body ?? 'earth'].name,
     source: SOURCE_LABELS[record.source],
-    idLabel: isCustomId(el.noradId) || record.source === 'historic' || record.source === 'custom' ? null : isOrbiterId(el.noradId) ? 'Номер NAIF' : 'Номер NORAD',
+    idLabel: isCustomId(el.noradId) || record.source === 'historic' || record.source === 'custom' ? null : record.source === 'horizons' ? 'Номер NAIF' : 'Номер NORAD',
   };
   const tle = record.tle;
 
   // Интервал таблицы
-  const range = useMemo(() => {
+  const historical = cassiniWindow(el.body, el.noradId);
+  const requestedRange = useMemo(() => {
     switch (prefs.range) {
       case 'shown': {
+        if (historical) return { from: historical.startMs, to: historical.endMs };
         const span = trackSpan(orbit, revsBack, revsForward);
         // Края — на целых секундах, как строки таблицы
         return { from: now - Math.round(span.back * orbit.T) * 1000, to: now + Math.round(span.forward * orbit.T) * 1000 };
@@ -163,8 +165,17 @@ function ExportForm({ orbit, onClose }: { orbit: PreparedOrbit; onClose: () => v
       case 'custom':
         return { from: fromInputValue(customFrom), to: fromInputValue(customTo) };
     }
-  }, [prefs.range, orbit, now, revsBack, revsForward, customFrom, customTo]);
-  const rangeError = !Number.isFinite(range.from) || !Number.isFinite(range.to) ? 'Заполните начало и конец интервала' : range.to <= range.from ? 'Конец интервала должен быть позже начала' : null;
+  }, [prefs.range, orbit, now, revsBack, revsForward, customFrom, customTo, historical]);
+  const range = historical
+    ? { from: Math.max(historical.startMs, requestedRange.from), to: Math.min(historical.endMs, requestedRange.to) }
+    : requestedRange;
+  const rangeError = !Number.isFinite(range.from) || !Number.isFinite(range.to)
+    ? 'Заполните начало и конец интервала'
+    : requestedRange.to <= requestedRange.from
+      ? 'Конец интервала должен быть позже начала'
+      : range.to <= range.from
+        ? 'Выберите время в пределах витка № 292'
+        : null;
   const rows = rangeError ? 0 : rowCount(range.from, range.to, step);
   const tooMany = rows > MAX_ROWS;
 
@@ -347,7 +358,7 @@ function ExportForm({ orbit, onClose }: { orbit: PreparedOrbit; onClose: () => v
                 </div>
               ) : (
                 <p className={styles.note}>
-                  {prefs.range === 'shown' && <>{revsLabel(revsBack)} назад и {revsLabel(revsForward)} вперёд от текущего момента. </>}
+                  {prefs.range === 'shown' && (historical ? 'Виток № 292. ' : <>{revsLabel(revsBack)} назад и {revsLabel(revsForward)} вперёд от текущего момента. </>)}
                   {!rangeError && (
                     <span className="num">
                       {fmtDateTime(range.from)} — {fmtDateTime(range.to)} UTC

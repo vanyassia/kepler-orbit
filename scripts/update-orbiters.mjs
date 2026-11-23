@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 /**
- * Снимок элементов орбит спутников Луны, Марса и Венеры (и самой Луны вокруг Земли) из JPL Horizons → public/data/orbiters.json.
+ * Снимок элементов орбит спутников Луны, Марса, Венеры и Сатурна
+ * (и самой Луны вокруг Земли) из JPL Horizons → public/data/orbiters.json.
  *
  * Запрашиваются оскулирующие элементы (EPHEM_TYPE=ELEMENTS) относительно центра тела
  * в системе «экватор тела и узел даты» (REF_PLANE=BODY) на текущий час; если эфемериды аппарата
@@ -17,8 +18,9 @@ import { join, resolve } from 'node:path';
 
 const ROOT = resolve(import.meta.dirname, '..');
 const API = 'https://ssd.jpl.nasa.gov/api/horizons.api';
-const CENTER = { earth: '500@399', moon: '500@301', mars: '500@499', venus: '500@299' };
-const TARGET = { earth: '399', moon: '301', mars: '499', venus: '299' };
+const TARGET = { earth: '399', moon: '301', mars: '499', venus: '299', saturn: '699' };
+// Снимок «Кассини» — начало витка № 292 (время запроса Horizons — TDB).
+const FIXED_EPOCH = { 'saturn:-82': '2017-09-05T19:00:00Z' };
 const TDB_MINUS_UTC_MS = 69_184;
 
 const src = readFileSync(join(ROOT, 'src', 'data', 'orbiters.ts'), 'utf8');
@@ -78,21 +80,29 @@ const items = [];
 const checks = [];
 let fresh = 0;
 for (const { id, body } of list) {
-  const old = previous.get(key(body, id));
+  const objectKey = key(body, id);
+  const old = previous.get(objectKey);
+  const fixedEpoch = FIXED_EPOCH[objectKey];
   let item;
   try {
     const elementsAt = (d) =>
       horizons({
         COMMAND: String(id),
         EPHEM_TYPE: 'ELEMENTS',
-        CENTER: CENTER[body],
+        CENTER: `500@${TARGET[body]}`,
         START_TIME: stamp(d),
         STOP_TIME: stamp(new Date(d.getTime() + 3_600_000)),
         STEP_SIZE: '1h',
         REF_PLANE: 'BODY',
         OUT_UNITS: 'KM-S',
       });
-    const { name, row } = await elementsAt(now).catch(async (e) => {
+    const requestedEpoch = fixedEpoch ? Date.parse(fixedEpoch) - TDB_MINUS_UTC_MS : null;
+    if (old && requestedEpoch !== null && Math.abs(Date.parse(old.epoch) - requestedEpoch) < 1000 && !process.argv.includes('--fixture')) {
+      items.push(old);
+      continue;
+    }
+    const { name, row } = await elementsAt(fixedEpoch ? new Date(fixedEpoch) : now).catch(async (e) => {
+      if (fixedEpoch) throw e;
       const end = ephemerisEnd(e.message);
       if (end === null) throw e;
       // В хвосте эфемерид завершённых миссий (например, Акацуки) бывает нулевой вектор:
@@ -137,7 +147,7 @@ for (const { id, body } of list) {
   }
   items.push(item);
 
-  if (process.argv.includes('--fixture')) {
+  if (process.argv.includes('--fixture') && body !== 'saturn') {
     try {
       // Контроль: наблюдатель — сам КА, цель — центральное тело; величины 14 и 15 —
       // точка под наблюдателем (подспутниковая) и подсолнечная точка на теле.

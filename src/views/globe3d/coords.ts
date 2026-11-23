@@ -22,25 +22,33 @@ export function toScene(v: Vec3, out = new Vector3(), R = R_EARTH): Vector3 {
 export const axisToScene = (v: Vec3, out = new Vector3()): Vector3 => out.set(v.x, v.z, -v.y);
 
 /** Географическая точка (градусы) → координаты внутри группы Земли (в радиусах Земли). */
-export function geoToLocal(latDeg: number, lonDeg: number, r = 1, out = new Vector3()): Vector3 {
+export function geoToLocal(latDeg: number, lonDeg: number, r = 1, out = new Vector3(), polarRatio = 1): Vector3 {
   const lat = latDeg * DEG;
   const lon = lonDeg * DEG;
   const c = Math.cos(lat);
-  return out.set(r * c * Math.cos(lon), r * Math.sin(lat), -r * c * Math.sin(lon));
+  const s = Math.sin(lat);
+  const radius = r * radialScale(s, polarRatio);
+  return out.set(radius * c * Math.cos(lon), radius * s, -radius * c * Math.sin(lon));
+}
+
+/** Пересечение луча с эллипсоидом (экваториальная полуось равна 1). */
+export function radialScale(sinLat: number, polarRatio: number): number {
+  return polarRatio === 1 ? 1 : 1 / Math.sqrt(1 + sinLat ** 2 * (1 / polarRatio ** 2 - 1));
 }
 
 /**
  * Закрыт ли объект в точке p Землёй (шар радиуса 1) для наблюдателя в точке cam.
  * Ищем ближайшую к центру точку отрезка cam→p; если она внутри шара — точка не видна.
  */
-export function occludedByEarth(p: Vector3, cam: Vector3, radius = 0.999): boolean {
+export function occludedByEarth(p: Vector3, cam: Vector3, radius = 0.999, polarRatio = 1): boolean {
   const dx = p.x - cam.x;
-  const dy = p.y - cam.y;
+  const cy = cam.y / polarRatio;
+  const dy = p.y / polarRatio - cy;
   const dz = p.z - cam.z;
   const len2 = dx * dx + dy * dy + dz * dz;
-  const t = Math.min(1, Math.max(0, -(cam.x * dx + cam.y * dy + cam.z * dz) / len2));
+  const t = Math.min(1, Math.max(0, -(cam.x * dx + cy * dy + cam.z * dz) / len2));
   const qx = cam.x + t * dx;
-  const qy = cam.y + t * dy;
+  const qy = cy + t * dy;
   const qz = cam.z + t * dz;
   return t > 0 && t < 1 && qx * qx + qy * qy + qz * qz < radius * radius;
 }

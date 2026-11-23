@@ -1054,7 +1054,18 @@ function drawMarsMoon(ctx: CanvasRenderingContext2D, x: number, y: number, kind:
 function drawSatellite(ctx: CanvasRenderingContext2D, box: ReturnType<typeof satelliteLabelBox>, label: string, labelBg: string, look: number | NaturalSatellite, own: OwnLook | null = null) {
   const { x, y, w, lx, ly } = box;
   if (look === 'moon') drawMoonDisc(ctx, x, y);
-  else if (typeof look === 'string') drawMarsMoon(ctx, x, y, look);
+  else if (look === 'phobos' || look === 'deimos') drawMarsMoon(ctx, x, y, look);
+  else if (look === 'enceladus' || look === 'titan') {
+    const titan = look === 'titan';
+    const r = titan ? 10 : 7;
+    const g = ctx.createRadialGradient(x - 3, y - 3, 0, x, y, r);
+    g.addColorStop(0, titan ? '#ffe0ad' : '#f6fbff');
+    g.addColorStop(1, titan ? '#a56536' : '#8da6b7');
+    ctx.beginPath();
+    ctx.arc(x, y, r, 0, Math.PI * 2);
+    ctx.fillStyle = g;
+    ctx.fill();
+  }
   else if (own === 'iss') drawIss(ctx, x, y, look);
   else if (own === 'vostok') drawVostok(ctx, x, y, look);
   else if (own === 'sputnik') drawSputnik(ctx, x, y, look);

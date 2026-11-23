@@ -23,7 +23,7 @@ describe('Луна как спутник Земли', () => {
   it('стоит в списке Земли и загружается из снимка JPL Horizons', () => {
     expect(POPULAR_SATELLITES.some((p) => p.noradId === MOON_NAIF_ID)).toBe(true);
     expect(ORBITERS.find((o) => o.naifId === MOON_NAIF_ID)?.body).toBe('earth');
-    expect(isOrbiterId(MOON_NAIF_ID)).toBe(true);
+    expect(isOrbiterId('earth', MOON_NAIF_ID)).toBe(true);
   });
 
   it('подлунная точка совпадает с JPL Horizons', () => {

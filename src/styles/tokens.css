@@ -127,3 +127,14 @@
   --field-edge: #857041;
   --space-glow: #2a220f;
 }
+
+:root[data-body='saturn'] {
+  --bg-0: #100d09;
+  --bg-1: #17130e;
+  --bg-2: #201a13;
+  --bg-3: #2c2419;
+  --line: #382e21;
+  --line-strong: #504130;
+  --field-edge: #826d50;
+  --space-glow: #231c14;
+}

@@ -46,8 +46,8 @@ describe('исторические орбиты', () => {
   it('попадают в список своего тела и загружаются без снимка Horizons', async () => {
     for (const o of HISTORIC_ORBITERS) {
       expect(ORBITERS.some((x) => x.naifId === o.id && x.body === o.body)).toBe(true);
-      expect(isOrbiterId(o.id)).toBe(true);
-      const rec = await loadOrbiter(o.id);
+      expect(isOrbiterId(o.body, o.id)).toBe(true);
+      const rec = await loadOrbiter(o.body, o.id);
       expect(rec.source).toBe('historic');
       expect(rec.elements.cosparId).toBe(o.cosparId);
       expect(rec.elements.name).toBe(o.title);

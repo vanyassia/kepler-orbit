@@ -1,4 +1,5 @@
 import { Canvas } from '@react-three/fiber';
+import { cassiniWindow } from '../../data/orbiters';
 import { Earth, Move3d, Satellite, ScanEye } from 'lucide-react';
 import { Suspense, useEffect, useRef, useState } from 'react';
 import type { RootState } from '@react-three/fiber';
@@ -7,7 +8,7 @@ import type { CameraMode } from '../../state/store';
 import { useAppStore } from '../../state/store';
 import { LayersMenu, RevsControl } from '../../ui/LayersMenu';
 import { rovingKeyDown, rovingTabIndex } from '../../ui/roving';
-import { LIGHT_DEVICE } from '../assets';
+import { LIGHT_DEVICE, SURFACE_CREDIT } from '../assets';
 import { registerSnapshot } from '../snapshot';
 import { CAMERA_FOV, GlobeScene } from './GlobeScene';
 import styles from './GlobeView.module.css';
@@ -28,7 +29,8 @@ export default function GlobeView() {
   const quality = useAppStore((s) => s.quality);
   const setQuality = useAppStore((s) => s.setQuality);
   const body = useAppStore((s) => s.body);
-  const withBody = { earth: 'С Землёй', moon: 'С Луной', mars: 'С Марсом', venus: 'С Венерой' }[body];
+  const withBody = { earth: 'С Землёй', moon: 'С Луной', mars: 'С Марсом', venus: 'С Венерой', saturn: 'С Сатурном' }[body];
+  const historical = useAppStore((s) => cassiniWindow(s.record?.elements.body, s.record?.elements.noradId));
   const overlay = useRef<HTMLDivElement>(null);
   const [ready, setReady] = useState(false);
   // На отдельной карте глобус скрыт, но не закрывается: снимки в видеокарте остаются, а кадры не рисуются
@@ -104,9 +106,9 @@ export default function GlobeView() {
             </button>
           ))}
         </div>
-        <LayersMenu keys={body === 'earth' ? ['night', 'clouds', 'helpers', 'cities'] : ['regions', 'night', 'helpers', 'cities']}>
-          <RevsControl />
-          <div className={styles.quality}>
+        <LayersMenu keys={body === 'earth' ? ['night', 'clouds', 'helpers', 'cities'] : body === 'saturn' ? ['night', 'helpers'] : ['regions', 'night', 'helpers', 'cities']}>
+          {!historical && <RevsControl />}
+          {body === 'saturn' ? <p className={styles.quality}>{SURFACE_CREDIT.saturn}</p> : <div className={styles.quality}>
             <span>Детализация снимка</span>
             <div className={styles.segmented} role="radiogroup" aria-label="Детализация снимка" onKeyDown={(e) => rovingKeyDown(e, QUALITIES, quality, setQuality)}>
               <button type="button" role="radio" aria-checked={quality === 'standard'} tabIndex={rovingTabIndex(quality === 'standard')} onClick={() => setQuality('standard')}>
@@ -116,7 +118,7 @@ export default function GlobeView() {
                 16K
               </button>
             </div>
-          </div>
+          </div>}
         </LayersMenu>
       </div>
     </div>

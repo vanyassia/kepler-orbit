@@ -14,7 +14,7 @@ import { CUSTOM_ID_BASE, customToRecord, isCustomId, isStoredCustom } from '../d
 import type { TunePatch } from '../data/orbitTune';
 import { shapeOf, tuneElements } from '../data/orbitTune';
 import { historicFlight } from '../data/historicOrbiters';
-import { DEFAULT_SATELLITE, isOrbiterId, loadOrbiter } from '../data/orbiters';
+import { cassiniWindow, DEFAULT_SATELLITE, isOrbiterId, legacyBodyFor, loadOrbiter } from '../data/orbiters';
 import type { BodyId } from '../physics/bodies';
 import type { PreparedOrbit } from '../physics/propagate';
 import { prepareOrbit } from '../physics/propagate';
@@ -52,8 +52,9 @@ export const PASS_RADIUS_OPTIONS: Record<BodyId, number[]> = {
   moon: [50, 100, 250, 500],
   mars: [100, 250, 500, 1000],
   venus: [250, 500, 1000, 2000],
+  saturn: [1000, 2500, 5000, 10000],
 };
-const DEFAULT_PASS_RADIUS: Record<BodyId, number> = { earth: 1000, moon: 250, mars: 500, venus: 1000 };
+const DEFAULT_PASS_RADIUS: Record<BodyId, number> = { earth: 1000, moon: 250, mars: 500, venus: 1000, saturn: 5000 };
 /** Насколько вперёд искать пролёты, сутки. */
 export const PASS_DAYS_OPTIONS = [1, 3, 7] as const;
 
@@ -78,6 +79,7 @@ interface AppState {
   pendingNorad: number | null;
   /** Последний запрошенный номер NORAD (для повтора и восстановления при следующем запуске). */
   lastNorad: number | null;
+  lastBody: BodyId;
   /** Боковая панель на узких экранах. */
   sidebarOpen: boolean;
   /** Окно «Выгрузка данных». */
@@ -125,8 +127,8 @@ interface AppState {
   /** Создать свой спутник и сразу выбрать его. */
   addCustom: (c: Omit<CustomSatellite, 'id' | 'epochMs'>) => void;
   removeCustom: (id: number) => void;
-  /** Загрузка спутника: положительный номер — NORAD (Земля, CelesTrak), отрицательный — NAIF (Луна, Марс, Horizons). */
-  loadNorad: (id: number) => Promise<void>;
+  /** Загрузка спутника по телу и номеру; без тела действует формат старых ссылок. */
+  loadNorad: (id: number, body?: BodyId) => Promise<void>;
   /** Переход к другому телу — с его спутником по умолчанию. */
   selectBody: (body: BodyId) => void;
   setRecord: (rec: SatelliteRecord) => void;
@@ -172,6 +174,22 @@ export function clockOnSelect(prevId: number | null | undefined, nextId: number,
   return { flightEnd: null };
 }
 
+function clockForRecord(prev: SatelliteRecord | null, next: SatelliteRecord) {
+  const realNow = performance.now();
+  const { body, noradId, epochMs } = next.elements;
+  const window = cassiniWindow(body, noradId);
+  if (window) {
+    return { simTime: epochMs, anchorSim: epochMs, anchorReal: realNow, speed: 5000, playing: false, flightEnd: null };
+  }
+  if (cassiniWindow(prev?.elements.body, prev?.elements.noradId) && !historicFlight(noradId)) {
+    const now = Date.now();
+    return { simTime: now, anchorSim: now, anchorReal: realNow, speed: 1, playing: true, flightEnd: null };
+  }
+  return clockOnSelect(prev?.elements.noradId, noradId, realNow, Date.now());
+}
+
+const selectedWindow = ({ record }: Pick<AppState, 'record'>) => cassiniWindow(record?.elements.body, record?.elements.noradId);
+
 export const useAppStore = create<AppState>()(
   persist(
     (set, get) => ({
@@ -182,6 +200,7 @@ export const useAppStore = create<AppState>()(
   error: null,
   pendingNorad: null,
   lastNorad: null,
+  lastBody: 'earth',
   sidebarOpen: false,
   exportOpen: false,
   presenting: false,
@@ -233,21 +252,25 @@ export const useAppStore = create<AppState>()(
     const s = get();
     set({ customSats: s.customSats.filter((x) => x.id !== id) });
     // Удалили выбранный — переходим к спутнику тела по умолчанию
-    if (s.record?.elements.noradId === id) void s.loadNorad(DEFAULT_SATELLITE[s.body]);
+    if (s.record?.elements.noradId === id) void s.loadNorad(DEFAULT_SATELLITE[s.body], s.body);
   },
 
-  loadNorad: async (id) => {
+  loadNorad: async (id, body = legacyBodyFor(id)) => {
     if (isCustomId(id)) {
       const c = get().customSats.find((x) => x.id === id);
       if (c) return get().setRecord(customToRecord(c));
-      id = DEFAULT_SATELLITE[get().body]; // спутник удалён или открыта чужая ссылка
+      id = DEFAULT_SATELLITE[body]; // спутник удалён или открыта чужая ссылка
     }
     const seq = ++loadSeq;
-    set({ loading: true, error: null, pendingNorad: id, lastNorad: id });
+    set({ loading: true, error: null, pendingNorad: id, lastNorad: id, lastBody: body, ...(!get().record && { body }) });
     try {
-      const rec = isOrbiterId(id) ? await loadOrbiter(id) : await loadByNorad(id);
+      const orbiter = isOrbiterId(body, id);
+      if (!orbiter && (body !== 'earth' || id < 0)) {
+        throw new Error(`Спутник ${id} не найден в каталоге выбранного тела`);
+      }
+      const rec = orbiter ? await loadOrbiter(body, id) : await loadByNorad(id);
       if (seq !== loadSeq) return; // пользователь уже выбрал другой спутник
-      const clock = clockOnSelect(get().record?.elements.noradId, rec.elements.noradId, performance.now(), Date.now());
+      const clock = clockForRecord(get().record, rec);
       set({ record: rec, body: rec.elements.body ?? 'earth', orbit: prepareOrbit(rec.elements), loading: false, pendingNorad: null, tuneBase: null, ...clock });
     } catch (e) {
       if (seq !== loadSeq) return;
@@ -256,8 +279,9 @@ export const useAppStore = create<AppState>()(
   },
   setRecord: (rec) => {
     loadSeq++;
-    const clock = clockOnSelect(get().record?.elements.noradId, rec.elements.noradId, performance.now(), Date.now());
-    set({ ...clock, record: rec, body: rec.elements.body ?? 'earth', orbit: prepareOrbit(rec.elements), loading: false, error: null, pendingNorad: null, lastNorad: rec.elements.noradId, tuneBase: null });
+    const clock = clockForRecord(get().record, rec);
+    const body = rec.elements.body ?? 'earth';
+    set({ ...clock, record: rec, body, orbit: prepareOrbit(rec.elements), loading: false, error: null, pendingNorad: null, lastNorad: rec.elements.noradId, lastBody: body, tuneBase: null });
   },
   tuneOrbit: (patch) => {
     const s = get();
@@ -288,11 +312,20 @@ export const useAppStore = create<AppState>()(
     get().setRecord(tuneBase.record);
   },
 
-  setSimTime: (t) => set({ simTime: t, anchorSim: t, anchorReal: performance.now() }),
+  setSimTime: (t) => {
+    const window = selectedWindow(get());
+    const time = window ? Math.min(window.endMs, Math.max(window.startMs, t)) : t;
+    set({ simTime: time, anchorSim: time, anchorReal: performance.now() });
+  },
   tick: (realNow) => {
     const { playing, speed, anchorSim, anchorReal, simTime, flightEnd } = get();
     if (!playing) return;
     const t = anchorSim + (realNow - anchorReal) * speed;
+    const window = selectedWindow(get());
+    if (window && t >= window.endMs) {
+      set({ simTime: window.endMs, anchorSim: window.endMs, anchorReal: realNow, playing: false });
+      return;
+    }
     // Исторический полёт: часы встают на паузу над местом посадки (один раз — дальше можно пустить снова)
     if (flightEnd !== null && simTime < flightEnd && t >= flightEnd) {
       set({ simTime: flightEnd, anchorSim: flightEnd, anchorReal: realNow, playing: false });
@@ -302,7 +335,16 @@ export const useAppStore = create<AppState>()(
   },
   setPlaying: (p) => set((s) => ({ playing: p, anchorSim: s.simTime, anchorReal: performance.now() })),
   setSpeed: (v) => set((s) => ({ speed: v, anchorSim: s.simTime, anchorReal: performance.now() })),
-  resetToNow: () => set({ simTime: Date.now(), anchorSim: Date.now(), anchorReal: performance.now(), speed: 1, playing: true }),
+  resetToNow: () => {
+    const window = selectedWindow(get());
+    if (window) {
+      get().setSimTime(window.startMs);
+      get().setPlaying(false);
+      return;
+    }
+    const now = Date.now();
+    set({ simTime: now, anchorSim: now, anchorReal: performance.now(), speed: 1, playing: true });
+  },
 
   setView: (v) => set({ view: v }),
   setCamera: (c) => set({ camera: c }),
@@ -314,13 +356,18 @@ export const useAppStore = create<AppState>()(
   // В показе выдвижная панель и окна закрыты: на экране только вид
   setPresenting: (on) => set(on ? { presenting: true, sidebarOpen: false, exportOpen: false } : { presenting: false }),
   selectBody: (body) => {
-    if (get().body === body && get().record) return;
-    set({ body });
-    void get().loadNorad(DEFAULT_SATELLITE[body]);
+    if (get().body === body && (get().record || get().loading)) return;
+    const current = get();
+    const prevId = current.record?.elements.noradId;
+    const now = Date.now();
+    const clock = selectedWindow(current) || (prevId !== undefined && historicFlight(prevId))
+      ? { simTime: now, anchorSim: now, anchorReal: performance.now(), speed: 1, playing: true, flightEnd: null }
+      : {};
+    set({ ...clock, body, record: null, orbit: null, ...(body === 'saturn' && { view: '3d' as const, camera: 'free' as const }) });
+    void get().loadNorad(DEFAULT_SATELLITE[body], body);
   },
   stepTime: (deltaMs) => {
-    const t = get().simTime + deltaMs;
-    set({ simTime: t, anchorSim: t, anchorReal: performance.now() });
+    get().setSimTime(get().simTime + deltaMs);
   },
     }),
     {

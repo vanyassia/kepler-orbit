@@ -134,6 +134,11 @@ export const PHOTOS: Record<string, SatellitePhoto> = {
   'venus:-9751': { image: 'venera-9', commons: 'Venera_9_Space_Probe_01.jpg', kind: 'model', caption: 'Макет станции «Венера-9» в музее', author: 'Stolbovsky', license: 'CC BY 4.0' },
   'venus:-9901': { image: 'magellan', commons: 'Magellan_deploy.jpg', kind: 'photo', caption: '«Магеллан» после отделения от шаттла «Атлантис», 1989', author: NASA, license: PD },
   'venus:-9781': { image: 'pioneer-venus', commons: 'Pioneer_Venus_orbiter_(cropped_and_turned).jpg', kind: 'render', caption: '«Пионер-Венера-1» на орбите', author: NASA, license: PD },
+
+  // Сатурн
+  'saturn:602': { image: 'enceladus', commons: 'Enceladus_in_the_Visual.jpg', kind: 'photo', caption: 'Энцелад в видимом свете, 6 ноября 2011 года', author: 'NASA / JPL-Caltech / Space Science Institute', license: PD },
+  'saturn:606': { image: 'titan', commons: 'Titan_in_natural_color_Cassini.jpg', kind: 'photo', caption: 'Титан в естественных цветах, 16 апреля 2005 года', author: 'NASA / JPL / Space Science Institute', license: PD },
+  'saturn:-82': { image: 'cassini', commons: 'PIA21439_-_Cassini_Grand_Finale_Dive_(Illustration).jpg', kind: 'render', caption: '«Кассини» проходит между Сатурном и кольцами. Иллюстрация заключительного этапа миссии', author: 'NASA / JPL-Caltech', license: PD },
 };
 
 /** Снимок аппарата или null, если его нет (свой спутник, не нашлось свободного снимка). */

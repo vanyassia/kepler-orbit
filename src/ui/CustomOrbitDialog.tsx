@@ -3,7 +3,7 @@ import { useEffect, useId, useRef, useState } from 'react';
 import type { CustomSatellite } from '../data/custom';
 import { CUSTOM_DEFAULTS, periodOf, shapeFromHeights, validateCustom, wrapDeg } from '../data/custom';
 import type { BodyId } from '../physics/bodies';
-import { BODIES } from '../physics/bodies';
+import { BODIES, BODY_IDS } from '../physics/bodies';
 import type { OrbitTemplate, RepeatCycle } from '../data/orbitTemplates';
 import { isTemplateName, REPEAT_DEFAULTS, REPEAT_M_MAX, REPEAT_N_MAX, repeatError, repeatTemplate, templatesFor } from '../data/orbitTemplates';
 import { useAppStore } from '../state/store';
@@ -22,8 +22,6 @@ const FIELDS: { key: Exclude<Field, 'name'>; label: string; unit: string }[] = [
   { key: 'argPerigeeDeg', label: 'Аргумент перицентра ω', unit: '°' },
   { key: 'meanAnomalyDeg', label: 'Средняя аномалия M₀', unit: '°' },
 ];
-
-const BODY_ORDER: BodyId[] = ['earth', 'moon', 'mars', 'venus'];
 
 /** Число из поля: допускается десятичная запятая и знак «−». */
 const parse = (s: string) => (s.trim() ? Number(s.trim().replace(',', '.').replace('−', '-')) : NaN); // пустое поле — не ноль
@@ -243,8 +241,8 @@ function CustomOrbitForm({ onClose }: { onClose: () => void }) {
           </button>
         </div>
 
-        <div className={styles.bodies} role="radiogroup" aria-label="Центральное тело" onKeyDown={(e) => rovingKeyDown(e, BODY_ORDER, body, chooseBody)}>
-          {BODY_ORDER.map((id) => (
+        <div className={styles.bodies} role="radiogroup" aria-label="Центральное тело" onKeyDown={(e) => rovingKeyDown(e, BODY_IDS, body, chooseBody)}>
+          {BODY_IDS.map((id) => (
             <button key={id} type="button" role="radio" aria-checked={body === id} tabIndex={rovingTabIndex(body === id)} onClick={() => chooseBody(id)}>
               {BODIES[id].name}
             </button>

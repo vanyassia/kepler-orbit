@@ -6,7 +6,8 @@
 import { SphereGeometry, Vector3 } from 'three';
 import { describe, expect, it } from 'vitest';
 import { geoToGreenwich } from '../../physics/frames';
-import { geoToLocal, toScene } from '../globe3d/coords';
+import { geoToLocal, occludedByEarth, toScene } from '../globe3d/coords';
+import { SATURN_POLAR_RATIO, saturnGlobeGeometry } from '../globe3d/saturn';
 import { toScreen, toWorldLonLat, type View } from '../map2d/renderMap';
 
 const view = (over: Partial<View> = {}): View => ({ s: 3, ox: 10, oy: 20, w: 1100, h: 580, dpr: 2, k: 1, ...over }) as View;
@@ -35,6 +36,21 @@ describe('Карта: равнопромежуточная проекция', ()
 });
 
 describe('Глобус: оси сцены и наложение снимка', () => {
+  it('Сатурн: UV, трасса и скрытие подписей используют один эллипсоид', () => {
+    const geometry = saturnGlobeGeometry();
+    const pos = geometry.getAttribute('position');
+    const uv = geometry.getAttribute('uv');
+    for (const index of [1000, 3200, 9700, 13050, 17800]) {
+      const point = geoToLocal((uv.getY(index) - 0.5) * 180, (uv.getX(index) - 0.5) * 360, 1, new Vector3(), SATURN_POLAR_RATIO);
+      expect(point.distanceTo(new Vector3().fromBufferAttribute(pos, index))).toBeLessThan(1e-6);
+    }
+    expect(geoToLocal(90, 0, 1, new Vector3(), SATURN_POLAR_RATIO).y).toBeCloseTo(SATURN_POLAR_RATIO, 12);
+    const y = (1 + SATURN_POLAR_RATIO) / 2;
+    expect(occludedByEarth(new Vector3(-2, y, 0), new Vector3(2, y, 0), 1, SATURN_POLAR_RATIO)).toBe(false);
+    expect(occludedByEarth(new Vector3(-2, 0, 0), new Vector3(2, 0, 0), 1, SATURN_POLAR_RATIO)).toBe(true);
+    geometry.dispose();
+  });
+
   it('точка (φ, λ) в группе тела — та же, что её координаты ГСК, переставленные в оси сцены', () => {
     for (const [lat, lon] of [[0, 0], [0, 90], [55.756, 37.617], [-33.9, 151.2], [89, -120], [-45, -158]]) {
       const local = geoToLocal(lat, lon);

@@ -48,6 +48,7 @@ import { createNaturalModels, loadMoonSurface, placeNatural } from './naturalMod
 import { createSputnikModel, createVostokModel, SPUTNIK_SPAN, VOSTOK_SPAN } from './historicModels';
 import { createIssModel, ISS_SPAN } from './issModel';
 import { createSatelliteModel, SATELLITE_SPAN } from './satelliteModel';
+import { SATURN_POLAR_RATIO, SATURN_RING_INNER, SATURN_RING_OUTER, saturnGlobeGeometry, saturnRingMaterial } from './saturn';
 
 const TRACK_R = 1.0025;
 /** Угол обзора камеры по вертикали, градусы. */
@@ -66,12 +67,20 @@ const BOARD_FLIGHT_MS = 1400;
  * в кадре были и тело, и вся орбита. Очень вытянутая орбита (Марс-3, e ≈ 0,96) уходит от тела
  * почти в одну сторону: нужен запас, чтобы апоцентр попал в кадр.
  */
-function overviewPosition(orbit: NonNullable<ReturnType<typeof useAppStore.getState>['orbit']>, t: number, out: Vector3): Vector3 {
-  const s = propagate(orbit, t);
-  const satDir = toScene(s.eci, out, orbit.body.radius).normalize();
+function overviewPosition(orbit: NonNullable<ReturnType<typeof useAppStore.getState>['orbit']>, t: number, out: Vector3, aspect: number): Vector3 {
+  const extent = orbit.rApogee / orbit.body.radius;
+  if (orbit.body.id === 'saturn') {
+    // Обзор с освещённой стороны и выше колец. При узком экране учитываем также ширину кадра.
+    axisToScene(orbit.body.sunDirection(t), out);
+    out.y = 0;
+    out.normalize().applyAxisAngle(WORLD_UP, 0.54);
+    out.y = 0.48;
+    const fit = Math.hypot(extent, extent * 2.85 / Math.max(0.15, Math.min(1, aspect)));
+    return out.normalize().multiplyScalar(Math.min(MAX_CAMERA_DISTANCE, Math.max(7.8, fit)));
+  }
   const margin = orbit.e > 0.9 ? 3 : 2.3;
-  const dist = Math.min(MAX_CAMERA_DISTANCE, Math.max(3.4, (orbit.rApogee / orbit.body.radius) * margin + 0.8));
-  return satDir.add(new Vector3(0, 0.35, 0)).normalize().multiplyScalar(dist);
+  const dist = Math.min(MAX_CAMERA_DISTANCE, Math.max(3.4, extent * margin + 0.8));
+  return toScene(propagate(orbit, t).eci, out, orbit.body.radius).normalize().add(new Vector3(0, 0.35, 0)).normalize().multiplyScalar(dist);
 }
 
 /** Позиции подписей (см. LabelLayer): спутник — над точкой, при наложении — в другие углы */
@@ -113,6 +122,7 @@ const LOOK: Record<BodyId, { haze: [number, number, number]; hazeStrength: numbe
   moon: { haze: [0, 0, 0], hazeStrength: 0, dusk: 0, nightAmbient: 0.07, atmo: null },
   mars: { haze: [0.95, 0.62, 0.42], hazeStrength: 0.28, dusk: 0.5, nightAmbient: 0.06, atmo: [0.62, 0.36, 0.22] },
   venus: { haze: [0.98, 0.82, 0.48], hazeStrength: 0.55, dusk: 0.7, nightAmbient: 0.06, atmo: [0.92, 0.72, 0.34] },
+  saturn: { haze: [0.79, 0.67, 0.48], hazeStrength: 0.24, dusk: 0.35, nightAmbient: 0.04, atmo: null },
 };
 
 const _m = new Matrix4();
@@ -197,6 +207,9 @@ export function GlobeScene({ overlay, onReady }: { overlay: React.RefObject<HTML
   const revsForward = useAppStore((s) => s.revsForward);
   const bodyId = useAppStore((s) => s.body);
   const tex = useEarthTextures(quality, gl, bodyId);
+  const polarRatio = bodyId === 'saturn' ? SATURN_POLAR_RATIO : 1;
+  const saturnGeometry = useMemo(() => bodyId === 'saturn' ? saturnGlobeGeometry() : null, [bodyId]);
+  useEffect(() => () => saturnGeometry?.dispose(), [saturnGeometry]);
 
   const earthGroup = useRef<Group>(null!);
   const satGroup = useRef<Group>(null!);
@@ -223,6 +236,7 @@ export function GlobeScene({ overlay, onReady }: { overlay: React.RefObject<HTML
     const sunDir = { value: new Vector3(1, 0, 0) };
     const cloudShift = { value: 0 };
     const cloudsMap = { value: solid(0, 0, 0) };
+    const nightOn = { value: 1 };
     return {
       earth: new ShaderMaterial({
         ...earthShader,
@@ -235,7 +249,7 @@ export function GlobeScene({ overlay, onReady }: { overlay: React.RefObject<HTML
           sunDir,
           cloudShift,
           cloudsOn: { value: 1 },
-          nightOn: { value: 1 },
+          nightOn,
           normalStrength: { value: 0.9 },
           hazeColor: { value: new Vector3(0.42, 0.66, 1.0) },
           hazeStrength: { value: 0.65 },
@@ -244,6 +258,7 @@ export function GlobeScene({ overlay, onReady }: { overlay: React.RefObject<HTML
         },
       }),
       clouds: new ShaderMaterial({ ...cloudsShader, uniforms: { cloudsMap, sunDir, cloudShift }, transparent: true, depthWrite: false }),
+      rings: saturnRingMaterial(sunDir, nightOn),
       atmosphere: new ShaderMaterial({
         ...atmosphereShader,
         uniforms: { sunDir, atmoColor: { value: new Vector3(0.3, 0.58, 1.0) } },
@@ -254,6 +269,7 @@ export function GlobeScene({ overlay, onReady }: { overlay: React.RefObject<HTML
       }),
     };
   }, []);
+  useEffect(() => () => mats.rings.dispose(), [mats]);
 
   const lines = useMemo(
     () => ({
@@ -532,7 +548,7 @@ export function GlobeScene({ overlay, onReady }: { overlay: React.RefObject<HTML
       return;
     }
     // Камера сбоку от спутника, чуть выше плоскости экватора — видны и Земля, и плоскость орбиты
-    const to = overviewPosition(orbit, useAppStore.getState().simTime, new Vector3());
+    const to = overviewPosition(orbit, useAppStore.getState().simTime, new Vector3(), size.width / Math.max(1, size.height));
     if (matchMedia('(prefers-reduced-motion: reduce)').matches) {
       camera.position.copy(to);
       camera.lookAt(0, 0, 0);
@@ -559,7 +575,7 @@ export function GlobeScene({ overlay, onReady }: { overlay: React.RefObject<HTML
     camera.up.set(0, 1, 0).applyQuaternion(camera.quaternion);
     const o = useAppStore.getState().orbit;
     if (!o) return;
-    const to = overviewPosition(o, useAppStore.getState().simTime, new Vector3());
+    const to = overviewPosition(o, useAppStore.getState().simTime, new Vector3(), size.width / Math.max(1, size.height));
     if (matchMedia('(prefers-reduced-motion: reduce)').matches) {
       camera.position.copy(to);
       camera.lookAt(0, 0, 0);
@@ -738,7 +754,7 @@ export function GlobeScene({ overlay, onReady }: { overlay: React.RefObject<HTML
       const span = trackSpan(o, st.revsBack, st.revsForward);
       const w = trackCache.get(orbitSource(o), t, span.back, span.forward)!;
       if (w.revision === shownRevision.current) {
-        geoToLocal(w.current.lat, w.current.lon, TRACK_R, tmp.v);
+        geoToLocal(w.current.lat, w.current.lon, TRACK_R, tmp.v, polarRatio);
         lines.past.moveLast(tmp.v.x, tmp.v.y, tmp.v.z);
         lines.future.moveFirst(tmp.v.x, tmp.v.y, tmp.v.z);
       } else {
@@ -747,7 +763,7 @@ export function GlobeScene({ overlay, onReady }: { overlay: React.RefObject<HTML
         const fill = (pts: TrackWindow['past'], arr: Float32Array, rgb: Float32Array) => {
           const n = Math.min(pts.length, MAX_WINDOW_POINTS);
           for (let k = 0; k < n; k++) {
-            geoToLocal(pts[k].lat, pts[k].lon, TRACK_R, tmp.v);
+            geoToLocal(pts[k].lat, pts[k].lon, TRACK_R, tmp.v, polarRatio);
             arr[k * 3] = tmp.v.x;
             arr[k * 3 + 1] = tmp.v.y;
             arr[k * 3 + 2] = tmp.v.z;
@@ -762,22 +778,22 @@ export function GlobeScene({ overlay, onReady }: { overlay: React.RefObject<HTML
         lines.future.setPoints(buf.future, fill(w.future, buf.future, buf.futureRgb), buf.futureRgb);
         const first = w.past[0];
         const last = w.future[w.future.length - 1];
-        geoToLocal(first.lat, first.lon, TRACK_R, startMarker.current.position);
-        geoToLocal(last.lat, last.lon, TRACK_R, endMarker.current.position);
-        startMarker.current.visible = st.revsBack > 0;
+        geoToLocal(first.lat, first.lon, TRACK_R, startMarker.current.position, polarRatio);
+        geoToLocal(last.lat, last.lon, TRACK_R, endMarker.current.position, polarRatio);
+        startMarker.current.visible = w.past.length > 1;
 
         // Начала следующих витков: точные подспутниковые точки в моменты восходящих узлов
         const windowEnd = t + span.forward * o.T * 1000;
         nodeLocal.current = [];
         for (const n of revs.nodes) {
           if (n <= t || n > windowEnd) continue;
-          const p = orbitSource(o).at(n)!;
-          nodeLocal.current[revs.offsetAt(n)] = geoToLocal(p.lat, p.lon, TRACK_R);
+          const p = orbitSource(o).at(n);
+          if (p) nodeLocal.current[revs.offsetAt(n)] = geoToLocal(p.lat, p.lon, TRACK_R, undefined, polarRatio);
         }
       }
 
       // Подспутниковая точка
-      subMarker.current.position.copy(geoToLocal(w.current.lat, w.current.lon, 1.003, tmp.w));
+      subMarker.current.position.copy(geoToLocal(w.current.lat, w.current.lon, 1.003, tmp.w, polarRatio));
 
       // Подпись спутника (10 раз в секунду)
       const now = performance.now();
@@ -800,7 +816,7 @@ export function GlobeScene({ overlay, onReady }: { overlay: React.RefObject<HTML
     // со спутником, и при ускорении подпись иначе отстаёт от точки на десятки километров
     camera.updateMatrixWorld();
     earthGroup.current.updateMatrixWorld();
-    labelLayer.current?.update(camera, size.width, size.height);
+    labelLayer.current?.update(camera, size.width, size.height, polarRatio);
   });
 
   const places = placesFor(bodyId, record?.elements.noradId);
@@ -823,10 +839,16 @@ export function GlobeScene({ overlay, onReady }: { overlay: React.RefObject<HTML
         <spriteMaterial map={sprites.sun} blending={AdditiveBlending} depthWrite={false} toneMapped={false} />
       </sprite>
 
+      {saturnGeometry && (
+        <mesh material={mats.rings} rotation-x={-Math.PI / 2}>
+          <ringGeometry args={[SATURN_RING_INNER, SATURN_RING_OUTER, 384]} />
+        </mesh>
+      )}
+
       {/* Земля: ГСК, повёрнута на звёздное время S */}
       <group ref={earthGroup}>
         <mesh material={mats.earth}>
-          <sphereGeometry args={[1, 256, 256]} />
+          {saturnGeometry ? <primitive object={saturnGeometry} attach="geometry" /> : <sphereGeometry args={[1, 256, 256]} />}
         </mesh>
         {layers.clouds && bodyId === 'earth' && (
           <mesh material={mats.clouds} renderOrder={2}>
@@ -909,6 +931,8 @@ export function GlobeScene({ overlay, onReady }: { overlay: React.RefObject<HTML
             <primitive object={naturalModels.moon} />
             <primitive object={naturalModels.phobos} />
             <primitive object={naturalModels.deimos} />
+            <primitive object={naturalModels.enceladus} />
+            <primitive object={naturalModels.titan} />
             <sprite ref={satGlow} scale={[0.05, 0.05, 1]}>
               <spriteMaterial map={sprites.sat} blending={AdditiveBlending} depthWrite={false} sizeAttenuation={false} toneMapped={false} />
             </sprite>

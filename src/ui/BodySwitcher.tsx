@@ -1,10 +1,8 @@
-import { BODIES, type BodyId } from '../physics/bodies';
+import { BODIES, BODY_IDS } from '../physics/bodies';
 import { useAppStore } from '../state/store';
 import { BODY_THUMB } from '../views/assets';
 import styles from './BodySwitcher.module.css';
 import { rovingKeyDown, rovingTabIndex } from './roving';
-
-const ORDER: BodyId[] = ['earth', 'moon', 'mars', 'venus'];
 
 /**
  * Выбор центрального тела. Диски — настоящие снимки поверхности (уменьшенные копии текстур глобуса),
@@ -14,8 +12,8 @@ export function BodySwitcher() {
   const body = useAppStore((s) => s.body);
   const selectBody = useAppStore((s) => s.selectBody);
   return (
-    <div className={styles.switcher} role="radiogroup" aria-label="Центральное тело" onKeyDown={(e) => rovingKeyDown(e, ORDER, body, selectBody)}>
-      {ORDER.map((id) => (
+    <div className={styles.switcher} role="radiogroup" aria-label="Центральное тело" onKeyDown={(e) => rovingKeyDown(e, BODY_IDS, body, selectBody)}>
+      {BODY_IDS.map((id) => (
         <button
           key={id}
           type="button"

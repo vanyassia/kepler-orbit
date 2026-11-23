@@ -85,7 +85,7 @@ export function SatelliteSearch() {
   const items: Item[] = [...local, ...remote];
 
   const choose = (item: Item) => {
-    if (item.kind === 'popular') void loadNorad(item.noradId);
+    if (item.kind === 'popular') void loadNorad(item.noradId, body);
     else setRecord(item.record);
     setOpen(false);
     setQuery('');
@@ -135,7 +135,9 @@ export function SatelliteSearch() {
                   ? 'LRO, Danuri…'
                   : body === 'venus'
                     ? 'Venus Express, Акацуки…'
-                    : 'MRO, TGO, Hope…'
+                    : body === 'saturn'
+                      ? 'Энцелад, Титан…'
+                      : 'MRO, TGO, Hope…'
           }
           onChange={(e) => {
             setQuery(e.target.value);

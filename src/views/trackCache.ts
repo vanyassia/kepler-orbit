@@ -3,6 +3,7 @@
  * и пересчитываются, только когда окно отображения выходит за пределы кэша.
  */
 import { historicFlight } from '../data/historicOrbiters';
+import { cassiniWindow } from '../data/orbiters';
 import { ROTATION_PERIOD } from '../physics/bodies';
 import { RAD } from '../physics/constants';
 import type { TrackPoint } from '../physics/groundTrack';
@@ -24,6 +25,7 @@ export interface TrackSource {
   at: (t: number) => TrackPoint | null;
   /** Исторический полёт: раньше старта трассы нет (виток до старта не рисуется). */
   fromMs: number;
+  toMs?: number;
 }
 
 const sources = new WeakMap<object, TrackSource>();
@@ -32,12 +34,15 @@ const sources = new WeakMap<object, TrackSource>();
 export function orbitSource(orbit: PreparedOrbit): TrackSource {
   let s = sources.get(orbit);
   if (!s) {
+    const archive = cassiniWindow(orbit.elements.body, orbit.elements.noradId);
     s = {
       key: orbit,
       periodSec: orbit.T,
       stepSec: trackStepSeconds(orbit),
-      fromMs: historicFlight(orbit.elements.noradId)?.startMs ?? -Infinity,
+      fromMs: archive?.startMs ?? historicFlight(orbit.elements.noradId)?.startMs ?? -Infinity,
+      toMs: archive?.endMs,
       at: (t) => {
+        if (archive && (t < archive.startMs || t > archive.endMs)) return null;
         const p = subPointAt(orbit, t);
         return { timeMs: t, lat: p.lat * RAD, lon: p.lon * RAD, h: p.h };
       },
@@ -149,8 +154,8 @@ export class TrackCache {
 
   get(src: TrackSource, t: number, revsBack: number, revsForward: number): TrackWindow | null {
     const Tms = src.periodSec * 1000;
-    const a = t - revsBack * Tms;
-    const b = t + revsForward * Tms;
+    const a = src.toMs === undefined ? t - revsBack * Tms : src.fromMs;
+    const b = src.toMs ?? t + revsForward * Tms;
     const duration = Math.max(revsBack, revsForward) * Tms;
     if (src.key !== this.key || duration !== this.duration || a < this.from || b > this.to) {
       const stepMs = Math.max(src.stepSec * 1000, duration / (MAX_BASE_POINTS - 2));
@@ -162,10 +167,13 @@ export class TrackCache {
       this.to = b + margin;
       const last = Math.ceil((this.to - this.from) / stepMs);
       const base: (TrackPoint | null)[] = [];
+      if (src.toMs !== undefined) base.push(src.at(src.fromMs));
       for (let i = 0; i <= last; i++) {
         const time = this.from + i * stepMs;
+        if (src.toMs !== undefined && (time <= src.fromMs || time >= src.toMs)) continue;
         base.push(time < src.fromMs ? null : src.at(time));
       }
+      if (src.toMs !== undefined) base.push(src.at(src.toMs));
       // Если точек слишком много, одинаково ослабляем критерий дробления по всему окну.
       // При достаточно большом пороге остаётся только базовая сетка, которая заведомо вмещается.
       let tolerance = 1;

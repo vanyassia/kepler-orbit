@@ -1,6 +1,8 @@
 import { useEffect } from 'react';
 import styles from './App.module.css';
 import { useSimClock } from './hooks/useSimClock';
+import { DEFAULT_SATELLITE, legacyBodyFor } from './data/orbiters';
+import { isBodyId, type BodyId } from './physics/bodies';
 import type { ViewMode } from './state/store';
 import { useAppStore } from './state/store';
 import { PresentationLayer } from './ui/Presentation';
@@ -9,15 +11,17 @@ import { Timeline } from './ui/Timeline';
 import { TopBar } from './ui/TopBar';
 import { Workspace } from './ui/Workspace';
 
-const DEFAULT_NORAD = 25544; // МКС
 const VIEWS: ViewMode[] = ['split', '3d', '2d'];
 
 /** Спутник и вид из адреса страницы (?sat=25544&view=3d; для Луны и Марса — номер NAIF, ?sat=-85) — ссылкой можно поделиться. */
-function readUrl(): { sat: number | null; view: ViewMode | null } {
+function readUrl(): { sat: number; body: BodyId; view: ViewMode } {
   const q = new URLSearchParams(location.search);
   const sat = Number(q.get('sat'));
+  const validSat = Number.isSafeInteger(sat) && sat !== 0;
+  const requestedBody = q.get('body');
+  const body = isBodyId(requestedBody) ? requestedBody : validSat ? legacyBodyFor(sat) : 'earth';
   const view = q.get('view') as ViewMode | null;
-  return { sat: Number.isInteger(sat) && sat !== 0 ? sat : null, view: view && VIEWS.includes(view) ? view : null };
+  return { sat: validSat ? sat : DEFAULT_SATELLITE[body], body, view: view && VIEWS.includes(view) ? view : body === 'saturn' ? '3d' : '2d' };
 }
 
 export function App() {
@@ -29,9 +33,9 @@ export function App() {
 
   // Запуск: спутник и вид из адреса страницы, иначе — МКС на карте
   useEffect(() => {
-    const { sat, view } = readUrl();
-    useAppStore.getState().setView(view ?? '2d');
-    void loadNorad(sat ?? DEFAULT_NORAD);
+    const { sat, body, view } = readUrl();
+    useAppStore.getState().setView(view);
+    void loadNorad(sat, body);
   }, [loadNorad]);
 
   // Оттенок оформления под выбранное тело
@@ -48,9 +52,13 @@ export function App() {
     () =>
       useAppStore.subscribe((s, p) => {
         const id = s.record?.elements.noradId;
-        if (id === p.record?.elements.noradId && s.view === p.view) return;
+        if (id === p.record?.elements.noradId && s.body === p.body && s.view === p.view) return;
         const q = new URLSearchParams(location.search);
-        if (id) q.set('sat', String(id));
+        if (id) {
+          q.set('sat', String(id));
+          if (s.body === 'earth') q.delete('body');
+          else q.set('body', s.body);
+        }
         q.set('view', s.view);
         history.replaceState(null, '', `${location.pathname}?${q}`);
       }),

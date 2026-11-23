@@ -8,7 +8,7 @@
  * Для Луны и Марса углы i, Ω отсчитываются от экватора тела (как у элементов JPL Horizons).
  */
 import type { BodyId } from '../physics/bodies';
-import { BODIES } from '../physics/bodies';
+import { BODIES, isBodyId } from '../physics/bodies';
 import { SECONDS_PER_DAY, TWO_PI } from '../physics/constants';
 import type { OrbitalElements } from '../physics/propagate';
 import type { SatelliteRecord } from './celestrak';
@@ -45,7 +45,7 @@ export function isStoredCustom(x: unknown): x is CustomSatellite {
   const nums = ['id', 'hPeri', 'hApo', 'inclinationDeg', 'raanDeg', 'argPerigeeDeg', 'meanAnomalyDeg', 'epochMs'];
   return (
     typeof c.name === 'string' &&
-    (c.body === 'earth' || c.body === 'moon' || c.body === 'mars' || c.body === 'venus') &&
+    isBodyId(c.body) &&
     nums.every((k) => typeof c[k] === 'number' && Number.isFinite(c[k])) &&
     isCustomId(c.id as number) &&
     (c.repeat === undefined || isRepeat(c.repeat))
@@ -112,4 +112,5 @@ export const CUSTOM_DEFAULTS: Record<BodyId, { hPeri: number; hApo: number; incl
   moon: { hPeri: 100, hApo: 100, inclinationDeg: 90 },
   mars: { hPeri: 300, hApo: 300, inclinationDeg: 93 },
   venus: { hPeri: 300, hApo: 300, inclinationDeg: 90 },
+  saturn: { hPeri: 100_000, hApo: 100_000, inclinationDeg: 90 },
 };

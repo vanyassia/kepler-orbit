@@ -12,6 +12,7 @@
  *   json  — для программ: описание, единицы и массив строк.
  */
 import { RAD } from '../physics/constants';
+import { cassiniWindow } from './orbiters';
 import type { PreparedOrbit, SatelliteState } from '../physics/propagate';
 import { propagate } from '../physics/propagate';
 
@@ -124,13 +125,16 @@ export interface Table {
 
 export function buildTrackTable(orbit: PreparedOrbit, opt: TrackExportOptions): Table {
   const columns = [...BASE_COLUMNS, ...(['motion', 'anomalies', 'eci', 'ecef'] as const).filter((g) => opt.groups.includes(g)).flatMap((g) => GROUP_COLUMNS[g])];
-  const times = exportTimes(opt.fromMs, opt.toMs, opt.stepSec);
+  const historical = cassiniWindow(orbit.elements.body, orbit.elements.noradId);
+  const times = exportTimes(Math.max(opt.fromMs, historical?.startMs ?? -Infinity), Math.min(opt.toMs, historical?.endMs ?? Infinity), opt.stepSec);
   const rows = times.map((t) => {
     const s = propagate(orbit, t);
     return columns.map((c) => c.value(s));
   });
   return {
-    titles: ['Время UTC', ...(opt.msk ? ['Время МСК (UTC+3)'] : []), ...columns.map((c) => c.title)],
+    titles: ['Время UTC', ...(opt.msk ? ['Время МСК (UTC+3)'] : []), ...columns.map((c) =>
+      orbit.body.id === 'saturn' && c.key === 'h_km' ? 'Высота h от экваториального радиуса 60 268 км (км)' : c.title,
+    )],
     keys: ['time_utc', ...(opt.msk ? ['time_msk'] : []), ...columns.map((c) => c.key)],
     units: ['', ...(opt.msk ? [''] : []), ...columns.map((c) => c.unit)],
     times,
@@ -243,7 +247,7 @@ export function elementsRows(orbit: PreparedOrbit, meta: ExportMeta, tle?: [stri
     ['Аргумент перицентра ω', el.argPerigeeDeg, '°', 4],
     ['Средняя аномалия M₀', el.meanAnomalyDeg, '°', 4],
     ['Гравитационный параметр μ', orbit.body.mu, 'км³/с²', 3],
-    ['Радиус тела R', orbit.body.radius, 'км', 3],
+    [orbit.body.id === 'saturn' ? 'Экваториальный радиус R (отсчёт высоты)' : 'Радиус тела R', orbit.body.radius, 'км', 3],
     ['Период T', orbit.T, 'с', 3],
     ['Большая полуось a', orbit.a, 'км', 3],
     ['Фокальный параметр p', orbit.p, 'км', 3],
@@ -274,6 +278,7 @@ export function elementsToText(orbit: PreparedOrbit, format: ExportFormat, meta:
         mean_anomaly_deg: el.meanAnomalyDeg,
         mu_km3_s2: orbit.body.mu,
         body_radius_km: orbit.body.radius,
+        ...(orbit.body.id === 'saturn' && { body_radius_reference: 'Экваториальный радиус' }),
         period_s: orbit.T,
         semi_major_axis_km: orbit.a,
         focal_parameter_km: orbit.p,

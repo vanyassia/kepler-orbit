@@ -1,12 +1,12 @@
 /**
- * Центральные тела: Земля, Луна, Марс, Венера — формулы (18)–(20), docs/formulas.md.
+ * Центральные тела: Земля, Луна, Марс, Венера, Сатурн — формулы (18)–(20), docs/formulas.md.
  *
  * Для каждого тела модель одна и та же — задача двух тел с его гравитационным параметром μ.
  * Различаются:
- *  - инерциальная система: для Земли — АГЭСК (ось x на ♈); для Луны, Марса и Венеры — система
+ *  - инерциальная система: для Земли — АГЭСК (ось x на ♈); для остальных тел — система
  *    «экватор тела и узел» (IAU): ось z — северный полюс тела, ось x — восходящий узел
  *    экватора тела на экваторе ICRF (в этой системе выдаёт элементы JPL Horizons);
- *  - угол поворота тела: для Земли — звёздное время S, для Луны, Марса и Венеры — угол W
+ *  - угол поворота тела: для Земли — звёздное время S, для остальных — угол W
  *    нулевого меридиана, отсчитываемый от того же узла (рекомендации IAU 2009, PCK00010);
  *    у Венеры вращение обратное (Ẇ < 0);
  *  - направление на Солнце (только для освещения).
@@ -19,7 +19,7 @@ import { sunDirectionInertial } from './sun';
 import { greenwichToInertial, inertialToGreenwich } from './frames';
 import { greenwichSiderealTime, julianDate } from './time';
 
-export type BodyId = 'earth' | 'moon' | 'mars' | 'venus';
+export type BodyId = 'earth' | 'moon' | 'mars' | 'venus' | 'saturn';
 
 export interface CentralBody {
   id: BodyId;
@@ -28,7 +28,7 @@ export interface CentralBody {
   nameLocative: string;
   /** Гравитационный параметр μ, км³/с². */
   mu: number;
-  /** Средний радиус шара, км. */
+  /** Опорный радиус для расчёта высоты, км. У Сатурна — экваториальный. */
   radius: number;
   /** Угол поворота тела (S для Земли, W для Луны и Марса), рад. */
   rotationAngle: (timeMs: number) => number;
@@ -289,7 +289,53 @@ export const VENUS: CentralBody = {
   rotationSymbol: 'W',
 };
 
-export const BODIES: Record<BodyId, CentralBody> = { earth: EARTH, moon: MOON, mars: MARS, venus: VENUS };
+const SATURN_ROTATION = 810.7939024;
+
+/** Ориентация IAU System III по NAIF PCK00011. */
+export function saturnOrientation(t: number) {
+  const d = days(t);
+  const T = d / 36525;
+  return {
+    alpha0: (40.589 - 0.036 * T) * DEG,
+    delta0: (83.537 - 0.004 * T) * DEG,
+    W: wrap2Pi((38.9 + SATURN_ROTATION * d) * DEG),
+  };
+}
+
+/** Гелиоцентрическое положение Сатурна, таблица JPL на 1800–2050 гг. */
+const saturnHeliocentric = (t: number) => planetHeliocentric(t, {
+  a: [9.53667594, -0.00125060],
+  e: [0.05386179, -0.00050991],
+  I: [2.48599187, 0.00193609],
+  L: [49.95424423, 1222.49362201],
+  varpi: [92.59887831, -0.41897216],
+  Om: [113.66242448, -0.28867794],
+});
+
+export const SATURN: CentralBody = {
+  id: 'saturn',
+  name: 'Сатурн',
+  nameLocative: 'на Сатурне',
+  mu: 37931206.23,
+  radius: 60268,
+  rotationAngle: (t) => saturnOrientation(t).W,
+  turn: (t0, t) => SATURN_ROTATION * DEG * ((t - t0) / 86_400_000),
+  toFixed: (v, t) => inertialToGreenwich(v, saturnOrientation(t).W),
+  toInertial: (v, t) => greenwichToInertial(v, saturnOrientation(t).W),
+  sunDirection: (t) => {
+    const { alpha0, delta0 } = saturnOrientation(t);
+    const r = saturnHeliocentric(t);
+    return icrfToBodyEquator(normalize({ x: -r.x, y: -r.y, z: -r.z }), alpha0, delta0);
+  },
+  rotationSymbol: 'W',
+};
+
+export const BODIES: Record<BodyId, CentralBody> = { earth: EARTH, moon: MOON, mars: MARS, venus: VENUS, saturn: SATURN };
+export const BODY_IDS = Object.keys(BODIES) as BodyId[];
+
+export function isBodyId(value: unknown): value is BodyId {
+  return typeof value === 'string' && Object.hasOwn(BODIES, value);
+}
 
 /** Звёздные сутки тела (период вращения), с — для справки в интерфейсе. */
 export const ROTATION_PERIOD: Record<BodyId, number> = {
@@ -297,5 +343,6 @@ export const ROTATION_PERIOD: Record<BodyId, number> = {
   moon: (360 / 13.17635815) * 86400,
   mars: (360 / 350.89198226) * 86400,
   venus: (360 / 1.4813688) * 86400,
+  saturn: (360 / SATURN_ROTATION) * 86400,
 };
 

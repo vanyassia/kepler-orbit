@@ -206,6 +206,28 @@ export const ORBIT_TEMPLATES: OrbitTemplate[] = [
     ...zeroAngles,
     note: 'Обратная вытянутая орбита (i = 161°), как у «Акацуки»: аппарат летит с востока на запад — в ту же сторону, куда вращается Венера и дуют ветры в её облаках.',
   },
+  {
+    id: 'saturn-polar',
+    label: 'Полярная',
+    satName: 'Полярная орбита Сатурна',
+    body: 'saturn',
+    hPeri: 100_000,
+    hApo: 100_000,
+    inclinationDeg: 90,
+    ...zeroAngles,
+    note: 'Круговая орбита над полюсами. Она пересекает плоскость экватора за пределами главных колец.',
+  },
+  {
+    id: 'saturn-inner',
+    label: 'Внутри колец',
+    satName: 'Внутренняя орбита Сатурна',
+    body: 'saturn',
+    hPeri: 3000,
+    hApo: 3000,
+    inclinationDeg: 60,
+    ...zeroAngles,
+    note: 'Круговая наклонная орбита между облачным слоем и кольцом D.',
+  },
 ];
 
 export const templatesFor = (body: BodyId) => ORBIT_TEMPLATES.filter((t) => t.body === body);
@@ -227,6 +249,7 @@ export const REPEAT_DEFAULTS: Record<BodyId, RepeatCycle & { inclinationDeg: num
   moon: { n: 7, m: 1, inclinationDeg: 60 },
   mars: { n: 5, m: 1, inclinationDeg: 60 },
   venus: { n: 15, m: 1, inclinationDeg: 60 },
+  saturn: { n: 3, m: 5, inclinationDeg: 60 },
 };
 
 /** Период повторяющейся орбиты, с: T = m·T_сут / n. */
@@ -272,6 +295,7 @@ const DAY_NAME: Record<BodyId, string> = {
   earth: 'звёздные сутки Земли — 23 ч 56 мин',
   moon: 'звёздные сутки Луны — 27,3 земных суток',
   mars: 'звёздные сутки Марса — 24 ч 37 мин',
+  saturn: 'звёздные сутки Сатурна по системе III — около 10 ч 39 мин',
   venus: 'звёздные сутки Венеры — 243 земных суток; из-за медленного вращения такие орбиты только высокие',
 };
 

@@ -1,6 +1,7 @@
 import { Pause, Play, RotateCcw } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
 import { useThrottledSimTime, useWallClock } from '../hooks/useSimClock';
+import { cassiniWindow } from '../data/orbiters';
 import { ascendingNodeTimes } from '../physics/propagate';
 import { SPEEDS, useAppStore } from '../state/store';
 import styles from './Timeline.module.css';
@@ -23,8 +24,9 @@ export function Timeline() {
   useEffect(() => {
     if (Math.abs(t - center) > HALF_WINDOW_MS) setCenter(t);
   }, [t, center]);
-  const start = center - HALF_WINDOW_MS;
-  const span = 2 * HALF_WINDOW_MS;
+  const historical = cassiniWindow(orbit?.elements.body, orbit?.elements.noradId);
+  const start = historical?.startMs ?? center - HALF_WINDOW_MS;
+  const span = historical ? historical.endMs - historical.startMs : 2 * HALF_WINDOW_MS;
 
   const nodes = useMemo(() => (orbit ? ascendingNodeTimes(orbit, start, start + span) : []), [orbit, start, span]);
   // При очень коротком периоде засечек слишком много — прореживаем
@@ -115,7 +117,7 @@ export function Timeline() {
         <div className={styles.time}>{fmtDateTime(t, 'MSK')}</div>
         <div className={styles.sub}>
           МСК, <span className="num">UTC {fmtTime(t)}</span>
-          {!live && Math.abs(offsetH) >= 0.01 && (
+          {!historical && !live && Math.abs(offsetH) >= 0.01 && (
             <span className={styles.offset}>
               {' '}
               {offsetH > 0 ? '+' : '−'}
@@ -130,13 +132,13 @@ export function Timeline() {
         className={styles.nowBtn}
         onClick={resetToNow}
         data-live={live || undefined}
-        aria-label={live ? 'В реальном времени' : 'Вернуться к текущему времени'}
+        aria-label={historical ? 'Вернуться к началу витка' : live ? 'В реальном времени' : 'Вернуться к текущему времени'}
       >
         <RotateCcw size={15} aria-hidden="true" />
         {/* Обе надписи занимают место всегда: ширина кнопки не меняется, и ползунок не растягивается при нажатии */}
         <span className={styles.nowLabel}>
           <span hidden={!live || undefined}>В реальном времени</span>
-          <span hidden={live || undefined}>Сейчас</span>
+          <span hidden={live || undefined}>{historical ? 'К началу витка' : 'Сейчас'}</span>
         </span>
       </button>
       <KeyboardShortcuts />

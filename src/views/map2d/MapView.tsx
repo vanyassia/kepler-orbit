@@ -6,7 +6,7 @@ import { zoom, zoomIdentity } from 'd3-zoom';
 import { useEffect, useRef, useState } from 'react';
 import { cityShown, type City } from '../../data/cities';
 import { placesFor } from '../../data/landmarks';
-import { naturalSatellite, ownLook } from '../../data/orbiters';
+import { cassiniWindow, naturalSatellite, ownLook } from '../../data/orbiters';
 import { REGIONS } from '../../data/regions';
 import { BODIES } from '../../physics/bodies';
 import { greenwichToGeo } from '../../physics/frames';
@@ -404,14 +404,18 @@ export default function MapView() {
 
       const o = st.orbit;
       const span = o ? trackSpan(o, st.revsBack, st.revsForward) : null;
-      const track = o && span ? trackCache.get(orbitSource(o), st.simTime, span.back, span.forward) : null;
+      const src = o ? orbitSource(o) : null;
+      const track = src && span ? trackCache.get(src, st.simTime, span.back, span.forward) : null;
       // Витки: границы — восходящие узлы. Начало каждого витка на показанной трассе отмечается точкой:
       // у прошедших — тихой, у следующих — с подписью. Считаются заново, когда окно трассы сдвинулось на шаг сетки
-      if (o && span && track && track.revision !== revsRevision) {
+      if (o && src && span && track && track.revision !== revsRevision) {
         revsRevision = track.revision;
         const r = new Revolutions(o, st.simTime, span.back, span.forward);
         revs = r;
-        nodePoints = nodesInWindow(r, st.simTime, span.back, span.forward, o.T).map(({ time, offset }) => ({ offset, point: orbitSource(o).at(time)! }));
+        nodePoints = nodesInWindow(r, st.simTime, span.back, span.forward, o.T).flatMap(({ time, offset }) => {
+          const point = src.at(time);
+          return point ? [{ offset, point }] : [];
+        });
       }
       // Точка пролётов — только если пользователь поставил её щелчком по карте
       const target = passTargetOf(st, st.body);
@@ -438,7 +442,9 @@ export default function MapView() {
         lightsLayer: earth && nightSource ? lights : null,
         subsolar: sub,
         track,
-        trackSpanSec: o && span ? { back: span.back * o.T, forward: span.forward * o.T } : null,
+        trackSpanSec: src?.toMs !== undefined
+          ? { back: (st.simTime - src.fromMs) / 1000, forward: (src.toMs - st.simTime) / 1000 }
+          : o && span ? { back: span.back * o.T, forward: span.forward * o.T } : null,
         satLabel: track ? `${title}, ${fmt(track.current.h, 0)} км` : '',
         satNatural: st.record ? naturalSatellite(st.record.elements) : null,
         satLook: st.record ? ownLook(st.record.elements) : null,
@@ -571,8 +577,8 @@ export default function MapView() {
       />
       <PassChip />
       <div className={styles.toolbar} data-chrome="">
-        <LayersMenu keys={body === 'earth' ? ['imagery', 'night', 'borders', 'grid', 'cities'] : ['regions', 'imagery', 'night', 'grid', 'cities']}>
-          <RevsControl />
+        <LayersMenu keys={body === 'earth' ? ['imagery', 'night', 'borders', 'grid', 'cities'] : body === 'saturn' ? ['imagery', 'night', 'grid'] : ['regions', 'imagery', 'night', 'grid', 'cities']}>
+          <MapRevsControl />
         </LayersMenu>
         <div className={styles.zoom}>
           <button type="button" className={styles.zoomStep} onClick={() => zoomBy(1.6)} aria-label="Приблизить" title="Приблизить">
@@ -596,6 +602,11 @@ export default function MapView() {
       </div>
     </div>
   );
+}
+
+function MapRevsControl() {
+  const historical = useAppStore((s) => cassiniWindow(s.record?.elements.body, s.record?.elements.noradId));
+  return historical ? null : <RevsControl />;
 }
 
 /** Условные обозначения: цвета витков (сколько показано вперёд), прочие значки. */

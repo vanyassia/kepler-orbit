@@ -65,6 +65,26 @@
   background-position: 72% 50%;
 }
 
+.item[data-body='saturn'] .disc {
+  width: 22px;
+  height: 20px;
+  margin-inline: 1px;
+  background-position: 50% 50%;
+}
+
+.item[data-body='saturn'] .disc::after {
+  position: absolute;
+  inset: 5px -5px;
+  border: 1.5px solid #d7b68a;
+  border-radius: 50%;
+  content: '';
+  transform: rotate(-24deg);
+}
+
+.item[data-body='saturn'] .ring {
+  display: none;
+}
+
 /* Кольцо орбиты — только у выбранного тела */
 .ring {
   position: absolute;
@@ -90,5 +110,11 @@
   }
   .item {
     padding: 0 6px;
+  }
+}
+
+@media (max-width: 380px) {
+  .item {
+    padding-inline: 4px;
   }
 }

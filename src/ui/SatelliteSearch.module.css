@@ -215,6 +215,12 @@
   .field input {
     font-size: 16px;
   }
+  .field {
+    padding-inline: var(--sp-2);
+  }
+  .field > svg {
+    flex: none;
+  }
   .kbd {
     display: none;
   }

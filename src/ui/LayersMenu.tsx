@@ -65,7 +65,7 @@ export function LayersMenu({ keys, children }: { keys: (keyof Layers)[]; childre
             <label key={k} className={styles.item}>
               <input type="checkbox" checked={layers[k]} onChange={() => toggle(k)} />
               <span className={styles.box} aria-hidden="true" />
-              {k === 'cities' ? PLACES_LABEL[body] : LABELS[k]}
+              {k === 'cities' ? PLACES_LABEL[body] : k === 'imagery' && body === 'saturn' ? 'Снимок облачного слоя' : LABELS[k]}
             </label>
           ))}
           {children && <div className={styles.extra}>{children}</div>}

@@ -23,6 +23,8 @@ export const NATURAL_SHAPES: Record<NaturalSatellite, Shape> = {
   // Фобос 26 × 22,8 × 18,2 км, Деймос 15 × 12,2 × 10,4 км (NASA); Деймос меньше и на экране
   phobos: { radii: [13, 9.1, 11.4], minPx: 13 },
   deimos: { radii: [7.5, 5.2, 6.1], minPx: 10 },
+  enceladus: { radii: [252.1, 252.1, 252.1], minPx: 10 },
+  titan: { radii: [2574.76, 2574.76, 2574.76], minPx: 15 },
 };
 
 /** Кратеры: широта и долгота (от оси на планету к переднему по ходу краю, как западная), угловой радиус (°) и глубина. */
@@ -75,17 +77,16 @@ function lumpyGeometry(kind: 'phobos' | 'deimos'): SphereGeometry {
 }
 
 function createMesh(kind: NaturalSatellite): Mesh {
-  const mesh =
-    kind === 'moon'
-      ? new Mesh(new SphereGeometry(1, 48, 24), new MeshStandardMaterial({ color: '#d8d4cc', roughness: 1, metalness: 0 }))
-      : // Тёмный реголит: у Фобоса альбедо около 0,07, Деймос чуть светлее
-        new Mesh(lumpyGeometry(kind), new MeshStandardMaterial({ color: kind === 'phobos' ? '#8a7f74' : '#9a8f83', roughness: 1, metalness: 0 }));
+  const smallMarsMoon = kind === 'phobos' || kind === 'deimos';
+  const colors: Record<NaturalSatellite, string> = { moon: '#d8d4cc', phobos: '#8a7f74', deimos: '#9a8f83', enceladus: '#e1eef3', titan: '#d9a05c' };
+  const geometry = smallMarsMoon ? lumpyGeometry(kind) : new SphereGeometry(1, 48, 24);
+  const mesh = new Mesh(geometry, new MeshStandardMaterial({ color: colors[kind], roughness: 1, metalness: 0 }));
   mesh.visible = false;
   return mesh;
 }
 
 export function createNaturalModels(): Record<NaturalSatellite, Mesh> {
-  return { moon: createMesh('moon'), phobos: createMesh('phobos'), deimos: createMesh('deimos') };
+  return { moon: createMesh('moon'), phobos: createMesh('phobos'), deimos: createMesh('deimos'), enceladus: createMesh('enceladus'), titan: createMesh('titan') };
 }
 
 /** Снимок поверхности Луны грузится, только когда её впервые выбрали. */

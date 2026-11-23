@@ -36,6 +36,7 @@ const sources = {
   'sss_stars.jpg': 'https://www.solarsystemscope.com/textures/download/8k_stars_milky_way.jpg',
   'sss_moon.jpg': 'https://www.solarsystemscope.com/textures/download/8k_moon.jpg',
   'sss_mars.jpg': 'https://www.solarsystemscope.com/textures/download/8k_mars.jpg',
+  'sss_saturn.jpg': 'https://www.solarsystemscope.com/textures/download/8k_saturn.jpg',
   'sss_venus.jpg': 'https://www.solarsystemscope.com/textures/download/8k_venus_surface.jpg',
 };
 
@@ -54,6 +55,8 @@ const WEBP = {
   'mars_2k.jpg': 90,
   'venus_8k.jpg': 80,
   'venus_2k.jpg': 88,
+  'saturn_4k.jpg': 86,
+  'saturn_2k.jpg': 88,
 };
 
 /** Значки тел в переключателе. */
@@ -62,6 +65,7 @@ const THUMBS = {
   'moon_2k.jpg': 'thumb_moon.webp',
   'mars_2k.jpg': 'thumb_mars.webp',
   'venus_2k.jpg': 'thumb_venus.webp',
+  'saturn_2k.jpg': 'thumb_saturn.webp',
 };
 
 /**
@@ -87,6 +91,8 @@ const outputs = [
   ['sss_mars.jpg', 'mars_2k.jpg', 2048, 82],
   ['sss_venus.jpg', 'venus_8k.jpg', 8192, 84],
   ['sss_venus.jpg', 'venus_2k.jpg', 2048, 82],
+  ['sss_saturn.jpg', 'saturn_4k.jpg', 4096, 96],
+  ['sss_saturn.jpg', 'saturn_2k.jpg', 2048, 96],
 ];
 
 mkdirSync(SRC, { recursive: true });

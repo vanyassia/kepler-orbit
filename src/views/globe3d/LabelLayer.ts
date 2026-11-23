@@ -118,7 +118,7 @@ export class LabelLayer {
     }
   }
 
-  update(camera: Camera, width: number, height: number): void {
+  update(camera: Camera, width: number, height: number, polarRatio = 1): void {
     // Сначала все чтения размеров (одна перекомпоновка), потом только запись стилей
     for (const it of this.order) {
       if (it.dirty) {
@@ -139,7 +139,7 @@ export class LabelLayer {
       }
       this.ndc.copy(this.p).project(camera);
       const behind = this.ndc.z > 1 || this.ndc.z < -1;
-      let hidden = behind || occludedByEarth(this.p, camera.position, 0.996);
+      let hidden = behind || occludedByEarth(this.p, camera.position, 0.996, polarRatio);
       if (!hidden && s.minFacing !== undefined) {
         const facing = this.toCam.subVectors(camera.position, this.p).normalize().dot(this.p) / this.p.length();
         hidden = facing < s.minFacing;
@@ -172,8 +172,8 @@ export class LabelLayer {
 
       it.last = chosen;
       const [fx, fy, px, py] = offsets[chosen];
-      const l = x + fx * it.w + px;
-      const t = y + fy * it.h + py;
+      const l = Math.max(0, Math.min(width - it.w, x + fx * it.w + px));
+      const t = Math.max(0, Math.min(height - it.h, y + fy * it.h + py));
       placed.push(l - GAP, t - GAP, l + it.w + GAP, t + it.h + GAP);
       if (it.hidden) {
         el.dataset.hidden = 'false';

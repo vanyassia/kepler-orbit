@@ -135,7 +135,7 @@ function ViewFailed({ title, hint, showMap = false }: { title: string; hint: str
 function EmptyState({ error }: { error: string | null }) {
   const retry = () => {
     const s = useAppStore.getState();
-    void s.loadNorad(s.lastNorad ?? 25544);
+    void s.loadNorad(s.lastNorad ?? DEFAULT_SATELLITE[s.body], s.lastBody);
   };
   // Номера нет в каталоге (опечатка в ссылке) — повтор не поможет, нужен выход к спутнику по умолчанию
   const body = useAppStore((s) => s.body);
@@ -157,7 +157,7 @@ function EmptyState({ error }: { error: string | null }) {
                 <RotateCw size={15} aria-hidden="true" /> Повторить запрос
               </button>
               {failedId !== fallbackId && (
-                <button type="button" className={styles.retry} onClick={() => void useAppStore.getState().loadNorad(fallbackId)}>
+                <button type="button" className={styles.retry} onClick={() => void useAppStore.getState().loadNorad(fallbackId, body)}>
                   <Satellite size={15} aria-hidden="true" /> {body === 'earth' ? 'Открыть МКС' : 'Открыть спутник по умолчанию'}
                 </button>
               )}

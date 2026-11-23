@@ -23,6 +23,8 @@ export const TEXTURES = {
   mars2k: `${base}textures/mars_2k.webp`,
   mars8k: `${base}textures/mars_8k.jpg`, // зернистый снимок: в WebP того же качества почти не становится легче
   venus2k: `${base}textures/venus_2k.webp`,
+  saturn2k: `${base}textures/saturn_2k.webp`,
+  saturn4k: `${base}textures/saturn_4k.webp`,
   venus8k: `${base}textures/venus_8k.webp`,
 } as const;
 
@@ -32,6 +34,7 @@ export const BODY_THUMB: Record<BodyId, string> = {
   moon: `${base}textures/thumb_moon.webp`,
   mars: `${base}textures/thumb_mars.webp`,
   venus: `${base}textures/thumb_venus.webp`,
+  saturn: `${base}textures/thumb_saturn.webp`,
 };
 
 /**
@@ -45,12 +48,13 @@ export const LIGHT_DEVICE =
 
 /** Снимок поверхности тела: сначала лёгкий, затем подробный (в лёгком режиме — только лёгкий). */
 export const SURFACE: Record<BodyId, readonly string[]> = LIGHT_DEVICE
-  ? { earth: [TEXTURES.day2k], moon: [TEXTURES.moon2k], mars: [TEXTURES.mars2k], venus: [TEXTURES.venus2k] }
+  ? { earth: [TEXTURES.day2k], moon: [TEXTURES.moon2k], mars: [TEXTURES.mars2k], venus: [TEXTURES.venus2k], saturn: [TEXTURES.saturn2k] }
   : {
       earth: [TEXTURES.day2k, TEXTURES.day8k],
       moon: [TEXTURES.moon2k, TEXTURES.moon6k],
       mars: [TEXTURES.mars2k, TEXTURES.mars8k],
       venus: [TEXTURES.venus2k, TEXTURES.venus8k],
+      saturn: [TEXTURES.saturn2k, TEXTURES.saturn4k],
     };
 
 /** Ночные огни Земли. */
@@ -62,6 +66,7 @@ export const SURFACE_CREDIT: Record<BodyId, string> = {
   moon: 'Solar System Scope (CC BY 4.0) по данным NASA LRO',
   mars: 'Solar System Scope (CC BY 4.0) по данным NASA',
   venus: 'Solar System Scope (CC BY 4.0) по данным NASA Magellan',
+  saturn: 'Облачный слой: Solar System Scope (CC BY 4.0)',
 };
 
 const cache = new Map<string, Promise<HTMLImageElement>>();

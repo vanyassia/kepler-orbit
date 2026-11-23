@@ -4,6 +4,7 @@
  */
 import { useEffect, useMemo, useState } from 'react';
 import { useThrottledSimTime } from '../hooks/useSimClock';
+import { cassiniWindow } from '../data/orbiters';
 import type { Pass, PassSearch } from '../physics/passes';
 import { findPasses } from '../physics/passes';
 import type { PreparedOrbit } from '../physics/propagate';
@@ -45,10 +46,13 @@ export function usePassSearch(): PassSearchState | null {
   }, [t, anchor, days]);
 
   // Начинаем на 15 минут раньше: пролёт, который идёт прямо сейчас, остаётся в списке
-  const result = useMemo(
-    () => (orbit && target ? findPasses(orbit, target, anchor - 15 * 60_000, anchor + days * DAY_MS, { maxDistanceKm: radius }) : null),
-    [orbit, target, anchor, days, radius],
-  );
+  const result = useMemo(() => {
+    if (!orbit || !target) return null;
+    const historical = cassiniWindow(orbit.elements.body, orbit.elements.noradId);
+    const from = Math.max(historical?.startMs ?? -Infinity, anchor - 15 * 60_000);
+    const to = Math.min(historical?.endMs ?? Infinity, anchor + days * DAY_MS);
+    return findPasses(orbit, target, from, to, { maxDistanceKm: radius });
+  }, [orbit, target, anchor, days, radius]);
 
   if (!orbit || !target || !result) return null;
   // «Сейчас» — пока спутник в пределах шестидесятой доли витка от момента сближения (у МКС ≈ 1,5 мин)

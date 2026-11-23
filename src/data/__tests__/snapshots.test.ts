@@ -65,7 +65,7 @@ describe('Снимок JPL Horizons (orbiters.json)', () => {
   });
 
   it.each(fromHorizons.map((o) => [o.title, o.naifId, o.body] as const))('%s (NAIF %i) есть в снимке', (_title, id, body) => {
-    const it = orbiters.items.find((x) => x.naifId === id);
+    const it = orbiters.items.find((x) => x.body === body && x.naifId === id);
     expect(it, `аппарата ${id} нет в снимке`).toBeDefined();
     expect(it!.body).toBe(body);
     expect(Number.isFinite(Date.parse(it!.epoch))).toBe(true);
@@ -76,7 +76,10 @@ describe('Снимок JPL Horizons (orbiters.json)', () => {
   it('единицы: среднее движение в °/с согласовано с большой полуосью в км (третий закон Кеплера)', () => {
     // μ, которое Horizons подставляет сам: n²a³ = μ. Для Луны и Марса оно совпадает с μ модели,
     // для Луны вокруг Земли Horizons берёт сумму масс Земли и Луны (403 503 км³/с²).
-    const expected: Record<string, [number, number]> = { moon: [4902.7, 4902.9], mars: [42828, 42829], venus: [324858, 324859], earth: [398600, 403600] };
+    const expected: Record<string, [number, number]> = {
+      moon: [4902.7, 4902.9], mars: [42828, 42829], venus: [324858, 324859], earth: [398600, 403600],
+      saturn: [37_931_206, 37_940_185], // У Титана Horizons включает μ спутника
+    };
     for (const it of orbiters.items) {
       const n = (it.meanMotionDegPerSec * Math.PI) / 180;
       const mu = n * n * it.semiMajorAxisKm ** 3;

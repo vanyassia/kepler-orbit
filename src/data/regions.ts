@@ -336,7 +336,7 @@ const RU: Record<string, string> = {
 
 const items = (data as { items: Omit<Region, 'title'>[] }).items;
 
-export const REGIONS: Record<BodyId, Region[]> = { earth: [], moon: [], mars: [], venus: [] };
+export const REGIONS: Record<BodyId, Region[]> = { earth: [], moon: [], mars: [], venus: [], saturn: [] };
 for (const r of items) REGIONS[r.body].push({ ...r, title: RU[r.name] ?? r.name });
 
 /** Цвета видов регионов: тёмные равнины — холодный, нагорья — тёплый, горы и кратеры — нейтральный. */
