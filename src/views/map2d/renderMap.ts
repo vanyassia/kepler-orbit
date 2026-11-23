@@ -82,7 +82,7 @@ export interface MapScene {
   satLabel: string;
   /** Естественный спутник: вместо значка аппарата — его тело. */
   satNatural: NaturalSatellite | null;
-  /** Свой значок аппарата: МКС (drawIss), Восток (drawVostok), Спутник-1 (drawSputnik); null — общий значок. */
+  /** Свой значок аппарата (МКС, «Восток», Спутник-1, «Кассини»); null — общий значок. */
   satLook: OwnLook | null;
   /** Витки нашей модели: цвет трассы и подписи начала витков. */
   revs: Revolutions | null;
@@ -902,6 +902,79 @@ export function drawSputnik(ctx: CanvasRenderingContext2D, x: number, y: number,
   ctx.restore();
 }
 
+/** «Кассини» сбоку: широкая тарелка впереди, приборный отсек и штанга магнитометра. */
+function drawCassini(ctx: CanvasRenderingContext2D, x: number, y: number, heading: number) {
+  ctx.save();
+  halo(ctx, x, y, 23);
+  ctx.translate(x, y);
+  ctx.rotate(heading);
+
+  // Штанга и штыревые антенны за корпусом; тёмный контур держит их на светлой карте.
+  ctx.beginPath();
+  ctx.moveTo(-1, 4);
+  ctx.lineTo(-6.5, 16);
+  ctx.moveTo(0, -4);
+  ctx.lineTo(7.5, -14);
+  ctx.moveTo(3.5, 4);
+  ctx.lineTo(10.5, 12.5);
+  ctx.lineCap = 'round';
+  ctx.lineWidth = 2.4;
+  ctx.strokeStyle = '#30353d';
+  ctx.stroke();
+  ctx.lineWidth = 1;
+  ctx.strokeStyle = '#d3dbe4';
+  ctx.stroke();
+  ctx.fillStyle = '#f3c675';
+  ctx.fillRect(-7.5, 15, 2, 2);
+
+  // Два сопла и золотистый генератор у задней части.
+  ctx.fillStyle = '#596370';
+  ctx.fillRect(-12, -3.5, 4, 2.6);
+  ctx.fillRect(-12, 1, 4, 2.6);
+  ctx.fillStyle = '#9e6c39';
+  ctx.fillRect(-8.6, 3.2, 4.6, 3.1);
+
+  const hull = ctx.createLinearGradient(0, -5, 0, 5);
+  hull.addColorStop(0, '#e3e8ec');
+  hull.addColorStop(0.5, '#b9c3ce');
+  hull.addColorStop(1, '#707b89');
+  ctx.beginPath();
+  ctx.roundRect(-9, -5, 15, 10, 2);
+  ctx.fillStyle = hull;
+  ctx.fill();
+  ctx.strokeStyle = '#313945';
+  ctx.lineWidth = 0.9;
+  ctx.stroke();
+  ctx.fillStyle = '#405062';
+  ctx.fillRect(-6.4, -3.8, 3, 7.6);
+  ctx.fillRect(0, -2.6, 2.6, 3.3);
+  ctx.fillStyle = '#e4b355';
+  ctx.fillRect(-2, 1.5, 4.5, 2.8);
+
+  // Профиль параболы, светлый обод и облучатель.
+  ctx.beginPath();
+  ctx.moveTo(10, -10);
+  ctx.quadraticCurveTo(-1, 0, 10, 10);
+  ctx.quadraticCurveTo(13.5, 0, 10, -10);
+  ctx.fillStyle = '#dce2e7';
+  ctx.fill();
+  ctx.stroke();
+  ctx.beginPath();
+  ctx.moveTo(10, -10);
+  ctx.quadraticCurveTo(13.5, 0, 10, 10);
+  ctx.strokeStyle = '#ffffff';
+  ctx.stroke();
+  ctx.beginPath();
+  ctx.moveTo(8, -4.5);
+  ctx.lineTo(15.5, 0);
+  ctx.lineTo(8, 4.5);
+  ctx.strokeStyle = '#7c8794';
+  ctx.stroke();
+  ctx.fillStyle = '#e4b355';
+  ctx.fillRect(14.5, -1, 2.4, 2);
+  ctx.restore();
+}
+
 /** Крыло солнечной батареи МКС: золотистое полотно с ячейками от x0 до x1, по центру — yc. */
 function issWing(ctx: CanvasRenderingContext2D, x0: number, x1: number, yc: number) {
   const h = 3.2;
@@ -1065,10 +1138,10 @@ function drawSatellite(ctx: CanvasRenderingContext2D, box: ReturnType<typeof sat
     ctx.arc(x, y, r, 0, Math.PI * 2);
     ctx.fillStyle = g;
     ctx.fill();
-  }
-  else if (own === 'iss') drawIss(ctx, x, y, look);
+  } else if (own === 'iss') drawIss(ctx, x, y, look);
   else if (own === 'vostok') drawVostok(ctx, x, y, look);
   else if (own === 'sputnik') drawSputnik(ctx, x, y, look);
+  else if (own === 'cassini') drawCassini(ctx, x, y, look);
   else drawSpacecraft(ctx, x, y, look);
 
   // Подпись

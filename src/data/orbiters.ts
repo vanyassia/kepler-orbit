@@ -83,7 +83,7 @@ export function isIss(el: { noradId: number; body?: BodyId }): boolean {
   return el.noradId === ISS_NORAD && (el.body ?? 'earth') === 'earth';
 }
 
-/** Аппараты со своей моделью на глобусе; у первых трёх также свой значок на карте. */
+/** Аппараты со своей моделью на глобусе и своим значком на карте. */
 export type OwnLook = 'iss' | 'vostok' | 'sputnik' | 'cassini';
 
 export function ownLook(el: { noradId: number; body?: BodyId }): OwnLook | null {
