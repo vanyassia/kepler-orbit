@@ -8,7 +8,7 @@ import { POPULAR_SATELLITES } from '../popular';
 const PUBLIC = join(import.meta.dirname, '..', '..', '..', 'public');
 
 /** Аппараты, для которых свободного снимка не нашлось: у них миниатюры нет. */
-const WITHOUT_PHOTO = new Set(['earth:67253', 'earth:52145', 'earth:41191', 'earth:44307', 'earth:54153', 'earth:7530', 'mars:-9891']);
+const WITHOUT_PHOTO = new Set(['earth:67253', 'earth:52145', 'earth:41191', 'earth:44307', 'earth:54153', 'earth:7530', 'mars:-9891', 'venus:-9831']);
 
 describe('снимки аппаратов', () => {
   it('у каждого спутника из списков есть снимок, кроме известных исключений', () => {

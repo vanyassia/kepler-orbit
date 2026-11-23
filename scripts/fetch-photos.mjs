@@ -6,19 +6,20 @@
  * Нужна утилита cwebp (brew install webp). Запуск: npm run fetch:photos
  */
 import { execFileSync } from 'node:child_process';
-import { mkdirSync, mkdtempSync, rmSync, statSync, writeFileSync } from 'node:fs';
-import { tmpdir } from 'node:os';
+import { existsSync, mkdirSync, mkdtempSync, rmSync, statSync, writeFileSync } from 'node:fs';
 import { join, resolve } from 'node:path';
 import { PHOTOS } from '../src/data/photos.ts';
 
 const ROOT = resolve(import.meta.dirname, '..');
 const OUT = join(ROOT, 'public', 'photos');
+const CACHE = join(ROOT, '.cache');
 const UA = 'KeplerOrbitSite/1.0 (https://vanyassia.github.io/kepler-orbit/)';
 const LONG_SIDE = 720;
 const THUMB_H = 96;
 
 mkdirSync(OUT, { recursive: true });
-const tmp = mkdtempSync(join(tmpdir(), 'kepler-photos-'));
+mkdirSync(CACHE, { recursive: true });
+const tmp = mkdtempSync(join(CACHE, 'photos-'));
 
 /** Адрес уменьшенной копии с Commons (не больше оригинала) и ширина оригинала. */
 async function thumbUrl(file) {
@@ -36,13 +37,14 @@ try {
   for (const photo of Object.values(PHOTOS)) {
     if (done.has(photo.image)) continue;
     done.add(photo.image);
+    const full = join(OUT, `${photo.image}.webp`);
+    const small = join(OUT, `${photo.image}-s.webp`);
+    if (!process.argv.includes('--force') && existsSync(full) && existsSync(small)) continue;
     const { url, width, height } = await thumbUrl(photo.commons);
     const r = await fetch(url, { headers: { 'User-Agent': UA } });
     if (!r.ok) throw new Error(`${photo.commons}: ответ ${r.status}`);
     const src = join(tmp, photo.image + (/\.png/i.test(url) ? '.png' : '.jpg'));
     writeFileSync(src, Buffer.from(await r.arrayBuffer()));
-    const full = join(OUT, `${photo.image}.webp`);
-    const small = join(OUT, `${photo.image}-s.webp`);
     // Длинная сторона — не больше LONG_SIDE: высокие снимки иначе выходят тяжёлыми
     const resize = Math.max(width, height) <= LONG_SIDE ? [] : width >= height ? ['-resize', String(LONG_SIDE), '0'] : ['-resize', '0', String(LONG_SIDE)];
     execFileSync('cwebp', ['-quiet', '-q', '72', '-m', '6', '-metadata', 'none', ...resize, src, '-o', full]);

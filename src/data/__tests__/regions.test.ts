@@ -1,15 +1,16 @@
 import { describe, expect, it } from 'vitest';
 import { REGIONS } from '../regions';
 
-describe('Регионы Луны и Марса (справочник USGS, названия IAU)', () => {
-  it('у Земли регионов нет, у Луны и Марса — десятки', () => {
+describe('Регионы Луны, Марса и Венеры (справочник USGS, названия IAU)', () => {
+  it('у Земли регионов нет, у Луны, Марса и Венеры — десятки', () => {
     expect(REGIONS.earth).toHaveLength(0);
     expect(REGIONS.moon.length).toBeGreaterThan(50);
     expect(REGIONS.mars.length).toBeGreaterThan(50);
+    expect(REGIONS.venus.length).toBeGreaterThan(50);
   });
 
   it('координаты и размеры корректны, у каждого — русская подпись', () => {
-    for (const r of [...REGIONS.moon, ...REGIONS.mars]) {
+    for (const r of [...REGIONS.moon, ...REGIONS.mars, ...REGIONS.venus]) {
       expect(Math.abs(r.lat)).toBeLessThanOrEqual(90);
       expect(r.lon).toBeGreaterThanOrEqual(-180);
       expect(r.lon).toBeLessThanOrEqual(180);
@@ -18,7 +19,7 @@ describe('Регионы Луны и Марса (справочник USGS, на
     }
   });
 
-  it('контрольные объекты: Море Дождей и Гора Олимп на своих местах', () => {
+  it('контрольные объекты: Море Дождей, Гора Олимп и Горы Максвелла на своих местах', () => {
     const imbrium = REGIONS.moon.find((r) => r.name === 'Mare Imbrium')!;
     expect(imbrium.title).toBe('Море Дождей');
     // Значения справочника USGS: 34,72° с. ш., 14,91° з. д., диаметр 1146 км
@@ -29,5 +30,9 @@ describe('Регионы Луны и Марса (справочник USGS, на
     expect(olympus.title).toBe('Гора Олимп');
     expect(olympus.lat).toBeCloseTo(18.65, 1);
     expect(olympus.lon).toBeCloseTo(-133.8, 1);
+    const maxwell = REGIONS.venus.find((r) => r.name === 'Maxwell Montes')!;
+    expect(maxwell.title).toBe('Горы Максвелла');
+    expect(maxwell.lat).toBeCloseTo(65.2, 1);
+    expect(maxwell.lon).toBeCloseTo(3.3, 1);
   });
 });

@@ -58,7 +58,7 @@ export const GAGARIN_LANDING: Site = { name: 'Посадка Гагарина', 
 export const VOSTOK1_ID = -9611;
 export const SPUTNIK1_ID = -9571;
 
-const MARS_DETAIL = 'Форма орбиты по опубликованным данным. Углы Ω и ω и положение на орбите условные.';
+const PLANET_DETAIL = 'Форма орбиты по опубликованным данным. Углы Ω и ω и положение на орбите условные.';
 
 export const HISTORIC_ORBITERS: HistoricOrbiter[] = [
   {
@@ -90,10 +90,15 @@ export const HISTORIC_ORBITERS: HistoricOrbiter[] = [
     inclinationDeg: 65.1,
     launch: BAIKONUR,
   },
-  { id: -9711, body: 'mars', title: 'Марс-2', note: 'Историческая орбита, СССР, 1971', detail: MARS_DETAIL, cosparId: '1971-045A', epoch: '1971-11-27T00:00:00Z', hPeri: 1380, hApo: 24_940, inclinationDeg: 48.9 },
-  { id: -9712, body: 'mars', title: 'Марс-3', note: 'Историческая орбита, СССР, 1971', detail: MARS_DETAIL, cosparId: '1971-049A', epoch: '1971-12-02T00:00:00Z', hPeri: 1528, hApo: 214_500, inclinationDeg: 60 },
-  { id: -9741, body: 'mars', title: 'Марс-5', note: 'Историческая орбита, СССР, 1974', detail: MARS_DETAIL, cosparId: '1973-049A', epoch: '1974-02-12T15:45:00Z', hPeri: 1760, hApo: 32_586, inclinationDeg: 35.3 },
-  { id: -9891, body: 'mars', title: 'Фобос-2', note: 'Историческая орбита, СССР, 1989', detail: MARS_DETAIL, cosparId: '1988-059A', epoch: '1989-03-27T00:00:00Z', hPeri: 5697.5, hApo: 6281.5, inclinationDeg: 1.0852 },
+  { id: -9711, body: 'mars', title: 'Марс-2', note: 'Историческая орбита, СССР, 1971', detail: PLANET_DETAIL, cosparId: '1971-045A', epoch: '1971-11-27T00:00:00Z', hPeri: 1380, hApo: 24_940, inclinationDeg: 48.9 },
+  { id: -9712, body: 'mars', title: 'Марс-3', note: 'Историческая орбита, СССР, 1971', detail: PLANET_DETAIL, cosparId: '1971-049A', epoch: '1971-12-02T00:00:00Z', hPeri: 1528, hApo: 214_500, inclinationDeg: 60 },
+  { id: -9741, body: 'mars', title: 'Марс-5', note: 'Историческая орбита, СССР, 1974', detail: PLANET_DETAIL, cosparId: '1973-049A', epoch: '1974-02-12T15:45:00Z', hPeri: 1760, hApo: 32_586, inclinationDeg: 35.3 },
+  { id: -9891, body: 'mars', title: 'Фобос-2', note: 'Историческая орбита, СССР, 1989', detail: PLANET_DETAIL, cosparId: '1988-059A', epoch: '1989-03-27T00:00:00Z', hPeri: 5697.5, hApo: 6281.5, inclinationDeg: 1.0852 },
+  // Исторические спутники Венеры: первые орбитеры СССР и картографические аппараты NASA (NSSDCA)
+  { id: -9751, body: 'venus', title: 'Венера-9', note: 'Первый спутник Венеры, СССР, 1975', detail: PLANET_DETAIL, cosparId: '1975-050A', epoch: '1975-10-22T05:13:00Z', hPeri: 1560, hApo: 112_200, inclinationDeg: 34.17 },
+  { id: -9831, body: 'venus', title: 'Венера-15', note: 'Радарная съёмка, СССР, 1983', detail: PLANET_DETAIL, cosparId: '1983-053A', epoch: '1983-10-10T00:00:00Z', hPeri: 1000, hApo: 65_760, inclinationDeg: 92.5 },
+  { id: -9901, body: 'venus', title: 'Магеллан', note: 'Полная радарная карта, NASA, 1990', detail: PLANET_DETAIL, cosparId: '1989-033B', epoch: '1990-08-10T16:32:00Z', hPeri: 294, hApo: 8467, inclinationDeg: 85.5 },
+  { id: -9781, body: 'venus', title: 'Пионер-Венера-1', note: 'Суточная полярная орбита, NASA, 1978', detail: PLANET_DETAIL, cosparId: '1978-051A', epoch: '1978-12-04T15:58:00Z', hPeri: 181, hApo: 66_630, inclinationDeg: 105.6 },
 ];
 
 export const historicById = (id: number) => HISTORIC_ORBITERS.find((o) => o.id === id);

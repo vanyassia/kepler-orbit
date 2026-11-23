@@ -35,6 +35,8 @@ describe('повторяющаяся трасса', () => {
     ['moon', 7, 1],
     ['mars', 5, 1],
     ['mars', 43, 3],
+    ['venus', 7, 1],
+    ['venus', 15, 1],
   ] as const) {
     it(`${body}: через ${n} витков спутник над той же точкой, а раньше — нет`, () => {
       const el = customToElements(repeatSat(body, n, m));
@@ -51,7 +53,7 @@ describe('повторяющаяся трасса', () => {
   }
 
   it('шаблон проходит проверку окна, n и m проверяются', () => {
-    for (const b of ['earth', 'moon', 'mars'] as const) {
+    for (const b of ['earth', 'moon', 'mars', 'venus'] as const) {
       const d = REPEAT_DEFAULTS[b];
       expect(repeatError(b, d)).toBeNull();
       expect(validateCustom({ ...repeatTemplate(b, d, d.inclinationDeg), name: 'Цветок' })).toEqual({});

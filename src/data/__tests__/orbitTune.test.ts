@@ -10,7 +10,7 @@ const asCustom = (t: (typeof ORBIT_TEMPLATES)[number]) => ({ ...t, id: 9_000_001
 
 describe('шаблоны орбит', () => {
   it('у каждого тела есть шаблоны, все проходят проверку окна', () => {
-    for (const b of ['earth', 'moon', 'mars'] as const) expect(templatesFor(b).length).toBeGreaterThan(0);
+    for (const b of ['earth', 'moon', 'mars', 'venus'] as const) expect(templatesFor(b).length).toBeGreaterThan(0);
     for (const t of ORBIT_TEMPLATES) expect(validateCustom({ ...t, name: t.satName })).toEqual({});
   });
 

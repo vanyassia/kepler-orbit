@@ -23,7 +23,7 @@ const FIELDS: { key: Exclude<Field, 'name'>; label: string; unit: string }[] = [
   { key: 'meanAnomalyDeg', label: 'Средняя аномалия M₀', unit: '°' },
 ];
 
-const BODY_ORDER: BodyId[] = ['earth', 'moon', 'mars'];
+const BODY_ORDER: BodyId[] = ['earth', 'moon', 'mars', 'venus'];
 
 /** Число из поля: допускается десятичная запятая и знак «−». */
 const parse = (s: string) => (s.trim() ? Number(s.trim().replace(',', '.').replace('−', '-')) : NaN); // пустое поле — не ноль

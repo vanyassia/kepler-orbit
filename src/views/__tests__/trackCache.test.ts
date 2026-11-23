@@ -71,6 +71,28 @@ describe('Скользящий кэш трассы', () => {
     // Окно дотягивается до конца восьмого витка
     expect(w.future[w.future.length - 1].timeMs).toBeGreaterThan(T0 + 7.99 * long.periodSec * 1000);
   });
+
+  it('вытянутая полярная орбита с быстрым перицентром у полюса (Venus Express) не срезает вершину', () => {
+    const vex = prepareOrbit({
+      name: 'Venus Express',
+      noradId: -248,
+      body: 'venus',
+      epochMs: T0,
+      meanMotion: 86400 / 81009,
+      eccentricity: 0.8334,
+      inclinationDeg: 89.83,
+      raanDeg: 103.9,
+      argPerigeeDeg: 73.8,
+      meanAnomalyDeg: 325.3,
+    });
+    const w = new TrackCache().get(orbitSource(vex), T0 + 1000, 1, 1)!;
+    const all = [...w.past, ...w.future.slice(1)];
+    for (let k = 1; k < all.length; k++) expect(all[k].timeMs).toBeGreaterThan(all[k - 1].timeMs);
+    expect(Math.max(...all.map((p) => p.lat))).toBeGreaterThan(89.8);
+    expect(Math.min(...all.map((p) => p.lat))).toBeLessThan(-89.8);
+    expect(w.past.length).toBeLessThanOrEqual(MAX_WINDOW_POINTS);
+    expect(w.future.length).toBeLessThanOrEqual(MAX_WINDOW_POINTS);
+  });
 });
 
 describe('Окно трассы очень долгих орбит', () => {
@@ -85,6 +107,24 @@ describe('Окно трассы очень долгих орбит', () => {
     const { back, forward } = trackSpan(moon, 1, 2);
     expect((back * moon.T) / 3600).toBeCloseTo(24.84, 1);
     expect(forward).toBeCloseTo(2 * back, 10);
+  });
+
+  it('у Венеры учитывается обратное вращение: прямая орбита короче витка, обратная — длиннее', () => {
+    const Tdays = 35;
+    const direct = prepareOrbit({ ...elements(1 / Tdays), body: 'venus', inclinationDeg: 60 });
+    const retro = prepareOrbit({ ...elements(1 / Tdays), body: 'venus', inclinationDeg: 160 });
+    const dSpan = trackSpan(direct, 1, 2);
+    const rSpan = trackSpan(retro, 1, 2);
+    // Венера крутится навстречу прямой орбите (1/35 + 1/243,02 → ~30,6 сут) и попутно обратной (1/35 − 1/243,02 → ~40,9 сут)
+    expect((dSpan.back * direct.T) / 86400).toBeCloseTo(1 / (1 / Tdays + 1.4813688 / 360), 2);
+    expect((rSpan.back * retro.T) / 86400).toBeCloseTo(1 / (1 / Tdays - 1.4813688 / 360), 2);
+    expect(dSpan.back).toBeLessThan(1);
+    expect(rSpan.back).toBeGreaterThan(1);
+  });
+
+  it('синхронная долгая орбита (например, на Луне с T = T_вращ) не даёт бесконечность', () => {
+    const syncMoon = prepareOrbit({ ...elements(13.17635815 / 360), body: 'moon', inclinationDeg: 0 });
+    expect(trackSpan(syncMoon, 1, 2)).toEqual({ back: 1, forward: 2 });
   });
 });
 

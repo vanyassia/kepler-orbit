@@ -28,7 +28,7 @@ export default function GlobeView() {
   const quality = useAppStore((s) => s.quality);
   const setQuality = useAppStore((s) => s.setQuality);
   const body = useAppStore((s) => s.body);
-  const withBody = { earth: 'С Землёй', moon: 'С Луной', mars: 'С Марсом' }[body];
+  const withBody = { earth: 'С Землёй', moon: 'С Луной', mars: 'С Марсом', venus: 'С Венерой' }[body];
   const overlay = useRef<HTMLDivElement>(null);
   const [ready, setReady] = useState(false);
   // На отдельной карте глобус скрыт, но не закрывается: снимки в видеокарте остаются, а кадры не рисуются

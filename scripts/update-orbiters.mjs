@@ -17,8 +17,8 @@ import { join, resolve } from 'node:path';
 
 const ROOT = resolve(import.meta.dirname, '..');
 const API = 'https://ssd.jpl.nasa.gov/api/horizons.api';
-const CENTER = { earth: '500@399', moon: '500@301', mars: '500@499' };
-const TARGET = { earth: '399', moon: '301', mars: '499' };
+const CENTER = { earth: '500@399', moon: '500@301', mars: '500@499', venus: '500@299' };
+const TARGET = { earth: '399', moon: '301', mars: '499', venus: '299' };
 const TDB_MINUS_UTC_MS = 69_184;
 
 const src = readFileSync(join(ROOT, 'src', 'data', 'orbiters.ts'), 'utf8');
@@ -85,10 +85,15 @@ for (const { id, body } of list) {
         REF_PLANE: 'BODY',
         OUT_UNITS: 'KM-S',
       });
-    const { name, row } = await elementsAt(now).catch((e) => {
+    const { name, row } = await elementsAt(now).catch(async (e) => {
       const end = ephemerisEnd(e.message);
       if (end === null) throw e;
-      return elementsAt(new Date(end - 86_400_000));
+      // В хвосте эфемерид завершённых миссий (например, Акацуки) бывает нулевой вектор:
+      // если за сутки до конца среднее движение нулевое, отступаем на 30 суток назад
+      let res = await elementsAt(new Date(end - 86_400_000));
+      if (!(Number(res.row[8]) > 0)) res = await elementsAt(new Date(end - 30 * 86_400_000));
+      if (!(Number(res.row[8]) > 0)) throw new Error('нулевые элементы в конце эфемерид Horizons');
+      return res;
     });
     const [jdTdb, , EC, , IN, OM, W, , N, MA, , A] = row;
     const epochMs = (Number(jdTdb) - 2440587.5) * 86_400_000 - TDB_MINUS_UTC_MS;
@@ -159,7 +164,7 @@ if (checks.length) {
   mkdirSync(f, { recursive: true });
   writeFileSync(
     join(f, 'horizons-check.json'),
-    JSON.stringify({ note: 'Долготы Horizons: Луна — восточные, Марс — западные (планетографические)', elements: items, checks }, null, 2) + '\n',
+    JSON.stringify({ note: 'Долготы Horizons: Луна и Венера — восточные, Марс — западные (планетографические)', elements: items, checks }, null, 2) + '\n',
   );
   console.log(`Контрольные точки: ${checks.length} → src/physics/__tests__/fixtures/horizons-check.json`);
 }

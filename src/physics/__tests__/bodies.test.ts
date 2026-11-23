@@ -1,15 +1,16 @@
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
-import { BODIES, icrfToBodyEquator, marsHeliocentric } from '../bodies';
+import { BODIES, type BodyId, icrfToBodyEquator, marsHeliocentric, venusHeliocentric } from '../bodies';
 import { DEG, RAD } from '../constants';
 import { greenwichToGeo } from '../frames';
+import { semiMajorAxis } from '../kepler';
 import { norm } from '../math';
 import { prepareOrbit, propagate } from '../propagate';
 
 interface Item {
   naifId: number;
-  body: 'moon' | 'mars';
+  body: BodyId;
   epoch: string;
   eccentricity: number;
   inclinationDeg: number;
@@ -21,7 +22,7 @@ interface Item {
 }
 interface Check {
   naifId: number;
-  body: 'moon' | 'mars';
+  body: BodyId;
   timeUtc: string;
   subLon: number;
   subLat: number;
@@ -31,7 +32,7 @@ interface Check {
 const fx = JSON.parse(readFileSync(join(import.meta.dirname, 'fixtures', 'horizons-check.json'), 'utf8')) as { elements: Item[]; checks: Check[] };
 
 /** Долгота Horizons → восточная, градусы (−180…180]: у Марса Horizons даёт западные долготы. */
-const eastLon = (lon: number, body: 'moon' | 'mars') => {
+const eastLon = (lon: number, body: BodyId) => {
   const e = body === 'mars' ? -lon : lon;
   return ((e + 540) % 360) - 180;
 };
@@ -61,7 +62,9 @@ describe('Центральные тела: проверка по JPL Horizons �
     const t = Date.parse(c.timeUtc);
 
     it(`${c.body} / NAIF ${c.naifId}: большая полуось из μ совпадает с Horizons`, () => {
-      expect(Math.abs(orbit.a - el.semiMajorAxisKm) / el.semiMajorAxisKm).toBeLessThan(1e-4);
+      // Для Луны вокруг Земли Horizons берёт сумму масс Земли и Луны (μ ≈ 403 503,24 км³/с²), а модель — μ Земли
+      const a = c.body === 'earth' ? semiMajorAxis(orbit.n, 403503.2356) : orbit.a;
+      expect(Math.abs(a - el.semiMajorAxisKm) / el.semiMajorAxisKm).toBeLessThan(1e-4);
     });
 
     it(`${c.body} / NAIF ${c.naifId}: подспутниковая точка через 10 мин — в пределах 0,5° от Horizons`, () => {
@@ -111,6 +114,14 @@ describe('Вспомогательные формулы', () => {
       const r = norm(marsHeliocentric(Date.UTC(2026, k, 1)));
       expect(r).toBeGreaterThan(1.38);
       expect(r).toBeLessThan(1.667);
+    }
+  });
+
+  it('расстояние Венера — Солнце — между перигелием 0,718 и афелием 0,729 а. е.', () => {
+    for (let k = 0; k < 12; k++) {
+      const r = norm(venusHeliocentric(Date.UTC(2026, k, 1)));
+      expect(r).toBeGreaterThan(0.718);
+      expect(r).toBeLessThan(0.729);
     }
   });
 });

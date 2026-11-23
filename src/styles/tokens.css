@@ -116,3 +116,14 @@
   --field-edge: #825745;
   --space-glow: #2a1510;
 }
+
+:root[data-body='venus'] {
+  --bg-0: #110e07;
+  --bg-1: #18140b;
+  --bg-2: #221c10;
+  --bg-3: #2f2716;
+  --line: #3d331d;
+  --line-strong: #534628;
+  --field-edge: #857041;
+  --space-glow: #2a220f;
+}

@@ -1,13 +1,14 @@
 /**
- * Центральные тела: Земля, Луна, Марс — формулы (18)–(20), docs/formulas.md.
+ * Центральные тела: Земля, Луна, Марс, Венера — формулы (18)–(20), docs/formulas.md.
  *
  * Для каждого тела модель одна и та же — задача двух тел с его гравитационным параметром μ.
  * Различаются:
- *  - инерциальная система: для Земли — АГЭСК (ось x на ♈); для Луны и Марса — система
+ *  - инерциальная система: для Земли — АГЭСК (ось x на ♈); для Луны, Марса и Венеры — система
  *    «экватор тела и узел» (IAU): ось z — северный полюс тела, ось x — восходящий узел
  *    экватора тела на экваторе ICRF (в этой системе выдаёт элементы JPL Horizons);
- *  - угол поворота тела: для Земли — звёздное время S, для Луны и Марса — угол W
+ *  - угол поворота тела: для Земли — звёздное время S, для Луны, Марса и Венеры — угол W
  *    нулевого меридиана, отсчитываемый от того же узла (рекомендации IAU 2009, PCK00010);
+ *    у Венеры вращение обратное (Ẇ < 0);
  *  - направление на Солнце (только для освещения).
  */
 import { DEG, JD_J2000, MU, OMEGA_EARTH, R_EARTH } from './constants';
@@ -18,7 +19,7 @@ import { sunDirectionInertial } from './sun';
 import { greenwichToInertial, inertialToGreenwich } from './frames';
 import { greenwichSiderealTime, julianDate } from './time';
 
-export type BodyId = 'earth' | 'moon' | 'mars';
+export type BodyId = 'earth' | 'moon' | 'mars' | 'venus';
 
 export interface CentralBody {
   id: BodyId;
@@ -128,18 +129,34 @@ export function marsPole2015(timeMs: number): { alpha0: number; delta0: number }
 }
 
 /**
- * Формула (19). Гелиоцентрическое положение Марса по приближённым элементам орбиты
+ * Ориентация Венеры по IAU 2009/2015: α₀ = 272,76°, δ₀ = 67,16°, W = 160,20° − 1,4813688°·d.
+ * Венера вращается в обратную сторону (с востока на запад), поэтому скорость вращения Ẇ отрицательна.
+ */
+export function venusOrientation(timeMs: number): { alpha0: number; delta0: number; W: number } {
+  const d = days(timeMs);
+  return {
+    alpha0: 272.76 * DEG,
+    delta0: 67.16 * DEG,
+    W: wrap2Pi((160.2 - 1.4813688 * d) * DEG),
+  };
+}
+
+/**
+ * Формула (19). Гелиоцентрическое положение планеты по приближённым элементам орбиты
  * (Standish, JPL «Approximate Positions of the Planets», 1800–2050 гг.), в ICRF, а. е.
  * Решается то же уравнение Кеплера (5), что и для спутников.
  */
-export function marsHeliocentric(timeMs: number): Vec3 {
+function planetHeliocentric(
+  timeMs: number,
+  el: { a: [number, number]; e: [number, number]; I: [number, number]; L: [number, number]; varpi: [number, number]; Om: [number, number] },
+): Vec3 {
   const T = days(timeMs) / 36525;
-  const a = 1.52371034 + 0.00001847 * T;
-  const e = 0.0933941 + 0.00007882 * T;
-  const I = (1.84969142 - 0.00813131 * T) * DEG;
-  const L = (-4.55343205 + 19140.30268499 * T) * DEG;
-  const varpi = (-23.94362959 + 0.44441088 * T) * DEG;
-  const Om = (49.55953891 - 0.29257343 * T) * DEG;
+  const a = el.a[0] + el.a[1] * T;
+  const e = el.e[0] + el.e[1] * T;
+  const I = (el.I[0] + el.I[1] * T) * DEG;
+  const L = (el.L[0] + el.L[1] * T) * DEG;
+  const varpi = (el.varpi[0] + el.varpi[1] * T) * DEG;
+  const Om = (el.Om[0] + el.Om[1] * T) * DEG;
   const omega = varpi - Om;
   const { E } = solveKepler(wrap2Pi(L - varpi), e);
   const xp = a * (Math.cos(E) - e);
@@ -158,6 +175,28 @@ export function marsHeliocentric(timeMs: number): Vec3 {
   const eps = 23.43928 * DEG;
   return { x: xe, y: ye * Math.cos(eps) - ze * Math.sin(eps), z: ye * Math.sin(eps) + ze * Math.cos(eps) };
 }
+
+/** Гелиоцентрическое положение Марса (Standish, JPL, 1800–2050 гг.), в ICRF, а. е. */
+export const marsHeliocentric = (timeMs: number): Vec3 =>
+  planetHeliocentric(timeMs, {
+    a: [1.52371034, 0.00001847],
+    e: [0.0933941, 0.00007882],
+    I: [1.84969142, -0.00813131],
+    L: [-4.55343205, 19140.30268499],
+    varpi: [-23.94362959, 0.44441088],
+    Om: [49.55953891, -0.29257343],
+  });
+
+/** Гелиоцентрическое положение Венеры (Standish, JPL, 1800–2050 гг.), в ICRF, а. е. */
+export const venusHeliocentric = (timeMs: number): Vec3 =>
+  planetHeliocentric(timeMs, {
+    a: [0.72332102, -0.00000026],
+    e: [0.00676399, -0.00005107],
+    I: [3.39777545, 0.00043494],
+    L: [181.9797085, 58517.8156026],
+    varpi: [131.76755713, 0.05679648],
+    Om: [76.67261496, -0.27274174],
+  });
 
 /**
  * Поворот тела от t₀ до t по углу W: основной член — равномерное вращение ẆΔd (с целыми оборотами),
@@ -232,12 +271,31 @@ export const MARS: CentralBody = {
   rotationSymbol: 'W',
 };
 
-export const BODIES: Record<BodyId, CentralBody> = { earth: EARTH, moon: MOON, mars: MARS };
+export const VENUS: CentralBody = {
+  id: 'venus',
+  name: 'Венера',
+  nameLocative: 'на Венере',
+  mu: 324858.592,
+  radius: 6051.8,
+  rotationAngle: (t) => venusOrientation(t).W,
+  turn: (t0, t) => turnSince((x) => venusOrientation(x).W, -1.4813688, t0, t),
+  toFixed: (v, t) => inertialToGreenwich(v, venusOrientation(t).W),
+  toInertial: (v, t) => greenwichToInertial(v, venusOrientation(t).W),
+  sunDirection: (t) => {
+    const { alpha0, delta0 } = venusOrientation(t);
+    const r = venusHeliocentric(t);
+    return icrfToBodyEquator(normalize({ x: -r.x, y: -r.y, z: -r.z }), alpha0, delta0);
+  },
+  rotationSymbol: 'W',
+};
+
+export const BODIES: Record<BodyId, CentralBody> = { earth: EARTH, moon: MOON, mars: MARS, venus: VENUS };
 
 /** Звёздные сутки тела (период вращения), с — для справки в интерфейсе. */
 export const ROTATION_PERIOD: Record<BodyId, number> = {
   earth: 86164.0905,
   moon: (360 / 13.17635815) * 86400,
   mars: (360 / 350.89198226) * 86400,
+  venus: (360 / 1.4813688) * 86400,
 };
 

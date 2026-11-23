@@ -173,6 +173,39 @@ export const ORBIT_TEMPLATES: OrbitTemplate[] = [
     meanAnomalyDeg: 0,
     note: 'Перицентр 100 км над южным полушарием, апоцентр 5000 км над северным: у перицентра спутник проносится быстро, у апоцентра — медленно.',
   },
+  {
+    id: 'venus-polar',
+    label: 'Полярная',
+    satName: 'Полярный',
+    body: 'venus',
+    hPeri: 300,
+    hApo: 300,
+    inclinationDeg: 90,
+    ...zeroAngles,
+    note: 'Низкая полярная орбита над облаками Венеры: планета очень медленно поворачивается под ней (сутки — 243 земных), и постепенно трасса покрывает всю поверхность.',
+  },
+  {
+    id: 'venus-equator',
+    label: 'Экваториальная',
+    satName: 'Экваториальный',
+    body: 'venus',
+    hPeri: 400,
+    hApo: 400,
+    inclinationDeg: 0,
+    ...zeroAngles,
+    note: 'i = 0°: трасса идёт точно по экватору Венеры.',
+  },
+  {
+    id: 'venus-retro',
+    label: 'По ветру (обратная)',
+    satName: 'По ветру',
+    body: 'venus',
+    hPeri: 400,
+    hApo: 60_000,
+    inclinationDeg: 161,
+    ...zeroAngles,
+    note: 'Обратная вытянутая орбита (i = 161°), как у «Акацуки»: аппарат летит с востока на запад — в ту же сторону, куда вращается Венера и дуют ветры в её облаках.',
+  },
 ];
 
 export const templatesFor = (body: BodyId) => ORBIT_TEMPLATES.filter((t) => t.body === body);
@@ -193,6 +226,7 @@ export const REPEAT_DEFAULTS: Record<BodyId, RepeatCycle & { inclinationDeg: num
   earth: { n: 5, m: 1, inclinationDeg: 60 },
   moon: { n: 7, m: 1, inclinationDeg: 60 },
   mars: { n: 5, m: 1, inclinationDeg: 60 },
+  venus: { n: 15, m: 1, inclinationDeg: 60 },
 };
 
 /** Период повторяющейся орбиты, с: T = m·T_сут / n. */
@@ -238,6 +272,7 @@ const DAY_NAME: Record<BodyId, string> = {
   earth: 'звёздные сутки Земли — 23 ч 56 мин',
   moon: 'звёздные сутки Луны — 27,3 земных суток',
   mars: 'звёздные сутки Марса — 24 ч 37 мин',
+  venus: 'звёздные сутки Венеры — 243 земных суток; из-за медленного вращения такие орбиты только высокие',
 };
 
 /** Шаблон «Повторяющаяся трасса» для выбранных n и m (поля окна пересчитываются при их смене). */

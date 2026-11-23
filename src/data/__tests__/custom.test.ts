@@ -53,11 +53,12 @@ describe('Свой спутник: элементы по высотам пери
 describe('isStoredCustom — запись из хранилища браузера', () => {
   it('целая запись проходит', () => {
     expect(isStoredCustom(base)).toBe(true);
+    expect(isStoredCustom({ ...base, body: 'venus' })).toBe(true);
   });
   it('испорченные записи отбрасываются', () => {
     expect(isStoredCustom(null)).toBe(false);
     expect(isStoredCustom('спутник')).toBe(false);
-    expect(isStoredCustom({ ...base, body: 'venus' })).toBe(false);
+    expect(isStoredCustom({ ...base, body: 'jupiter' })).toBe(false);
     expect(isStoredCustom({ ...base, hApo: '500' })).toBe(false);
     expect(isStoredCustom({ ...base, raanDeg: NaN })).toBe(false);
     expect(isStoredCustom({ ...base, id: 25544 })).toBe(false);

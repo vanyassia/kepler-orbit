@@ -1,5 +1,5 @@
 /**
- * Спутники Луны и Марса: аппараты, а у Марса ещё Фобос и Деймос. Сюда же — сама Луна как спутник Земли. Элементы орбит берутся из JPL Horizons
+ * Спутники Луны, Марса и Венеры: аппараты, а у Марса ещё Фобос и Деймос. Сюда же — сама Луна как спутник Земли. Элементы орбит берутся из JPL Horizons
  * (оскулирующие элементы в системе «экватор тела и узел») и хранятся снимком
  * в public/data/orbiters.json — у Horizons нет CORS, браузер не может запросить его напрямую.
  * Обновление: npm run update:orbiters.
@@ -35,6 +35,8 @@ export const ORBITERS: Orbiter[] = [
   { naifId: -3, body: 'mars', title: 'Mangalyaan', note: 'Индийский орбитер, данные до ноября 2022' },
   { naifId: 401, body: 'mars', title: 'Фобос', note: 'Естественный спутник, T ≈ 7,7 ч' },
   { naifId: 402, body: 'mars', title: 'Деймос', note: 'Естественный спутник, T ≈ 30,3 ч' },
+  { naifId: -248, body: 'venus', title: 'Venus Express', note: 'Полярная орбита ЕКА, данные до декабря 2014' },
+  { naifId: -5, body: 'venus', title: 'Акацуки', note: 'Японский орбитер, обратная орбита, данные до июля 2025' },
   // Исторические орбиты; у Земли (Восток-1, Спутник-1) они стоят в списке popular.ts
   ...HISTORIC_ORBITERS.map((o): Orbiter => ({ naifId: o.id, body: o.body, title: o.title, note: o.note })),
 ];
@@ -73,7 +75,7 @@ export function ownLook(el: { noradId: number; body?: BodyId }): OwnLook | null 
 }
 
 /** Спутник по умолчанию для каждого тела. */
-export const DEFAULT_SATELLITE: Record<BodyId, number> = { earth: 25544, moon: -85, mars: -74 };
+export const DEFAULT_SATELLITE: Record<BodyId, number> = { earth: 25544, moon: -85, mars: -74, venus: -248 };
 
 // ── Загрузка снимка ─────────────────────────────────────────────────────────
 

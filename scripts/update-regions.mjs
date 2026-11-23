@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /**
- * Регионы Луны и Марса из справочника USGS Gazetteer of Planetary Nomenclature (названия IAU)
+ * Регионы Луны, Марса и Венеры из справочника USGS Gazetteer of Planetary Nomenclature (названия IAU)
  * → src/data/regions.json.
  *
  * Источник: шейп-файлы центров объектов (asc-planetarynames-data, *_nomenclature_center_pts.zip).
@@ -8,11 +8,10 @@
  * крупные площадные объекты (см. RULES), чтобы карта читалась.
  *
  * Запуск: npm run update:regions (нужны curl и unzip — есть в macOS и Linux).
- * USGS_DIR=<папка> — взять уже распакованные архивы (подпапки MOON и MARS).
+ * USGS_DIR=<папка> — взять уже распакованные архивы (подпапки MOON, MARS, VENUS).
  */
 import { execFileSync } from 'node:child_process';
 import { mkdirSync, readFileSync, readdirSync, writeFileSync } from 'node:fs';
-import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
 
 const ROOT = resolve(import.meta.dirname, '..');
@@ -57,13 +56,23 @@ const RULES = {
     { re: /^Crater/, kind: 'crater', min: 200, outline: true },
     { re: /^(Vallis|Labyrinthus|Chasma)/, kind: 'linear', min: 1100, outline: false },
   ],
+  venus: [
+    { re: /^Terra/, kind: 'land', min: 0, outline: true },
+    { re: /^Regio/, kind: 'land', min: 1400, outline: true },
+    { re: /^Planitia/, kind: 'plain', min: 1800, outline: true },
+    { re: /^Planum/, kind: 'plain', min: 800, outline: true },
+    { re: /^Mons/, kind: 'mons', min: 650, outline: true },
+    { re: /^Crater/, kind: 'crater', min: 140, outline: true },
+    { re: /^Corona/, kind: 'crater', min: 1000, outline: true },
+    { re: /^(Vallis|Chasma)/, kind: 'linear', min: 3000, outline: false },
+  ],
 };
 
-const tmp = join(tmpdir(), 'kepler-usgs');
+const tmp = join(ROOT, '.cache', 'usgs');
 mkdirSync(tmp, { recursive: true });
 const out = [];
 
-for (const body of ['moon', 'mars']) {
+for (const body of ['moon', 'mars', 'venus']) {
   // USGS_DIR — папка с уже распакованными архивами (MOON/, MARS/), чтобы не скачивать заново
   let dir = process.env.USGS_DIR ? join(process.env.USGS_DIR, body.toUpperCase()) : join(tmp, body);
   if (!process.env.USGS_DIR) {

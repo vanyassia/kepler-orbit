@@ -45,7 +45,7 @@ export function isStoredCustom(x: unknown): x is CustomSatellite {
   const nums = ['id', 'hPeri', 'hApo', 'inclinationDeg', 'raanDeg', 'argPerigeeDeg', 'meanAnomalyDeg', 'epochMs'];
   return (
     typeof c.name === 'string' &&
-    (c.body === 'earth' || c.body === 'moon' || c.body === 'mars') &&
+    (c.body === 'earth' || c.body === 'moon' || c.body === 'mars' || c.body === 'venus') &&
     nums.every((k) => typeof c[k] === 'number' && Number.isFinite(c[k])) &&
     isCustomId(c.id as number) &&
     (c.repeat === undefined || isRepeat(c.repeat))
@@ -111,4 +111,5 @@ export const CUSTOM_DEFAULTS: Record<BodyId, { hPeri: number; hApo: number; incl
   earth: { hPeri: 500, hApo: 500, inclinationDeg: 97.4 },
   moon: { hPeri: 100, hApo: 100, inclinationDeg: 90 },
   mars: { hPeri: 300, hApo: 300, inclinationDeg: 93 },
+  venus: { hPeri: 300, hApo: 300, inclinationDeg: 90 },
 };

@@ -36,6 +36,7 @@ const sources = {
   'sss_stars.jpg': 'https://www.solarsystemscope.com/textures/download/8k_stars_milky_way.jpg',
   'sss_moon.jpg': 'https://www.solarsystemscope.com/textures/download/8k_moon.jpg',
   'sss_mars.jpg': 'https://www.solarsystemscope.com/textures/download/8k_mars.jpg',
+  'sss_venus.jpg': 'https://www.solarsystemscope.com/textures/download/8k_venus_surface.jpg',
 };
 
 /** Качество WebP; файлов нет в списке — остаются в JPEG. */
@@ -51,10 +52,23 @@ const WEBP = {
   'moon_6k.jpg': 84,
   'moon_2k.jpg': 85,
   'mars_2k.jpg': 90,
+  'venus_8k.jpg': 80,
+  'venus_2k.jpg': 88,
 };
 
 /** Значки тел в переключателе. */
-const THUMBS = { 'earth_day_2k.jpg': 'thumb_earth.webp', 'moon_2k.jpg': 'thumb_moon.webp', 'mars_2k.jpg': 'thumb_mars.webp' };
+const THUMBS = {
+  'earth_day_2k.jpg': 'thumb_earth.webp',
+  'moon_2k.jpg': 'thumb_moon.webp',
+  'mars_2k.jpg': 'thumb_mars.webp',
+  'venus_2k.jpg': 'thumb_venus.webp',
+};
+
+/**
+ * Поворот исходника, градусы: снимок Венеры на Solar System Scope перевёрнут на 180°
+ * относительно системы IAU (из-за обратного вращения планеты север IAU оказался внизу).
+ */
+const ROTATE = { 'sss_venus.jpg': 180 };
 
 /** [исходник, выходной файл, ширина, качество JPEG] — высота всегда ширина/2 (равнопромежуточная проекция) */
 const outputs = [
@@ -71,6 +85,8 @@ const outputs = [
   ['sss_moon.jpg', 'moon_2k.jpg', 2048, 82],
   ['sss_mars.jpg', 'mars_8k.jpg', 8192, 70],
   ['sss_mars.jpg', 'mars_2k.jpg', 2048, 82],
+  ['sss_venus.jpg', 'venus_8k.jpg', 8192, 84],
+  ['sss_venus.jpg', 'venus_2k.jpg', 2048, 82],
 ];
 
 mkdirSync(SRC, { recursive: true });
@@ -90,7 +106,7 @@ for (const [src, out, width, quality] of outputs) {
   console.log(`⚙ ${out} (${width}×${width / 2})`);
   execFileSync(
     'sips',
-    ['-z', String(width / 2), String(width), '-s', 'format', 'jpeg', '-s', 'formatOptions', String(quality), join(SRC, src), '--out', dst],
+    [...(ROTATE[src] ? ['-r', String(ROTATE[src])] : []), '-z', String(width / 2), String(width), '-s', 'format', 'jpeg', '-s', 'formatOptions', String(quality), join(SRC, src), '--out', dst],
     { stdio: 'ignore' },
   );
   console.log(`  ${(statSync(dst).size / 1e6).toFixed(1)} МБ`);

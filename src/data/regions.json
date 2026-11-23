@@ -1,7 +1,67 @@
 {
  "source": "USGS Gazetteer of Planetary Nomenclature (IAU), center points",
- "savedAt": "2026-10-26T17:10:07.686Z",
+ "savedAt": "2026-11-23T05:03:22.324Z",
  "items": [
+  {
+   "body": "venus",
+   "name": "Parga Chasmata",
+   "type": "Chasma",
+   "kind": "linear",
+   "outline": false,
+   "lat": -20,
+   "lon": -105,
+   "diameterKm": 11000
+  },
+  {
+   "body": "venus",
+   "name": "Aphrodite Terra",
+   "type": "Terra",
+   "kind": "land",
+   "outline": true,
+   "lat": -5.8,
+   "lon": 104.8,
+   "diameterKm": 10000
+  },
+  {
+   "body": "venus",
+   "name": "Lada Terra",
+   "type": "Terra",
+   "kind": "land",
+   "outline": true,
+   "lat": -62.5,
+   "lon": 20,
+   "diameterKm": 8615
+  },
+  {
+   "body": "venus",
+   "name": "Eistla Regio",
+   "type": "Regio",
+   "kind": "land",
+   "outline": true,
+   "lat": 10.5,
+   "lon": 21.5,
+   "diameterKm": 8015
+  },
+  {
+   "body": "venus",
+   "name": "Guinevere Planitia",
+   "type": "Planitia",
+   "kind": "plain",
+   "outline": true,
+   "lat": 21.9,
+   "lon": -35,
+   "diameterKm": 7520
+  },
+  {
+   "body": "venus",
+   "name": "Baltis Vallis",
+   "type": "Vallis",
+   "kind": "linear",
+   "outline": false,
+   "lat": 37.3,
+   "lon": 161.4,
+   "diameterKm": 6000
+  },
   {
    "body": "mars",
    "name": "Terra Cimmeria",
@@ -13,6 +73,16 @@
    "diameterKm": 5856
   },
   {
+   "body": "venus",
+   "name": "Ishtar Terra",
+   "type": "Terra",
+   "kind": "land",
+   "outline": true,
+   "lat": 70.4,
+   "lon": 27.5,
+   "diameterKm": 5610
+  },
+  {
    "body": "mars",
    "name": "Noachis Terra",
    "type": "Terra",
@@ -21,6 +91,46 @@
    "lat": -50.407,
    "lon": -5.157,
    "diameterKm": 5519
+  },
+  {
+   "body": "venus",
+   "name": "Ovda Regio",
+   "type": "Regio",
+   "kind": "land",
+   "outline": true,
+   "lat": -2.8,
+   "lon": 85.6,
+   "diameterKm": 5280
+  },
+  {
+   "body": "venus",
+   "name": "Ganiki Planitia",
+   "type": "Planitia",
+   "kind": "plain",
+   "outline": true,
+   "lat": 40,
+   "lon": -158,
+   "diameterKm": 5160
+  },
+  {
+   "body": "venus",
+   "name": "Niobe Planitia",
+   "type": "Planitia",
+   "kind": "plain",
+   "outline": true,
+   "lat": 21,
+   "lon": 112.3,
+   "diameterKm": 5008
+  },
+  {
+   "body": "venus",
+   "name": "Aino Planitia",
+   "type": "Planitia",
+   "kind": "plain",
+   "outline": true,
+   "lat": -40.5,
+   "lon": 94.5,
+   "diameterKm": 4985
   },
   {
    "body": "mars",
@@ -43,6 +153,46 @@
    "diameterKm": 4688
   },
   {
+   "body": "venus",
+   "name": "Helen Planitia",
+   "type": "Planitia",
+   "kind": "plain",
+   "outline": true,
+   "lat": -51.7,
+   "lon": -96.1,
+   "diameterKm": 4360
+  },
+  {
+   "body": "venus",
+   "name": "Ulfrun Regio",
+   "type": "Regio",
+   "kind": "land",
+   "outline": true,
+   "lat": 27,
+   "lon": -135,
+   "diameterKm": 3954
+  },
+  {
+   "body": "venus",
+   "name": "Kawelu Planitia",
+   "type": "Planitia",
+   "kind": "plain",
+   "outline": true,
+   "lat": 32.8,
+   "lon": -113.5,
+   "diameterKm": 3910
+  },
+  {
+   "body": "venus",
+   "name": "Bereghinya Planitia",
+   "type": "Planitia",
+   "kind": "plain",
+   "outline": true,
+   "lat": 28.6,
+   "lon": 23.6,
+   "diameterKm": 3900
+  },
+  {
    "body": "mars",
    "name": "Aonia Terra",
    "type": "Terra",
@@ -63,6 +213,26 @@
    "diameterKm": 3761
   },
   {
+   "body": "venus",
+   "name": "Hinemoa Planitia",
+   "type": "Planitia",
+   "kind": "plain",
+   "outline": true,
+   "lat": 5,
+   "lon": -95,
+   "diameterKm": 3700
+  },
+  {
+   "body": "venus",
+   "name": "Ganis Chasma",
+   "type": "Chasma",
+   "kind": "linear",
+   "outline": false,
+   "lat": 18,
+   "lon": -171,
+   "diameterKm": 3700
+  },
+  {
    "body": "mars",
    "name": "Terra Sirenum",
    "type": "Terra",
@@ -71,6 +241,26 @@
    "lat": -39.495,
    "lon": -154.152,
    "diameterKm": 3635
+  },
+  {
+   "body": "venus",
+   "name": "Rusalka Planitia",
+   "type": "Planitia",
+   "kind": "plain",
+   "outline": true,
+   "lat": 3,
+   "lon": 170,
+   "diameterKm": 3600
+  },
+  {
+   "body": "venus",
+   "name": "Sedna Planitia",
+   "type": "Planitia",
+   "kind": "plain",
+   "outline": true,
+   "lat": 42.7,
+   "lon": -19.3,
+   "diameterKm": 3570
   },
   {
    "body": "mars",
@@ -103,6 +293,46 @@
    "diameterKm": 3244
   },
   {
+   "body": "venus",
+   "name": "Atla Regio",
+   "type": "Regio",
+   "kind": "land",
+   "outline": true,
+   "lat": 9.2,
+   "lon": -159.9,
+   "diameterKm": 3200
+  },
+  {
+   "body": "venus",
+   "name": "Citlalpul Vallis",
+   "type": "Vallis",
+   "kind": "linear",
+   "outline": false,
+   "lat": -51.8,
+   "lon": -173,
+   "diameterKm": 3160
+  },
+  {
+   "body": "venus",
+   "name": "Hecate Chasma",
+   "type": "Chasma",
+   "kind": "linear",
+   "outline": false,
+   "lat": 18.2,
+   "lon": -105.7,
+   "diameterKm": 3145
+  },
+  {
+   "body": "venus",
+   "name": "Artemis Chasma",
+   "type": "Chasma",
+   "kind": "linear",
+   "outline": false,
+   "lat": -41.2,
+   "lon": 138.5,
+   "diameterKm": 3087
+  },
+  {
    "body": "mars",
    "name": "Elysium Planitia",
    "type": "Planitia",
@@ -111,6 +341,66 @@
    "lat": 2.979,
    "lon": 154.737,
    "diameterKm": 3001
+  },
+  {
+   "body": "venus",
+   "name": "Fonueha Planitia",
+   "type": "Planitia",
+   "kind": "plain",
+   "outline": true,
+   "lat": -44,
+   "lon": 48,
+   "diameterKm": 3000
+  },
+  {
+   "body": "venus",
+   "name": "Tahmina Planitia",
+   "type": "Planitia",
+   "kind": "plain",
+   "outline": true,
+   "lat": -23,
+   "lon": 80,
+   "diameterKm": 3000
+  },
+  {
+   "body": "venus",
+   "name": "Leda Planitia",
+   "type": "Planitia",
+   "kind": "plain",
+   "outline": true,
+   "lat": 44,
+   "lon": 65.1,
+   "diameterKm": 2890
+  },
+  {
+   "body": "venus",
+   "name": "Beta Regio",
+   "type": "Regio",
+   "kind": "land",
+   "outline": true,
+   "lat": 25.3,
+   "lon": -77.2,
+   "diameterKm": 2869
+  },
+  {
+   "body": "venus",
+   "name": "Phoebe Regio",
+   "type": "Regio",
+   "kind": "land",
+   "outline": true,
+   "lat": -6,
+   "lon": -77.2,
+   "diameterKm": 2852
+  },
+  {
+   "body": "venus",
+   "name": "Lavinia Planitia",
+   "type": "Planitia",
+   "kind": "plain",
+   "outline": true,
+   "lat": -47.3,
+   "lon": -12.5,
+   "diameterKm": 2820
   },
   {
    "body": "mars",
@@ -123,6 +413,46 @@
    "diameterKm": 2809
   },
   {
+   "body": "venus",
+   "name": "Thetis Regio",
+   "type": "Regio",
+   "kind": "land",
+   "outline": true,
+   "lat": -11.4,
+   "lon": 129.9,
+   "diameterKm": 2801
+  },
+  {
+   "body": "venus",
+   "name": "Dzerassa Planitia",
+   "type": "Planitia",
+   "kind": "plain",
+   "outline": true,
+   "lat": -15,
+   "lon": -65,
+   "diameterKm": 2800
+  },
+  {
+   "body": "venus",
+   "name": "Undine Planitia",
+   "type": "Planitia",
+   "kind": "plain",
+   "outline": true,
+   "lat": 13,
+   "lon": -57,
+   "diameterKm": 2800
+  },
+  {
+   "body": "venus",
+   "name": "Snegurochka Planitia",
+   "type": "Planitia",
+   "kind": "plain",
+   "outline": true,
+   "lat": 86.6,
+   "lon": -32,
+   "diameterKm": 2775
+  },
+  {
    "body": "mars",
    "name": "Margaritifer Terra",
    "type": "Terra",
@@ -131,6 +461,56 @@
    "lat": -1.85,
    "lon": -24.922,
    "diameterKm": 2733
+  },
+  {
+   "body": "venus",
+   "name": "Akhtamar Planitia",
+   "type": "Planitia",
+   "kind": "plain",
+   "outline": true,
+   "lat": 27,
+   "lon": 65,
+   "diameterKm": 2700
+  },
+  {
+   "body": "venus",
+   "name": "Lowana Planitia",
+   "type": "Planitia",
+   "kind": "plain",
+   "outline": true,
+   "lat": 43,
+   "lon": 98,
+   "diameterKm": 2700
+  },
+  {
+   "body": "venus",
+   "name": "Artemis Corona",
+   "type": "Corona",
+   "kind": "crater",
+   "outline": true,
+   "lat": -35,
+   "lon": 135,
+   "diameterKm": 2600
+  },
+  {
+   "body": "venus",
+   "name": "Llorona Planitia",
+   "type": "Planitia",
+   "kind": "plain",
+   "outline": true,
+   "lat": 18,
+   "lon": 145,
+   "diameterKm": 2600
+  },
+  {
+   "body": "venus",
+   "name": "Wawalag Planitia",
+   "type": "Planitia",
+   "kind": "plain",
+   "outline": true,
+   "lat": -30,
+   "lon": -143,
+   "diameterKm": 2600
   },
   {
    "body": "moon",
@@ -143,6 +523,16 @@
    "diameterKm": 2592
   },
   {
+   "body": "venus",
+   "name": "Tinatin Planitia",
+   "type": "Planitia",
+   "kind": "plain",
+   "outline": true,
+   "lat": -2,
+   "lon": 16,
+   "diameterKm": 2500
+  },
+  {
    "body": "mars",
    "name": "Tyrrhena Terra",
    "type": "Terra",
@@ -151,6 +541,56 @@
    "lat": -11.899,
    "lon": 88.836,
    "diameterKm": 2470
+  },
+  {
+   "body": "venus",
+   "name": "Louhi Planitia",
+   "type": "Planitia",
+   "kind": "plain",
+   "outline": true,
+   "lat": 80.5,
+   "lon": 120.5,
+   "diameterKm": 2440
+  },
+  {
+   "body": "venus",
+   "name": "Lakshmi Planum",
+   "type": "Planum",
+   "kind": "plain",
+   "outline": true,
+   "lat": 68.6,
+   "lon": -20.7,
+   "diameterKm": 2345
+  },
+  {
+   "body": "venus",
+   "name": "Hyndla Regio",
+   "type": "Regio",
+   "kind": "land",
+   "outline": true,
+   "lat": 22.5,
+   "lon": -65.5,
+   "diameterKm": 2300
+  },
+  {
+   "body": "venus",
+   "name": "Dione Regio",
+   "type": "Regio",
+   "kind": "land",
+   "outline": true,
+   "lat": -31.5,
+   "lon": -32,
+   "diameterKm": 2300
+  },
+  {
+   "body": "venus",
+   "name": "Tilli-Hanum Planitia",
+   "type": "Planitia",
+   "kind": "plain",
+   "outline": true,
+   "lat": 54,
+   "lon": 120,
+   "diameterKm": 2300
   },
   {
    "body": "mars",
@@ -173,6 +613,66 @@
    "diameterKm": 2245
   },
   {
+   "body": "venus",
+   "name": "Vellamo Planitia",
+   "type": "Planitia",
+   "kind": "plain",
+   "outline": true,
+   "lat": 45.4,
+   "lon": 149.1,
+   "diameterKm": 2155
+  },
+  {
+   "body": "venus",
+   "name": "Imapinua Planitia",
+   "type": "Planitia",
+   "kind": "plain",
+   "outline": true,
+   "lat": -60,
+   "lon": 142,
+   "diameterKm": 2100
+  },
+  {
+   "body": "venus",
+   "name": "Kanykey Planitia",
+   "type": "Planitia",
+   "kind": "plain",
+   "outline": true,
+   "lat": -10,
+   "lon": -10,
+   "diameterKm": 2100
+  },
+  {
+   "body": "venus",
+   "name": "Laufey Regio",
+   "type": "Regio",
+   "kind": "land",
+   "outline": true,
+   "lat": 7,
+   "lon": -45,
+   "diameterKm": 2100
+  },
+  {
+   "body": "venus",
+   "name": "Navka Planitia",
+   "type": "Planitia",
+   "kind": "plain",
+   "outline": true,
+   "lat": -8.1,
+   "lon": -42.4,
+   "diameterKm": 2100
+  },
+  {
+   "body": "venus",
+   "name": "Nsomeka Planitia",
+   "type": "Planitia",
+   "kind": "plain",
+   "outline": true,
+   "lat": -53,
+   "lon": -165,
+   "diameterKm": 2100
+  },
+  {
    "body": "mars",
    "name": "Tharsis Montes",
    "type": "Mons",
@@ -183,6 +683,16 @@
    "diameterKm": 2059
   },
   {
+   "body": "venus",
+   "name": "Atalanta Planitia",
+   "type": "Planitia",
+   "kind": "plain",
+   "outline": true,
+   "lat": 45.6,
+   "lon": 165.8,
+   "diameterKm": 2050
+  },
+  {
    "body": "mars",
    "name": "Vastitas Borealis",
    "type": "Vastitas",
@@ -191,6 +701,26 @@
    "lat": 87.73,
    "lon": 32.53,
    "diameterKm": 2003
+  },
+  {
+   "body": "venus",
+   "name": "Astkhik Planum",
+   "type": "Planum",
+   "kind": "plain",
+   "outline": true,
+   "lat": -45,
+   "lon": 20,
+   "diameterKm": 2000
+  },
+  {
+   "body": "venus",
+   "name": "Zhibek Planitia",
+   "type": "Planitia",
+   "kind": "plain",
+   "outline": true,
+   "lat": -40,
+   "lon": 157,
+   "diameterKm": 2000
   },
   {
    "body": "mars",
@@ -211,6 +741,26 @@
    "lat": -18.348,
    "lon": -125.949,
    "diameterKm": 1922
+  },
+  {
+   "body": "venus",
+   "name": "Audra Planitia",
+   "type": "Planitia",
+   "kind": "plain",
+   "outline": true,
+   "lat": 61,
+   "lon": 72,
+   "diameterKm": 1900
+  },
+  {
+   "body": "venus",
+   "name": "Alpha Regio",
+   "type": "Regio",
+   "kind": "land",
+   "outline": true,
+   "lat": -25.5,
+   "lon": 0.3,
+   "diameterKm": 1897
   },
   {
    "body": "mars",
@@ -243,6 +793,36 @@
    "diameterKm": 1811
   },
   {
+   "body": "venus",
+   "name": "Themis Regio",
+   "type": "Regio",
+   "kind": "land",
+   "outline": true,
+   "lat": -37.4,
+   "lon": -75.8,
+   "diameterKm": 1811
+  },
+  {
+   "body": "venus",
+   "name": "Laimdota Planitia",
+   "type": "Planitia",
+   "kind": "plain",
+   "outline": true,
+   "lat": -58,
+   "lon": 117,
+   "diameterKm": 1800
+  },
+  {
+   "body": "venus",
+   "name": "Bell Regio",
+   "type": "Regio",
+   "kind": "land",
+   "outline": true,
+   "lat": 32.8,
+   "lon": 51.4,
+   "diameterKm": 1778
+  },
+  {
    "body": "mars",
    "name": "Ares Vallis",
    "type": "Vallis",
@@ -271,6 +851,16 @@
    "lat": 14.01,
    "lon": 113.792,
    "diameterKm": 1650
+  },
+  {
+   "body": "venus",
+   "name": "Imdr Regio",
+   "type": "Regio",
+   "kind": "land",
+   "outline": true,
+   "lat": -43,
+   "lon": -148,
+   "diameterKm": 1611
   },
   {
    "body": "mars",
@@ -311,6 +901,16 @@
    "lat": 10.227,
    "lon": -58.38,
    "diameterKm": 1515
+  },
+  {
+   "body": "venus",
+   "name": "Dsonkwa Regio",
+   "type": "Regio",
+   "kind": "land",
+   "outline": true,
+   "lat": -53,
+   "lon": 167,
+   "diameterKm": 1500
   },
   {
    "body": "mars",
@@ -393,6 +993,16 @@
    "diameterKm": 1215
   },
   {
+   "body": "venus",
+   "name": "Viriplaca Planum",
+   "type": "Planum",
+   "kind": "plain",
+   "outline": true,
+   "lat": -20,
+   "lon": 112,
+   "diameterKm": 1200
+  },
+  {
    "body": "mars",
    "name": "Noctis Labyrinthus",
    "type": "Labyrinthus",
@@ -453,6 +1063,16 @@
    "diameterKm": 1062
   },
   {
+   "body": "venus",
+   "name": "Heng-o Corona",
+   "type": "Corona",
+   "kind": "crater",
+   "outline": true,
+   "lat": 2,
+   "lon": -5,
+   "diameterKm": 1060
+  },
+  {
    "body": "mars",
    "name": "Meridiani Planum",
    "type": "Planum",
@@ -491,6 +1111,26 @@
    "lat": -73.669,
    "lon": -95.071,
    "diameterKm": 1027
+  },
+  {
+   "body": "venus",
+   "name": "Atanua Mons",
+   "type": "Mons",
+   "kind": "mons",
+   "outline": true,
+   "lat": 9.5,
+   "lon": -51.1,
+   "diameterKm": 1000
+  },
+  {
+   "body": "venus",
+   "name": "Var Mons",
+   "type": "Mons",
+   "kind": "mons",
+   "outline": true,
+   "lat": 1.2,
+   "lon": -43.8,
+   "diameterKm": 1000
   },
   {
    "body": "moon",
@@ -533,6 +1173,16 @@
    "diameterKm": 934
   },
   {
+   "body": "venus",
+   "name": "Metis Mons",
+   "type": "Mons",
+   "kind": "mons",
+   "outline": true,
+   "lat": 71,
+   "lon": -107,
+   "diameterKm": 920
+  },
+  {
    "body": "mars",
    "name": "Sinai Planum",
    "type": "Planum",
@@ -550,6 +1200,16 @@
    "outline": true,
    "lat": -4.99,
    "lon": -177.17,
+   "diameterKm": 900
+  },
+  {
+   "body": "venus",
+   "name": "Nayunuwi Montes",
+   "type": "Mons",
+   "kind": "mons",
+   "outline": true,
+   "lat": 2,
+   "lon": 83,
    "diameterKm": 900
   },
   {
@@ -571,6 +1231,16 @@
    "lat": 8.349,
    "lon": 30.835,
    "diameterKm": 876
+  },
+  {
+   "body": "venus",
+   "name": "Nyx Mons",
+   "type": "Mons",
+   "kind": "mons",
+   "outline": true,
+   "lat": 30,
+   "lon": 48.5,
+   "diameterKm": 875
   },
   {
    "body": "mars",
@@ -613,6 +1283,16 @@
    "diameterKm": 831
   },
   {
+   "body": "venus",
+   "name": "Akna Montes",
+   "type": "Mons",
+   "kind": "mons",
+   "outline": true,
+   "lat": 68.9,
+   "lon": -41.8,
+   "diameterKm": 830
+  },
+  {
    "body": "mars",
    "name": "Erebus Montes",
    "type": "Mons",
@@ -623,6 +1303,16 @@
    "diameterKm": 812
   },
   {
+   "body": "venus",
+   "name": "Danu Montes",
+   "type": "Mons",
+   "kind": "mons",
+   "outline": true,
+   "lat": 58.5,
+   "lon": -26,
+   "diameterKm": 808
+  },
+  {
    "body": "mars",
    "name": "Olympia Planum",
    "type": "Planum",
@@ -631,6 +1321,36 @@
    "lat": 82.18,
    "lon": -171.19,
    "diameterKm": 804
+  },
+  {
+   "body": "venus",
+   "name": "Turan Planum",
+   "type": "Planum",
+   "kind": "plain",
+   "outline": true,
+   "lat": -13,
+   "lon": 116.5,
+   "diameterKm": 800
+  },
+  {
+   "body": "venus",
+   "name": "Maxwell Montes",
+   "type": "Mons",
+   "kind": "mons",
+   "outline": true,
+   "lat": 65.2,
+   "lon": 3.3,
+   "diameterKm": 797
+  },
+  {
+   "body": "venus",
+   "name": "Tuli Mons",
+   "type": "Mons",
+   "kind": "mons",
+   "outline": true,
+   "lat": 13.3,
+   "lon": -45.4,
+   "diameterKm": 750
   },
   {
    "body": "moon",
@@ -1303,6 +2023,16 @@
    "diameterKm": 276
   },
   {
+   "body": "venus",
+   "name": "Mead",
+   "type": "Crater",
+   "kind": "crater",
+   "outline": true,
+   "lat": 12.5,
+   "lon": 57.2,
+   "diameterKm": 270
+  },
+  {
    "body": "moon",
    "name": "Gagarin",
    "type": "Crater",
@@ -1703,6 +2433,16 @@
    "diameterKm": 180
   },
   {
+   "body": "venus",
+   "name": "Isabella",
+   "type": "Crater",
+   "kind": "crater",
+   "outline": true,
+   "lat": -29.8,
+   "lon": -155.8,
+   "diameterKm": 175
+  },
+  {
    "body": "moon",
    "name": "Palus Somni",
    "type": "Palus",
@@ -1743,6 +2483,16 @@
    "diameterKm": 154
   },
   {
+   "body": "venus",
+   "name": "Meitner",
+   "type": "Crater",
+   "kind": "crater",
+   "outline": true,
+   "lat": -55.6,
+   "lon": -38.4,
+   "diameterKm": 149
+  },
+  {
    "body": "moon",
    "name": "Mare Anguis",
    "type": "Mare",
@@ -1761,6 +2511,16 @@
    "lat": 1.302,
    "lon": 65.303,
    "diameterKm": 143
+  },
+  {
+   "body": "venus",
+   "name": "Klenova",
+   "type": "Crater",
+   "kind": "crater",
+   "outline": true,
+   "lat": 78.1,
+   "lon": 104.5,
+   "diameterKm": 141
   }
  ]
 }

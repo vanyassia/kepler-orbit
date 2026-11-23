@@ -29,7 +29,7 @@ const dataDir = join(import.meta.dirname, '..', '..', '..', 'public', 'data');
 const gp = (JSON.parse(readFileSync(join(dataDir, 'fallback-gp.json'), 'utf8')) as { items: OmmRecord[] }).items;
 interface HorizonsItem {
   naifId: number;
-  body: 'earth' | 'moon' | 'mars';
+  body: 'earth' | 'moon' | 'mars' | 'venus';
   epoch: string;
   eccentricity: number;
   inclinationDeg: number;
@@ -342,12 +342,23 @@ describe('Карта и глобус показывают одну и ту же 
       }
     }
   });
+
+  it('Венера: совпадение до 10⁻⁹° и через месяц после эпохи (обратное вращение)', () => {
+    for (const it of horizons.filter((x) => x.body === 'venus')) {
+      const el = fromHorizons(it);
+      for (const days of [0, 1, 30]) {
+        const d = globePoint(el, el.epochMs + days * 86_400_000);
+        expect(Math.abs(d.dLat), el.name).toBeLessThan(1e-9);
+        expect(Math.abs(d.dLon) * Math.cos(propagate(prepareOrbit(el), el.epochMs + days * 86_400_000).lat), el.name).toBeLessThan(1e-9);
+      }
+    }
+  });
 });
 
 describe('Вращение тел: направление и скорость', () => {
   const t0 = Date.UTC(2026, 10, 10);
   /** Прямое восхождение нулевого меридиана тела в его инерциальной системе, °. */
-  const meridian = (id: 'earth' | 'moon' | 'mars', t: number) => {
+  const meridian = (id: 'earth' | 'moon' | 'mars' | 'venus', t: number) => {
     const v = BODIES[id].toInertial({ x: 1, y: 0, z: 0 }, t);
     return Math.atan2(v.y, v.x) * RAD;
   };
@@ -362,8 +373,14 @@ describe('Вращение тел: направление и скорость', 
     expect(hour).toBeCloseTo(rate / 24, id === 'moon' ? 1 : 2); // у Луны — либрация по долготе
   });
 
+  it('Венера: обратное вращение — нулевой меридиан уходит к западу на 1,4814° в сутки', () => {
+    const day = wrap180(meridian('venus', t0 + 86_400_000) - meridian('venus', t0));
+    expect(day).toBeLessThan(0);
+    expect(day).toBeCloseTo(-1.4813688, 4);
+  });
+
   it('ось вращения — ось z: северный полюс тела не движется', () => {
-    for (const id of ['earth', 'moon'] as const) {
+    for (const id of ['earth', 'moon', 'venus'] as const) {
       const p = BODIES[id].toInertial({ x: 0, y: 0, z: 1 }, t0);
       expect(p.x).toBeCloseTo(0, 12);
       expect(p.y).toBeCloseTo(0, 12);

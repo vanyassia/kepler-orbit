@@ -51,8 +51,9 @@ export const PASS_RADIUS_OPTIONS: Record<BodyId, number[]> = {
   earth: [250, 500, 1000, 2000],
   moon: [50, 100, 250, 500],
   mars: [100, 250, 500, 1000],
+  venus: [250, 500, 1000, 2000],
 };
-const DEFAULT_PASS_RADIUS: Record<BodyId, number> = { earth: 1000, moon: 250, mars: 500 };
+const DEFAULT_PASS_RADIUS: Record<BodyId, number> = { earth: 1000, moon: 250, mars: 500, venus: 1000 };
 /** Насколько вперёд искать пролёты, сутки. */
 export const PASS_DAYS_OPTIONS = [1, 3, 7] as const;
 

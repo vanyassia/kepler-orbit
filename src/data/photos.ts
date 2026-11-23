@@ -7,7 +7,7 @@
  * Настоящих снимков на орбите мало, поэтому у каждого снимка помечено, что на нём:
  * фото, макет на выставке, рисунок или почтовая марка. Если снимок однотипного аппарата — так и написано.
  * У своих спутников снимков нет; у кого свободного снимка не нашлось (Меридиан, Ямал-601, Экспресс-АМУ1,
- * Скиф-Д, Аист-2Т, AO-7, Фобос-2), миниатюры просто нет.
+ * Скиф-Д, Аист-2Т, AO-7, Фобос-2, Венера-15), миниатюры просто нет.
  */
 import type { BodyId } from '../physics/bodies';
 
@@ -127,6 +127,13 @@ export const PHOTOS: Record<string, SatellitePhoto> = {
   'mars:-9711': { image: 'mars-2', commons: '1972_CPA_4113.jpg', kind: 'stamp', caption: 'СССР, 1972: станция «Марс-2» у планеты', author: 'Почта СССР', license: PD },
   'mars:-9712': { image: 'mars-3', commons: '1972_CPA_4114.jpg', kind: 'stamp', caption: 'СССР, 1972: спускаемый аппарат «Марса-3»', author: 'Почта СССР', license: PD },
   'mars:-9741': { image: 'mars-5', commons: 'Mars_4-5.jpg', kind: 'photo', caption: 'Однотипный «Марс-4»', author: NASA, license: PD },
+
+  // Венера
+  'venus:-248': { image: 'venus-express', commons: 'Venus_Express_in_orbit.jpg', kind: 'render', caption: 'Venus Express над Венерой', author: 'Andrzej Mirecki', license: PD },
+  'venus:-5': { image: 'akatsuki', commons: 'Akatsuki_CG01.png', kind: 'render', caption: 'Японский орбитер «Акацуки»', author: 'JAXA / ISAS', license: 'CC BY 4.0' },
+  'venus:-9751': { image: 'venera-9', commons: 'Venera_9_Space_Probe_01.jpg', kind: 'model', caption: 'Макет станции «Венера-9» в музее', author: 'Stolbovsky', license: 'CC BY 4.0' },
+  'venus:-9901': { image: 'magellan', commons: 'Magellan_deploy.jpg', kind: 'photo', caption: '«Магеллан» после отделения от шаттла «Атлантис», 1989', author: NASA, license: PD },
+  'venus:-9781': { image: 'pioneer-venus', commons: 'Pioneer_Venus_orbiter_(cropped_and_turned).jpg', kind: 'render', caption: '«Пионер-Венера-1» на орбите', author: NASA, license: PD },
 };
 
 /** Снимок аппарата или null, если его нет (свой спутник, не нашлось свободного снимка). */

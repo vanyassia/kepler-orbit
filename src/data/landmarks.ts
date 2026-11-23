@@ -1,5 +1,5 @@
 /**
- * Объекты на поверхности Луны и Марса — аналог городов на карте Земли.
+ * Объекты на поверхности Луны, Марса и Венеры — аналог городов на карте Земли.
  * Выделены (как Москва и Смоленск) места посадок советских аппаратов; на Земле у Востока-1 и Спутника-1 — Байконур и посадка Гагарина.
  * Координаты планетоцентрические, восточная долгота положительна (IAU).
  */
@@ -35,7 +35,19 @@ const MARS: City[] = [
   { name: 'Гора Арсия', lat: -8.26, lon: -120.09, labelSide: 'left' },
 ];
 
-export const PLACES: Record<BodyId, City[]> = { earth: CITIES, moon: MOON, mars: MARS };
+const VENUS: City[] = [
+  { name: 'Венера-7', lat: -5.0, lon: -9.0, highlight: true },
+  { name: 'Венера-9', lat: 31.01, lon: -68.36, highlight: true },
+  { name: 'Венера-13', lat: -7.5, lon: -56.5, highlight: true },
+  { name: 'Вега-2', lat: -7.14, lon: 177.67, highlight: true, labelSide: 'left' },
+  { name: 'Горы Максвелла', lat: 65.2, lon: 3.3 },
+  { name: 'Гора Маат', lat: 0.5, lon: -165.4 },
+  { name: 'Гора Тейя', lat: 22.7, lon: -79.0, labelSide: 'left' },
+  { name: 'Кратер Мид', lat: 12.5, lon: 57.2 },
+  { name: 'Пионер-Венера-2 (дневной зонд)', lat: -31.3, lon: -43.0 },
+];
+
+export const PLACES: Record<BodyId, City[]> = { earth: CITIES, moon: MOON, mars: MARS, venus: VENUS };
 
 const withFlight = new Map<number, City[]>();
 
@@ -57,4 +69,9 @@ export function placesFor(body: BodyId, satId: number | undefined): City[] {
 }
 
 /** Как называется слой отметок на поверхности. */
-export const PLACES_LABEL: Record<BodyId, string> = { earth: 'Города', moon: 'Места посадок и кратеры', mars: 'Места посадок и объекты' };
+export const PLACES_LABEL: Record<BodyId, string> = {
+  earth: 'Города',
+  moon: 'Места посадок и кратеры',
+  mars: 'Места посадок и объекты',
+  venus: 'Места посадок и объекты',
+};

@@ -4,7 +4,7 @@ import { BODY_THUMB } from '../views/assets';
 import styles from './BodySwitcher.module.css';
 import { rovingKeyDown, rovingTabIndex } from './roving';
 
-const ORDER: BodyId[] = ['earth', 'moon', 'mars'];
+const ORDER: BodyId[] = ['earth', 'moon', 'mars', 'venus'];
 
 /**
  * Выбор центрального тела. Диски — настоящие снимки поверхности (уменьшенные копии текстур глобуса),

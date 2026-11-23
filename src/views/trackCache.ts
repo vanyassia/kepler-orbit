@@ -54,15 +54,20 @@ const LONG_PERIOD_SEC = 14 * 86400;
  * Сколько витков трассы показывать назад и вперёд. У обычных орбит — сколько выбрано в настройках,
  * у повторяющейся трассы — не меньше целого цикла (назад + вперёд = n витков).
  * У очень долгих тот же счёт идёт оборотами трассы вокруг тела: подспутниковая точка обходит тело
- * за 1 / |1/T_вращ − 1/T| (у Луны ≈ 24 ч 50 мин), и окно «1 назад, 2 вперёд» — это 1 и 2 таких оборота.
+ * за 1 / |s/T − Ω_тела/(2π)|, где s = ±1 — направление орбиты, а знак Ω_тела учитывает обратное
+ * вращение Венеры (у Луны ≈ 24 ч 50 мин). Окно «1 назад, 2 вперёд» — это 1 и 2 таких оборота.
  */
 export function trackSpan(orbit: PreparedOrbit, revsBack: number, revsForward: number): { back: number; forward: number } {
   // Повторяющаяся трасса: показываем весь цикл, иначе узор не замкнётся
   const cycle = orbit.elements.repeatRevs;
   if (cycle) return { back: revsBack, forward: Math.max(revsForward, cycle - revsBack) };
   if (orbit.T <= LONG_PERIOD_SEC) return { back: revsBack, forward: revsForward };
-  const lap = 1 / Math.abs(1 / ROTATION_PERIOD[orbit.body.id] - 1 / orbit.T);
-  const k = lap / orbit.T;
+  const dir = Math.cos(orbit.iEq) >= 0 ? 1 : -1;
+  const bodyFreq = Math.sign(orbit.body.turn(0, 86_400_000)) / ROTATION_PERIOD[orbit.body.id];
+  const rel = Math.abs(dir / orbit.T - bodyFreq);
+  // Почти синхронная орбита (например, лунностационарная): не делим на ноль и не растягиваем окно
+  if (rel <= 1 / (2 * orbit.T)) return { back: revsBack, forward: revsForward };
+  const k = 1 / (rel * orbit.T);
   return { back: revsBack * k, forward: revsForward * k };
 }
 
@@ -79,10 +84,42 @@ export interface TrackWindow {
 
 /** Предел числа точек в каждой части окна: столько вмещают линии глобуса. */
 export const MAX_WINDOW_POINTS = 20_000;
+/** Наибольшая глубина дробления быстрого шага (перицентр вытянутых орбит и проход у полюса): stepMs / 2^6. */
+const MAX_REFINE_DEPTH = 6;
+/** Разница долгот по короткой дуге, градусы (0…180). */
+const deltaLonDeg = (a: number, b: number) => Math.abs(((b - a + 540) % 360) - 180);
+
+/**
+ * Нужны ли промежуточные точки между a и b: на вытянутых орбитах у перицентра за один шаг по времени
+ * спутник может пролететь до 10° дуги, а у полюсов долгота меняется резко — без дробления трасса
+ * срезает вершину у полюса и ломается в перицентре.
+ */
+function needsRefine(a: TrackPoint, b: TrackPoint): boolean {
+  if (b.timeMs - a.timeMs <= 2000) return false;
+  const dLat = Math.abs(b.lat - a.lat);
+  const dLon = deltaLonDeg(a.lon, b.lon);
+  const cosLat = Math.cos((((a.lat + b.lat) * 0.5) * Math.PI) / 180);
+  return Math.hypot(dLat, dLon * cosLat) > 1.5 || dLon > 10;
+}
+
+/** Рекурсивное заполнение промежуточных точек строго между a и b (в порядке времени). */
+function refineBetween(src: TrackSource, a: TrackPoint, b: TrackPoint, depth: number, budget: { left: number }, out: TrackPoint[]): void {
+  if (depth >= MAX_REFINE_DEPTH || budget.left <= 0 || !needsRefine(a, b)) return;
+  const tm = (a.timeMs + b.timeMs) / 2;
+  if (tm < src.fromMs) return;
+  const m = src.at(tm);
+  if (!m) return;
+  budget.left--;
+  refineBetween(src, a, m, depth + 1, budget, out);
+  out.push(m);
+  refineBetween(src, m, b, depth + 1, budget, out);
+}
 
 export class TrackCache {
   private key: object | null = null;
   private points: (TrackPoint | null)[] = [];
+  /** Промежуточные точки между points[i] и points[i + 1] на быстрых участках (перицентр, полюс). */
+  private extra: (TrackPoint[] | undefined)[] = [];
   private from = 0;
   private to = 0;
   private stepMs = 0;
@@ -106,6 +143,18 @@ export class TrackCache {
       this.to = b + margin;
       this.points = [];
       for (let tt = this.from; tt <= this.to; tt += stepMs) this.points.push(tt < src.fromMs ? null : src.at(tt));
+      // Уточняем быстрые участки (перицентр, полюса) в пределах запаса до MAX_WINDOW_POINTS
+      const maxBase = Math.ceil((Math.max(revsBack, revsForward) * Tms) / stepMs) + 2;
+      const budget = { left: Math.max(0, MAX_WINDOW_POINTS - maxBase) };
+      this.extra = new Array(this.points.length);
+      for (let i = 0; i < this.points.length - 1 && budget.left > 0; i++) {
+        const p0 = this.points[i];
+        const p1 = this.points[i + 1];
+        if (!p0 || !p1 || !needsRefine(p0, p1)) continue;
+        const mid: TrackPoint[] = [];
+        refineBetween(src, p0, p1, 0, budget, mid);
+        if (mid.length) this.extra[i] = mid;
+      }
       this.span = '';
     }
     const current = src.at(t);
@@ -113,7 +162,13 @@ export class TrackCache {
     const ia = Math.max(0, Math.ceil((a - this.from) / this.stepMs));
     const it = Math.floor((t - this.from) / this.stepMs);
     const ib = Math.floor((b - this.from) / this.stepMs);
-    const span = `${ia}|${it}|${ib}`;
+    // На уточнённом шаге учитываем, сколько промежуточных точек уже позади текущего момента t
+    const curExtra = this.extra[it];
+    let sub = 0;
+    if (curExtra) {
+      while (sub < curExtra.length && curExtra[sub].timeMs < t) sub++;
+    }
+    const span = `${ia}|${it}|${sub}|${ib}`;
     const w = this.window;
     if (w && span === this.span) {
       w.current = current;
@@ -128,14 +183,30 @@ export class TrackCache {
     next.past.length = 0;
     next.future.length = 1;
     next.future[0] = current;
+    // Промежуточные точки в начале окна (между a и points[ia])
+    const lead = ia > 0 ? this.extra[ia - 1] : undefined;
+    if (lead) {
+      for (const p of lead) if (p.timeMs >= a && p.timeMs < t) next.past.push(p);
+    }
     for (let i = ia; i <= it; i++) {
       const p = this.points[i];
-      if (p) next.past.push(p);
+      if (p && p.timeMs < t) next.past.push(p);
+      const ex = this.extra[i];
+      if (ex) {
+        for (const q of ex) if (q.timeMs < t) next.past.push(q);
+      }
     }
     next.past.push(current);
+    if (curExtra) {
+      for (let k = sub; k < curExtra.length; k++) if (curExtra[k].timeMs > t && curExtra[k].timeMs <= b) next.future.push(curExtra[k]);
+    }
     for (let i = it + 1; i <= ib; i++) {
       const p = this.points[i];
-      if (p) next.future.push(p);
+      if (p && p.timeMs <= b) next.future.push(p);
+      const ex = this.extra[i];
+      if (ex) {
+        for (const q of ex) if (q.timeMs <= b) next.future.push(q);
+      }
     }
     this.window = next;
     return next;
