@@ -19,11 +19,12 @@ import { fmt, fmtLat, fmtLon } from '../../ui/format';
 import { labelTitle } from '../../ui/satelliteTitle';
 import { ensureFullImage, LIGHT_DEVICE, NIGHT_LIGHTS, SURFACE, surfaceCredit, useProgressiveImage, VENUS_CLOUDS } from '../assets';
 import { registerSnapshot } from '../snapshot';
-import { frameDue, peakAngularRateDeg, simMsPerShift } from '../frameRate';
+import { frameDue, MIN_SHIFT_PX, peakAngularRateDeg, simMsPerShift } from '../frameRate';
 import { pickLevel } from '../imageChunks';
 import { nodesInWindow, orbitSource, Revolutions, revolutionColor, revolutionsAhead, TrackCache, trackSpan } from '../trackCache';
+import { venusCloudShift } from '../venusClouds';
 import type { BorderPaths } from './geo';
-import { loadBorders } from './geo';
+import { loadBorders, WORLD_W } from './geo';
 import { followStep, lonStep } from './follow';
 import { createNightMasks, updateNightMasks } from './nightMask';
 import type { MapScene, PassZone, View } from './renderMap';
@@ -84,7 +85,10 @@ export default function MapView() {
 
   const body = useAppStore((s) => s.body);
   const venusClouds = useAppStore((s) => s.layers.venusClouds);
-  const day = useProgressiveImage(body === 'venus' && venusClouds ? VENUS_CLOUDS : SURFACE[body]);
+  const surface = useProgressiveImage(SURFACE[body]);
+  const clouds = useProgressiveImage(body === 'venus' && venusClouds ? VENUS_CLOUDS : []);
+  const movingClouds = body === 'venus' && venusClouds && clouds !== null;
+  const day = movingClouds ? clouds : surface;
   // Ночные огни и границы государств — только у Земли
   const night = useProgressiveImage(body === 'earth' ? NIGHT_LIGHTS : []);
   const fineBordersRef = useRef(false);
@@ -113,12 +117,12 @@ export default function MapView() {
   }, [body, borders]);
 
   // Цикл кадров живёт всё время, новые снимки и границы читает отсюда
-  const dataRef = useRef({ day, night, borders });
+  const dataRef = useRef({ day, night, borders, movingClouds });
   // Перерисовка при смене изображений/данных
   useEffect(() => {
-    dataRef.current = { day, night, borders };
+    dataRef.current = { day, night, borders, movingClouds };
     dirtyRef.current = true;
-  }, [day, night, borders]);
+  }, [day, night, borders, movingClouds]);
   useEffect(
     () =>
       useAppStore.subscribe((s, p) => {
@@ -290,10 +294,11 @@ export default function MapView() {
     const lights = document.createElement('canvas');
     // Снимок огней в масштабе вида: тяжёлое уменьшение 8K — только при смене вида, а не с каждой маской
     const lightsScaled = document.createElement('canvas');
-    // Снимок и линии меняются только с видом и слоями: готовые холсты копируются в кадр вместо перерисовки
+    // Снимок и линии храним отдельно: движение облаков не затрагивает сетку и границы.
     const base = document.createElement('canvas');
     const lines = document.createElement('canvas');
     let staticKey = '';
+    let baseShift: number | null = null;
     const trackCache = new TrackCache();
     let revs: Revolutions | null = null;
     let revsRevision = -1;
@@ -339,7 +344,7 @@ export default function MapView() {
 
       const earth = st.body === 'earth';
       const { imagery, grid, borders: bordersOn } = st.layers;
-      const { day, night, borders } = dataRef.current;
+      const { day, night, borders, movingClouds } = dataRef.current;
       // Ширина всей карты на экране в пикселях: под неё подбираются копии снимков
       const worldPx = 360 * view.s * dpr;
       const redraw = () => {
@@ -351,14 +356,24 @@ export default function MapView() {
       const nightSource = night && pickLevel(night.levels, worldPx);
 
       const nextStaticKey = `${canvas.width}x${canvas.height}|${view.s}|${view.ox}|${view.oy}|${imagery}|${grid}|${bordersOn}|${earth}|${!!borders}`;
-      if (nextStaticKey !== staticKey || daySource !== baseSource) {
+      const staticChanged = nextStaticKey !== staticKey;
+      const scene = { view, layers: st.layers, day: daySource, borders: earth ? borders : null };
+      if (staticChanged) {
         staticKey = nextStaticKey;
-        baseSource = daySource;
-        const scene = { view, layers: st.layers, day: daySource, borders: earth ? borders : null };
-        base.width = lines.width = canvas.width;
-        base.height = lines.height = canvas.height;
-        renderBase(base.getContext('2d', { alpha: false })!, scene);
+        lines.width = canvas.width;
+        lines.height = canvas.height;
         renderLines(lines.getContext('2d')!, scene);
+      }
+
+      const cloudShift = imagery && movingClouds ? venusCloudShift(st.simTime) : null;
+      const cloudsMoved = cloudShift !== baseShift && (cloudShift === null || baseShift === null || !st.playing
+        || Math.abs(lonStep(baseShift * WORLD_W, cloudShift * WORLD_W).delta) * view.s >= MIN_SHIFT_PX);
+      if (staticChanged || daySource !== baseSource || cloudsMoved) {
+        baseSource = daySource;
+        baseShift = cloudShift;
+        if (base.width !== canvas.width) base.width = canvas.width;
+        if (base.height !== canvas.height) base.height = canvas.height;
+        renderBase(base.getContext('2d', { alpha: false })!, scene, cloudShift);
       }
 
       // Маски ночи пересчитываются, когда Солнце сместилось больше чем на 0,05°

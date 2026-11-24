@@ -123,7 +123,7 @@ export const smoothingFor = (img: ImageBitmap | HTMLImageElement | null): ImageS
   img instanceof HTMLImageElement ? 'high' : img && img.width > 4096 ? 'medium' : 'low';
 
 /** Подложка: спутниковый снимок или схема. */
-export function renderBase(ctx: CanvasRenderingContext2D, sc: StaticScene): void {
+export function renderBase(ctx: CanvasRenderingContext2D, sc: StaticScene, cloudShift: number | null): void {
   const { view: v, layers } = sc;
   setScreen(ctx, v);
   ctx.fillStyle = COLORS.bg;
@@ -132,7 +132,17 @@ export function renderBase(ctx: CanvasRenderingContext2D, sc: StaticScene): void
   clipToMap(ctx, v);
   ctx.imageSmoothingQuality = smoothingFor(sc.day);
   if (layers.imagery && sc.day) {
-    ctx.drawImage(sc.day, 0, 0, WORLD_W, WORLD_H);
+    if (cloudShift === null) {
+      ctx.drawImage(sc.day, 0, 0, WORLD_W, WORLD_H);
+    } else {
+      // Один повторяющийся рисунок по всей ширине: на стыке нет зазора даже при дробном сдвиге.
+      const pattern = ctx.createPattern(sc.day, 'repeat-x');
+      if (pattern) {
+        pattern.setTransform({ a: WORLD_W / sc.day.width, d: WORLD_H / sc.day.height, e: -cloudShift * WORLD_W });
+        ctx.fillStyle = pattern;
+        ctx.fillRect(0, 0, WORLD_W, WORLD_H);
+      }
+    }
   } else {
     ctx.fillStyle = COLORS.ocean;
     ctx.fillRect(0, 0, WORLD_W, WORLD_H);

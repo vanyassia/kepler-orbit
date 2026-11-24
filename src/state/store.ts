@@ -353,7 +353,14 @@ export const useAppStore = create<AppState>()(
   setView: (v) => set({ view: v }),
   setCamera: (c) => set({ camera: c }),
   setQuality: (q) => set({ quality: q }),
-  toggleLayer: (k) => set((s) => ({ layers: { ...s.layers, [k]: !s.layers[k] } })),
+  toggleLayer: (k) => {
+    if (k === 'venusClouds') {
+      const { layers, setVenusClouds } = get();
+      setVenusClouds(!(layers.venusClouds && layers.imagery));
+      return;
+    }
+    set((s) => ({ layers: { ...s.layers, [k]: !s.layers[k] } }));
+  },
   setVenusClouds: (on) =>
     set((s) => (s.layers.venusClouds === on && s.layers.imagery ? s : { layers: { ...s.layers, venusClouds: on, imagery: true } })),
   setRevs: (back, forward) => set({ revsBack: back, revsForward: forward }),

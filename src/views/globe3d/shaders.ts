@@ -3,15 +3,6 @@
  * Освещение — по реальному направлению на Солнце (формула (15)), в мировых координатах сцены.
  */
 
-/** Период супервращения облачного покрова Венеры: ≈ 4 земных суток на запад. */
-export const VENUS_CLOUD_PERIOD_MS = 4 * 86_400_000;
-
-/** Сдвиг текстуры облаков Венеры по долготе (доля оборота в [0, 1); рост u смещает облака на запад). */
-export function venusCloudShift(timeMs: number): number {
-  const frac = (timeMs / VENUS_CLOUD_PERIOD_MS) % 1;
-  return frac < 0 ? frac + 1 : frac === 0 ? 0 : frac;
-}
-
 const worldVertex = /* glsl */ `
   varying vec2 vUv;
   varying vec3 vWorldNormal;

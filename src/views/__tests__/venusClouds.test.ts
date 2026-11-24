@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { SURFACE_CREDIT, surfaceCredit, VENUS_CLOUDS, VENUS_CLOUDS_CREDIT } from '../assets';
-import { VENUS_CLOUD_PERIOD_MS, venusCloudShift } from '../globe3d/shaders';
+import { VENUS_CLOUD_PERIOD_MS, venusCloudShift } from '../venusClouds';
 
 describe('Облачный слой Венеры', () => {
   it('сдвиг супервращения делает полный оборот на запад за 4 земных суток', () => {

@@ -64,7 +64,7 @@ export function LayersMenu({ keys, children }: { keys: (keyof Layers)[]; childre
         <div id={id} className={styles.panel}>
           {keys.map((k) => (
             <label key={k} className={styles.item}>
-              <input type="checkbox" checked={layers[k]} onChange={() => toggle(k)} />
+              <input type="checkbox" checked={layers[k] && (k !== 'venusClouds' || layers.imagery)} onChange={() => toggle(k)} />
               <span className={styles.box} aria-hidden="true" />
               {k === 'cities'
                 ? PLACES_LABEL[body]
