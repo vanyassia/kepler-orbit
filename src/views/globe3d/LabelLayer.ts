@@ -118,7 +118,7 @@ export class LabelLayer {
     }
   }
 
-  update(camera: Camera, width: number, height: number, polarRatio = 1): void {
+  update(camera: Camera, width: number, height: number, polarRatio = 1, reserve?: { centerRadiusPx: number; top: number }): void {
     // Сначала все чтения размеров (одна перекомпоновка), потом только запись стилей
     for (const it of this.order) {
       if (it.dirty) {
@@ -130,6 +130,15 @@ export class LabelLayer {
 
     const placed = this.placed;
     placed.length = 0;
+    if (reserve) {
+      // Подпись «Кассини» может оказаться у центра кадра; оставляем место диску Сатурна и кольцам.
+      this.ndc.set(0, 0, 0).project(camera);
+      const x = ((this.ndc.x + 1) / 2) * width;
+      const y = ((1 - this.ndc.y) / 2) * height;
+      const r = reserve.centerRadiusPx + GAP;
+      placed.push(x - r, y - r, x + r, y + r);
+    }
+    const top = reserve?.top ?? 0;
     for (const it of this.order) {
       const s = it.spec;
       const el = it.el;
@@ -158,7 +167,7 @@ export class LabelLayer {
         const [fx, fy, px, py] = offsets[i];
         const l = x + fx * it.w + px;
         const t = y + fy * it.h + py;
-        if (l < 0 || t < 0 || l + it.w > width || t + it.h > height) continue;
+        if (l < 0 || t < top || l + it.w > width || t + it.h > height) continue;
         if (!this.overlaps(l, t, it.w, it.h)) {
           chosen = i;
           break;
@@ -173,7 +182,7 @@ export class LabelLayer {
       it.last = chosen;
       const [fx, fy, px, py] = offsets[chosen];
       const l = Math.max(0, Math.min(width - it.w, x + fx * it.w + px));
-      const t = Math.max(0, Math.min(height - it.h, y + fy * it.h + py));
+      const t = Math.max(top, Math.min(height - it.h, y + fy * it.h + py));
       placed.push(l - GAP, t - GAP, l + it.w + GAP, t + it.h + GAP);
       if (it.hidden) {
         el.dataset.hidden = 'false';

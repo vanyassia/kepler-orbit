@@ -53,7 +53,7 @@ describe('orbitProfile', () => {
     expect(first.h).toBeCloseTo(orbit.hPerigee, 3);
     expect(last.h).toBeCloseTo(orbit.hPerigee, 3);
     expect(mid.h).toBeCloseTo(orbit.hApogee, 3);
-    expect(mid.timeMs).toBeCloseTo(p.apoMs, 0);
+    expect(mid.timeMs).toBeCloseTo(p.apsisMs, 0);
     expect(p.endMs - p.startMs).toBeCloseTo(T, 0);
     expect(first.theta).toBe(0);
     expect(mid.theta).toBeCloseTo(Math.PI, 9);

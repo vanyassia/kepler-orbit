@@ -54,7 +54,7 @@
   stroke-width: 1;
 }
 
-.apo {
+.apsis {
   stroke: var(--line-strong);
   stroke-width: 1;
   stroke-dasharray: 3 3;
@@ -109,7 +109,7 @@
   line-height: var(--lh-ui);
 }
 
-.axisMid {
+.axisMark {
   position: absolute;
   top: 0;
   transform: translateX(-50%);

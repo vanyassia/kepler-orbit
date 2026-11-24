@@ -34,7 +34,7 @@ export function useThrottledSimTime(intervalMs = 100): number {
       const now = performance.now();
       // Скачок времени (ползунок, «Сейчас») показываем сразу
       const jump = Math.abs(s.simTime - prev.simTime) > 60_000 * Math.max(1, s.speed / 60);
-      if (jump || now - lastSet >= intervalMs) {
+      if (!s.playing || s.anchorSim !== prev.anchorSim || jump || now - lastSet >= intervalMs) {
         lastSet = now;
         setT(s.simTime);
       }

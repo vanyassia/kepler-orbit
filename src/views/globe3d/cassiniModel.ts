@@ -131,3 +131,16 @@ export function disposeCassiniModel(model: Group): void {
     }
   }
 }
+
+/** Радиус от точки крепления модели до её дальней вершины, включая антенны. */
+export function cassiniModelRadius(model: Group): number {
+  let radiusSq = 0;
+  for (const mesh of model.children) {
+    if (!(mesh instanceof Mesh)) continue;
+    const p = mesh.geometry.getAttribute('position');
+    for (let i = 0; i < p.count; i++) {
+      radiusSq = Math.max(radiusSq, p.getX(i) ** 2 + p.getY(i) ** 2 + p.getZ(i) ** 2);
+    }
+  }
+  return Math.sqrt(radiusSq);
+}

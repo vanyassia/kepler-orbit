@@ -1,18 +1,19 @@
 /**
  * «Графики за виток»: высота h, скорость V, широта φ и истинная аномалия ν
- * от перицентра до следующего перицентра, с отметкой текущего момента.
+ * от перицентра до следующего перицентра или за архивный интервал «Кассини».
  * По краям — перицентр, посередине — апоцентр: на вытянутых орбитах («Молния», «Меридиан»)
  * хорошо видно, как аппарат быстро проносится у перицентра и долго висит у апоцентра.
  *
  * Наведение показывает значения в любой момент витка, щелчок (касание) переводит туда время.
- * С клавиатуры графики — ползунок: стрелки двигают время по витку, Home/End — к перицентру.
+ * С клавиатуры графики — ползунок: стрелки двигают время, Home/End ведут к краям графика.
  * Расчёт точек — src/physics/orbitProfile.ts.
  */
 import { type KeyboardEvent, useEffect, useMemo, useRef, useState } from 'react';
+import { cassiniWindow } from '../data/orbiters';
 import { useThrottledSimTime } from '../hooks/useSimClock';
 import { RAD } from '../physics/constants';
 import type { OrbitProfile, ProfilePoint } from '../physics/orbitProfile';
-import { orbitProfile, perigeeBefore, profileAt } from '../physics/orbitProfile';
+import { archiveOrbitProfile, orbitProfile, perigeeBefore, profileAt } from '../physics/orbitProfile';
 import { useAppStore } from '../state/store';
 import { CapsLabel } from './CapsLabel';
 import { fmt, fmtDateTime, fmtDuration, fmtLat } from './format';
@@ -22,6 +23,7 @@ import styles from './OrbitCharts.module.css';
 const GUTTER = 50;
 const PLOT_H = 52;
 const PAD_Y = 6;
+const archiveDate = new Intl.DateTimeFormat('ru-RU', { dateStyle: 'short', timeZone: 'UTC' });
 
 interface ChartDef {
   key: string;
@@ -73,8 +75,12 @@ const CHARTS: ChartDef[] = [
 export function OrbitCharts() {
   const orbit = useAppStore((s) => s.orbit);
   const t = useThrottledSimTime(100);
-  const startMs = orbit ? Math.round(perigeeBefore(orbit, t)) : 0;
-  const profile = useMemo(() => (orbit ? orbitProfile(orbit, startMs) : null), [orbit, startMs]);
+  const archive = cassiniWindow(orbit?.elements.body, orbit?.elements.noradId);
+  const startMs = archive?.startMs ?? (orbit ? Math.round(perigeeBefore(orbit, t)) : 0);
+  const profile = useMemo(() => {
+    if (!orbit) return null;
+    return archive ? archiveOrbitProfile(orbit, startMs, archive.endMs) : orbitProfile(orbit, startMs);
+  }, [orbit, startMs, archive]);
 
   const boxRef = useRef<HTMLDivElement>(null);
   const [width, setWidth] = useState(0);
@@ -98,7 +104,7 @@ export function OrbitCharts() {
   const msAt = (clientX: number) => {
     const rect = boxRef.current!.getBoundingClientRect();
     const f = (clientX - rect.left - GUTTER) / plotW;
-    return profile.startMs + Math.max(0, Math.min(1, f)) * span;
+    return Math.round(profile.startMs + Math.max(0, Math.min(1, f)) * span);
   };
 
   const now = profileAt(profile, t);
@@ -121,8 +127,8 @@ export function OrbitCharts() {
     go(target);
   };
   const nowSec = Math.round((now.timeMs - profile.startMs) / 1000);
-  const valueText =
-    `${fmtDuration(nowSec)} после перицентра: ` + CHARTS.map((c) => `${c.label.replace(/ \S+$/, '').toLowerCase()} ${c.show(c.value(now))}`).join(', ');
+  const moment = archive ? `${fmtDateTime(now.timeMs)} UTC` : `${fmtDuration(nowSec)} после перицентра`;
+  const valueText = moment + ' · ' + CHARTS.map((c) => `${c.label.replace(/ \S+$/, '').toLowerCase()} ${c.show(c.value(now))}`).join(', ');
 
   return (
     <section className={styles.section} aria-labelledby="orbit-charts-h">
@@ -143,6 +149,8 @@ export function OrbitCharts() {
         onPointerMove={(e) => setHoverMs(msAt(e.clientX))}
         onPointerLeave={(e) => e.pointerType === 'mouse' && setHoverMs(null)}
         onPointerUp={(e) => {
+          if (e.button !== 0) return;
+          if (e.pointerType === 'mouse') e.currentTarget.focus({ preventScroll: true });
           go(msAt(e.clientX));
           // На сенсорном экране после касания остаётся только отметка текущего момента
           if (e.pointerType !== 'mouse') setHoverMs(null);
@@ -155,16 +163,22 @@ export function OrbitCharts() {
           ))}
         {width > 0 && (
           <div className={styles.axis} style={{ paddingLeft: GUTTER }}>
-            <span>перицентр</span>
-            <span className={styles.axisMid} style={{ left: GUTTER + plotW / 2 }}>
-              апоцентр
+            <span>{archive ? archiveDate.format(profile.startMs) : 'перицентр'}</span>
+            <span
+              className={styles.axisMark}
+              style={{ left: xOf(profile.apsisMs) }}
+              title={archive ? `${fmtDateTime(profile.apsisMs)} UTC` : undefined}
+            >
+              {archive ? 'перицентр' : 'апоцентр'}
             </span>
-            <span>перицентр</span>
+            <span>{archive ? archiveDate.format(profile.endMs) : 'перицентр'}</span>
           </div>
         )}
       </div>
       <p className={`${styles.caption} num`} aria-live="off">
-        {hover ? (
+        {archive ? (
+          <>{fmtDateTime(shown.timeMs)} UTC{hover && ' · Щелчок — перейти к этому моменту'}</>
+        ) : hover ? (
           <>
             {fmtDateTime(shown.timeMs)} UTC · {fmtDuration(sinceStart)} после перицентра. Щелчок — перейти к этому моменту
           </>
@@ -208,7 +222,8 @@ function Chart({
     const yOf = (v: number) => PAD_Y + (1 - (v - lo) / (hi - lo)) * PLOT_H;
     let d = '';
     profile.points.forEach((p, k) => {
-      d += `${k ? 'L' : 'M'}${xOf(p.timeMs).toFixed(1)} ${yOf(vals[k]).toFixed(1)}`;
+      const sameTime = p.timeMs === profile.points[k - 1]?.timeMs;
+      d += `${k && !(sameTime && def.key === 'theta') ? 'L' : 'M'}${xOf(p.timeMs).toFixed(1)} ${yOf(vals[k]).toFixed(1)}`;
     });
     return { path: d, yOf, lo, hi };
     // xOf зависит только от ширины и витка
@@ -216,7 +231,7 @@ function Chart({
   }, [def, profile, width]);
 
   const xNow = xOf(now.timeMs);
-  const xApo = xOf(profile.apoMs);
+  const xApsis = xOf(profile.apsisMs);
   const tick = (v: number) => def.tick(v, hi - lo);
   const mid = def.fixed ? (lo + hi) / 2 : null;
 
@@ -238,11 +253,11 @@ function Chart({
         role="img"
         aria-label={`${def.label} за виток: от ${tick(lo)} до ${tick(hi)}, сейчас ${def.show(def.value(now))}`}
       >
-        {/* Рамка оси: верх и низ, середина витка (апоцентр) */}
+        {/* Рамка оси и отметка апсиды. */}
         <line x1={GUTTER} x2={width} y1={PAD_Y} y2={PAD_Y} className={styles.grid} />
         <line x1={GUTTER} x2={width} y1={PAD_Y + PLOT_H} y2={PAD_Y + PLOT_H} className={styles.grid} />
         {mid !== null && <line x1={GUTTER} x2={width} y1={yOf(mid)} y2={yOf(mid)} className={styles.grid} />}
-        <line x1={xApo} x2={xApo} y1={PAD_Y} y2={PAD_Y + PLOT_H} className={styles.apo} />
+        <line x1={xApsis} x2={xApsis} y1={PAD_Y} y2={PAD_Y + PLOT_H} className={styles.apsis} />
         <text x={GUTTER - 6} y={PAD_Y} className={styles.tick} dominantBaseline="middle">
           {tick(hi)}
         </text>

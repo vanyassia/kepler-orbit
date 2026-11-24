@@ -23,11 +23,9 @@ export interface ProfilePoint {
 }
 
 export interface OrbitProfile {
-  /** Прохождение перицентра в начале витка, мс. */
   startMs: number;
-  /** Прохождение апоцентра (середина витка по времени), мс. */
-  apoMs: number;
-  /** Следующее прохождение перицентра, мс. */
+  /** Отметка апоцентра на обычном витке или перицентра внутри архива, мс. */
+  apsisMs: number;
   endMs: number;
   points: ProfilePoint[];
 }
@@ -47,18 +45,43 @@ export function perigeeBefore(orbit: PreparedOrbit, timeMs: number): number {
 
 /** Точки графиков за виток, начинающийся с перицентра startMs. */
 export function orbitProfile(orbit: PreparedOrbit, startMs: number, samples = 240): OrbitProfile {
-  const e = orbit.e;
   const points: ProfilePoint[] = [];
   for (let k = 0; k <= samples; k++) {
-    const E = (k / samples) * TWO_PI;
-    const M = E - e * Math.sin(E); // уравнение Кеплера (5): от E к M
-    const timeMs = startMs + (M / orbit.n) * 1000;
-    const s = propagate(orbit, timeMs);
+    const timeMs = sampleTime(orbit, startMs, k / samples);
     // На последней точке ν снова 0 по модулю 2π — рисуем её как 2π, чтобы линия не падала вниз
-    const theta = k === samples ? TWO_PI : k === 0 ? 0 : s.theta;
-    points.push({ timeMs, h: s.h, V: s.V, lat: s.lat, theta });
+    points.push(pointAt(orbit, timeMs, k === samples ? TWO_PI : k === 0 ? 0 : undefined));
   }
-  return { startMs, apoMs: startMs + orbit.T * 500, endMs: startMs + orbit.T * 1000, points };
+  return { startMs, apsisMs: startMs + orbit.T * 500, endMs: startMs + orbit.T * 1000, points };
+}
+
+function sampleTime(orbit: PreparedOrbit, periMs: number, fraction: number): number {
+  const E = fraction * TWO_PI;
+  const M = E - orbit.e * Math.sin(E); // уравнение Кеплера (5): от E к M
+  return periMs + (M / orbit.n) * 1000;
+}
+
+function pointAt(orbit: PreparedOrbit, timeMs: number, theta?: number): ProfilePoint {
+  const s = propagate(orbit, timeMs);
+  return { timeMs, h: s.h, V: s.V, lat: s.lat, theta: theta ?? s.theta };
+}
+
+/** Архив ограничен датами. Сетка по E сохраняет подробности по обе стороны от перицентра. */
+export function archiveOrbitProfile(orbit: PreparedOrbit, startMs: number, endMs: number, samples = 240): OrbitProfile {
+  const points = [pointAt(orbit, startMs)];
+  const periodMs = orbit.T * 1000;
+  for (let peri = perigeeBefore(orbit, startMs); peri < endMs; peri += periodMs) {
+    if (peri > startMs) {
+      // В один момент заканчивается ветвь 360° и начинается ветвь 0°.
+      const p = pointAt(orbit, peri, 0);
+      points.push({ ...p, theta: TWO_PI }, p);
+    }
+    for (let k = 1; k < samples; k++) {
+      const timeMs = sampleTime(orbit, peri, k / samples);
+      if (timeMs > startMs && timeMs < endMs) points.push(pointAt(orbit, timeMs));
+    }
+  }
+  points.push(pointAt(orbit, endMs));
+  return { startMs, endMs, apsisMs: perigeeBefore(orbit, endMs), points };
 }
 
 /** Значения графиков в произвольный момент витка — линейно между соседними точками. */

@@ -1,8 +1,13 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
+import { PerspectiveCamera, Vector3 } from 'three';
 import snapshot from '../../../public/data/orbiters.json';
-import { prepareOrbit, type OrbitalElements } from '../../physics/propagate';
+import { archiveOrbitProfile, profileAt } from '../../physics/orbitProfile';
+import { orbitEllipse, prepareOrbit, propagate, type OrbitalElements } from '../../physics/propagate';
 import { useAppStore } from '../../state/store';
-import { orbitSource, TrackCache } from '../../views/trackCache';
+import { cassiniModelRadius, createCassiniModel, disposeCassiniModel } from '../../views/globe3d/cassiniModel';
+import { cassiniFrame, cassiniOverviewDistance } from '../../views/globe3d/cassiniOverview';
+import { axisToScene, toScene } from '../../views/globe3d/coords';
+import { futureTrackLegend, orbitSource, Revolutions, TrackCache } from '../../views/trackCache';
 import { buildTrackTable } from '../exportData';
 import { CASSINI_WINDOW, isOrbiterId, legacyBodyFor, loadOrbiter, ownLook } from '../orbiters';
 
@@ -59,8 +64,10 @@ describe('Виток № 292 «Кассини»', () => {
       state.setPlaying(true);
       state.tick(useAppStore.getState().anchorReal + 3000);
       expect(useAppStore.getState()).toMatchObject({ simTime: endMs, playing: false });
-      state.setRecord({ elements: { ...elements, noradId: 602 }, source: 'horizons', fetchedAt: Date.now() });
-      expect(useAppStore.getState().simTime).toBeGreaterThan(endMs);
+      const now = Date.UTC(2026, 10, 24);
+      vi.spyOn(Date, 'now').mockReturnValue(now);
+      state.setRecord({ elements: { ...elements, noradId: 606 }, source: 'horizons', fetchedAt: now });
+      expect(useAppStore.getState()).toMatchObject({ simTime: now, speed: 1, playing: true });
     } finally {
       useAppStore.setState(state);
     }
@@ -78,5 +85,80 @@ describe('Виток № 292 «Кассини»', () => {
     expect(table.times[0]).toBe(startMs);
     expect(table.times.at(-1)).toBe(endMs);
     expect(table.titles).toContain('Высота h от экваториального радиуса 60 268 км (км)');
+  });
+
+  it('показывает на графиках даты архива и плотную выборку вокруг перицентра', () => {
+    const orbit = prepareOrbit(elements);
+    const profile = archiveOrbitProfile(orbit, startMs, endMs);
+    expect(profile.points[0].timeMs).toBe(startMs);
+    expect(profile.points.at(-1)?.timeMs).toBe(endMs);
+    expect(new Date(profile.apsisMs).toISOString().slice(0, 10)).toBe('2017-09-09');
+    expect(profile.points.filter((p) => Math.abs(p.timeMs - profile.apsisMs) < 30 * 60_000).length).toBeGreaterThan(15);
+    for (const time of [startMs, profile.apsisMs, endMs]) {
+      const point = profileAt(profile, time);
+      const state = propagate(orbit, time);
+      expect(point.timeMs).toBe(time);
+      expect(point.h).toBeCloseTo(state.h, 5);
+      expect(point.V).toBeCloseTo(state.V, 5);
+    }
+    expect(profileAt(profile, profile.apsisMs - 1000).theta).toBeGreaterThan(6);
+    expect(profileAt(profile, profile.apsisMs + 1000).theta).toBeLessThan(0.1);
+  });
+
+  it('берёт цвета легенды с будущей трассы и убирает её пункты в конце архива', () => {
+    const orbit = prepareOrbit(elements);
+    const cache = new TrackCache();
+    const source = orbitSource(orbit);
+    const legendAt = (time: number) => {
+      const track = cache.get(source, time, 1, 2)!;
+      return futureTrackLegend(track.future, new Revolutions(orbit, time, 1, 2));
+    };
+    expect(legendAt(startMs)).toEqual({ current: true, forward: 1 });
+    expect(legendAt(endMs - 60_000)).toEqual({ current: true, forward: 0 });
+    expect(legendAt(endMs)).toEqual({ current: false, forward: 0 });
+  });
+
+  it('вписывает всю орбиту и модель с антеннами в панели глобуса и обоих видов', () => {
+    const orbit = prepareOrbit(elements);
+    const ellipse = orbitEllipse(orbit, 360).map((p) => toScene(p, new Vector3(), orbit.body.radius));
+    const model = createCassiniModel();
+    const radius = cassiniModelRadius(model);
+    disposeCassiniModel(model);
+    const up = new Vector3(0, 1, 0);
+    const direction = axisToScene(orbit.body.sunDirection(elements.epochMs));
+    direction.y = 0;
+    direction.normalize().applyAxisAngle(up, 0.54);
+    direction.y = 0.48;
+    direction.normalize();
+
+    for (const [width, height] of [[390, 660], [390, 325], [1100, 660], [1100, 325]]) {
+      const half = 19 * Math.PI / 180;
+      const aspect = width / height;
+      const fov = 2 * Math.atan(Math.tan(half) / Math.min(1, aspect)) * 180 / Math.PI;
+      const distance = cassiniOverviewDistance(ellipse, direction, up, width, height, 38, radius);
+      expect(distance).toBeLessThan(220);
+      const frame = cassiniFrame(width, height);
+      const camera = new PerspectiveCamera(fov, aspect);
+      camera.setViewOffset(width, height, 0, -frame.shiftY, width, height);
+      camera.position.copy(direction).multiplyScalar(distance);
+      camera.lookAt(0, 0, 0);
+      camera.updateMatrixWorld();
+      const focal = Math.min(width, height) / (2 * Math.tan(half));
+      const right = new Vector3().crossVectors(up, direction).normalize();
+      const top = new Vector3().crossVectors(direction, right);
+      for (const point of ellipse) {
+        const depth = distance - point.dot(direction);
+        const modelR = radius * frame.modelPxPerUnit * depth / focal;
+        // Четыре крайние для кадра точки сферы вокруг аппарата.
+        for (const [axis, side] of [[right, width - 2 * frame.paddingX], [top, frame.freeHeight]] as const) {
+          for (const sign of [-1, 1]) {
+            const edge = axis.clone().multiplyScalar(sign).addScaledVector(direction, side / (2 * focal)).normalize();
+            const projected = point.clone().addScaledVector(edge, modelR).project(camera);
+            expect(Math.abs(projected.x)).toBeLessThan(1);
+            expect(Math.abs(projected.y + 2 * frame.shiftY / height)).toBeLessThanOrEqual(frame.freeHeight / height + 1e-8);
+          }
+        }
+      }
+    }
   });
 });

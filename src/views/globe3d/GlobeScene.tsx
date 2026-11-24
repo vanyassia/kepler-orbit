@@ -49,7 +49,8 @@ import { createNaturalModels, loadMoonSurface, placeNatural } from './naturalMod
 import { createSputnikModel, createVostokModel, SPUTNIK_SPAN, VOSTOK_SPAN } from './historicModels';
 import { createIssModel, ISS_SPAN } from './issModel';
 import { createSatelliteModel, SATELLITE_SPAN } from './satelliteModel';
-import { CASSINI_SPAN, createCassiniModel, disposeCassiniModel } from './cassiniModel';
+import { cassiniModelRadius, createCassiniModel, disposeCassiniModel } from './cassiniModel';
+import { cassiniFrame, cassiniOverviewDistance } from './cassiniOverview';
 import { SATURN_POLAR_RATIO, SATURN_RING_INNER, SATURN_RING_OUTER, saturnGlobeGeometry, saturnRingMaterial } from './saturn';
 
 const TRACK_R = 1.0025;
@@ -69,7 +70,11 @@ const BOARD_FLIGHT_MS = 1400;
  * в кадре были и тело, и вся орбита. Очень вытянутая орбита (Марс-3, e ≈ 0,96) уходит от тела
  * почти в одну сторону: нужен запас, чтобы апоцентр попал в кадр.
  */
-function overviewPosition(orbit: NonNullable<ReturnType<typeof useAppStore.getState>['orbit']>, t: number, out: Vector3, aspect: number): Vector3 {
+function overviewPosition(
+  orbit: NonNullable<ReturnType<typeof useAppStore.getState>['orbit']>, t: number, { width, height }: { width: number; height: number },
+  cassini?: { ellipse: Vector3[]; radius: number },
+): Vector3 {
+  const out = new Vector3();
   const extent = orbit.rApogee / orbit.body.radius;
   if (orbit.body.id === 'saturn') {
     // Обзор с освещённой стороны и выше колец. При узком экране учитываем также ширину кадра.
@@ -77,8 +82,11 @@ function overviewPosition(orbit: NonNullable<ReturnType<typeof useAppStore.getSt
     out.y = 0;
     out.normalize().applyAxisAngle(WORLD_UP, 0.54);
     out.y = 0.48;
-    const fit = Math.hypot(extent, extent * 2.85 / Math.max(0.15, Math.min(1, aspect)));
-    return out.normalize().multiplyScalar(Math.min(MAX_CAMERA_DISTANCE, Math.max(7.8, fit)));
+    out.normalize();
+    const fit = cassini && width > 0 && height > 0
+      ? cassiniOverviewDistance(cassini.ellipse, out, WORLD_UP, width, height, CAMERA_FOV, cassini.radius)
+      : Math.hypot(extent, extent * 2.85 / Math.max(0.15, Math.min(1, width / Math.max(1, height))));
+    return out.multiplyScalar(Math.min(MAX_CAMERA_DISTANCE, Math.max(7.8, fit)));
   }
   const margin = orbit.e > 0.9 ? 3 : 2.3;
   const dist = Math.min(MAX_CAMERA_DISTANCE, Math.max(3.4, extent * margin + 0.8));
@@ -97,6 +105,8 @@ const CASSINI_OFFSETS = [
   [-1, -1.4, -37, -18],
   [0, 0.2, 37, 18],
   [-1, 0.2, -37, 18],
+  [-0.5, 0, 0, 58],
+  [-0.5, -1, 0, -58],
 ] as const;
 const NODE_OFFSETS = [
   [0, -1.1, 8, 0],
@@ -168,6 +178,9 @@ export function GlobeScene({ overlay, onReady }: { overlay: React.RefObject<HTML
   const size = useThree((s) => s.size);
   const invalidate = useThree((s) => s.invalidate);
   const camMode = useAppStore((s) => s.camera);
+  const orbit = useAppStore((s) => s.orbit);
+  const record = useAppStore((s) => s.record);
+  const showCassini = !!record && ownLook(record.elements) === 'cassini';
   /** «Вид с борта»: камера на спутнике смотрит вниз, на подспутниковую точку. */
   const board = camMode === 'board';
 
@@ -179,14 +192,19 @@ export function GlobeScene({ overlay, onReady }: { overlay: React.RefObject<HTML
   // Узкая высокая панель (телефон): угол обзора задан по горизонтали, иначе тело не помещается по ширине
   // В виде с борта угол обзора задаёт цикл кадра (boardView.ts); после выхода — снова обычный
   useEffect(() => {
-    if (board) return;
     const cam = camera as PerspectiveCamera;
+    if (board || !showCassini) cam.clearViewOffset();
+    if (board || size.width <= 0 || size.height <= 0) return;
     const aspect = size.width / size.height;
     const half = (CAMERA_FOV / 2) * (Math.PI / 180);
     cam.fov = aspect < 1 ? (2 * Math.atan(Math.tan(half) / aspect) * 180) / Math.PI : CAMERA_FOV;
+    if (showCassini) {
+      const { shiftY } = cassiniFrame(size.width, size.height);
+      cam.setViewOffset(size.width, size.height, 0, -shiftY, size.width, size.height);
+    }
     cam.updateProjectionMatrix();
     invalidate();
-  }, [camera, size.width, size.height, invalidate, board]);
+  }, [camera, size.width, size.height, invalidate, board, showCassini]);
   useEffect(
     () =>
       useAppStore.subscribe((s, p) => {
@@ -207,8 +225,6 @@ export function GlobeScene({ overlay, onReady }: { overlay: React.RefObject<HTML
     if (frameloop !== 'never') invalidate();
   }, [frameloop, invalidate]);
 
-  const orbit = useAppStore((s) => s.orbit);
-  const record = useAppStore((s) => s.record);
   const layers = useAppStore((s) => s.layers);
   const quality = useAppStore((s) => s.quality);
   const revsBack = useAppStore((s) => s.revsBack);
@@ -228,8 +244,8 @@ export function GlobeScene({ overlay, onReady }: { overlay: React.RefObject<HTML
   /** Свои модели первых аппаратов (historicModels.ts): «Восток» и Спутник-1. */
   const vostokModel = useMemo(() => createVostokModel(), []);
   const sputnikModel = useMemo(() => createSputnikModel(), []);
-  const showCassini = !!record && ownLook(record.elements) === 'cassini';
   const cassiniModel = useMemo(() => showCassini ? createCassiniModel() : null, [showCassini]);
+  const cassiniRadius = useMemo(() => cassiniModel ? cassiniModelRadius(cassiniModel) : 0, [cassiniModel]);
   useEffect(() => () => {
     if (cassiniModel) disposeCassiniModel(cassiniModel);
   }, [cassiniModel]);
@@ -508,6 +524,19 @@ export function GlobeScene({ overlay, onReady }: { overlay: React.RefObject<HTML
     };
   }, [board, gl, invalidate, zoomBoard]);
 
+  // Ручное управление прерывает перелёт и сохраняет выбранный масштаб при смене размера панели.
+  const manualCassini = useRef<typeof orbit>(null);
+  const camAnim = useRef<{ from: Vector3; to: Vector3; start: number } | null>(null);
+  useEffect(() => {
+    if (!controls || !showCassini) return;
+    const onStart = () => {
+      manualCassini.current = orbit;
+      camAnim.current = null;
+    };
+    controls.addEventListener('start', onStart);
+    return () => controls.removeEventListener('start', onStart);
+  }, [controls, orbit, showCassini]);
+
   // Клавиатура (альтернатива перетаскиванию): стрелки вращают камеру вокруг тела, «+» и «−» приближают.
   // Работает, когда фокус на области глобуса (Tab до неё); событие помечается, чтобы стрелки не сдвигали время.
   useEffect(() => {
@@ -537,6 +566,7 @@ export function GlobeScene({ overlay, onReady }: { overlay: React.RefObject<HTML
       else return;
       e.preventDefault();
       camAnim.current = null;
+      if (showCassini) manualCassini.current = orbit;
       camera.position.setFromSpherical(sph).applyQuaternion(toUp.invert());
       camera.lookAt(0, 0, 0);
       controls?.update();
@@ -544,10 +574,9 @@ export function GlobeScene({ overlay, onReady }: { overlay: React.RefObject<HTML
     };
     host.addEventListener('keydown', onKey);
     return () => host.removeEventListener('keydown', onKey);
-  }, [camera, controls, gl, invalidate, zoomBoard]);
+  }, [camera, controls, gl, invalidate, orbit, showCassini, zoomBoard]);
 
   // Плавная перестановка камеры при выборе нового спутника
-  const camAnim = useRef<{ from: Vector3; to: Vector3; start: number } | null>(null);
   /** Перелёт камеры на борт: откуда начался; цель каждый кадр своя — спутник движется. */
   const boardAnim = useRef<{ pos: Vector3; quat: Quaternion; fov: number; start: number } | null>(null);
   const startBoardFlight = useMemo(
@@ -560,22 +589,30 @@ export function GlobeScene({ overlay, onReady }: { overlay: React.RefObject<HTML
     },
     [camera, invalidate],
   );
+  const fitWidth = showCassini && frameloop !== 'never' ? size.width : 0;
+  const fitHeight = showCassini && frameloop !== 'never' ? size.height : 0;
+  const previousOrbit = useRef<typeof orbit>(null);
   useEffect(() => {
     if (!orbit || !geometry) return;
+    const newOrbit = previousOrbit.current !== orbit;
+    previousOrbit.current = orbit;
     // С борта камера перелетает на новый спутник и остаётся на нём
     if (useAppStore.getState().camera === 'board') {
-      startBoardFlight();
+      if (newOrbit) startBoardFlight();
       return;
     }
-    // Камера сбоку от спутника, чуть выше плоскости экватора — видны и Земля, и плоскость орбиты
-    const to = overviewPosition(orbit, useAppStore.getState().simTime, new Vector3(), size.width / Math.max(1, size.height));
+    if (showCassini && (fitWidth <= 0 || fitHeight <= 0 || manualCassini.current === orbit)) return;
+    if (showCassini) camera.up.copy(WORLD_UP);
+    const to = overviewPosition(orbit, useAppStore.getState().simTime, showCassini ? { width: fitWidth, height: fitHeight } : size,
+      showCassini ? { ellipse: geometry.ellipse, radius: cassiniRadius } : undefined);
     if (matchMedia('(prefers-reduced-motion: reduce)').matches) {
       camera.position.copy(to);
       camera.lookAt(0, 0, 0);
     } else {
       camAnim.current = { from: camera.position.clone(), to, start: performance.now() };
     }
-  }, [orbit, geometry, camera, startBoardFlight]);
+    invalidate();
+  }, [orbit, geometry, camera, startBoardFlight, showCassini, fitWidth, fitHeight, cassiniRadius, invalidate]);
 
   // Вход в вид с борта и выход из него
   const prevMode = useRef(camMode);
@@ -595,7 +632,12 @@ export function GlobeScene({ overlay, onReady }: { overlay: React.RefObject<HTML
     camera.up.set(0, 1, 0).applyQuaternion(camera.quaternion);
     const o = useAppStore.getState().orbit;
     if (!o) return;
-    const to = overviewPosition(o, useAppStore.getState().simTime, new Vector3(), size.width / Math.max(1, size.height));
+    const cassiniFit = showCassini && geometry ? { ellipse: geometry.ellipse, radius: cassiniRadius } : undefined;
+    if (cassiniFit) {
+      manualCassini.current = null;
+      camera.up.copy(WORLD_UP);
+    }
+    const to = overviewPosition(o, useAppStore.getState().simTime, size, cassiniFit);
     if (matchMedia('(prefers-reduced-motion: reduce)').matches) {
       camera.position.copy(to);
       camera.lookAt(0, 0, 0);
@@ -701,7 +743,6 @@ export function GlobeScene({ overlay, onReady }: { overlay: React.RefObject<HTML
         cassiniModel.quaternion.copy(satModel.quaternion);
         cassiniModel.rotateX(-1.17);
         cassiniModel.rotateY(2.65);
-        cassiniModel.scale.setScalar(80 / CASSINI_SPAN / ppu);
       }
       satGlow.current.visible = !natural && own !== 'cassini' && !onBoard;
       for (const [kind, mesh] of Object.entries(naturalModels)) mesh.visible = kind === natural && !onBoard;
@@ -771,6 +812,14 @@ export function GlobeScene({ overlay, onReady }: { overlay: React.RefObject<HTML
       }
       prevSatDir.current.copy(dir);
       prevQ.current = (prevQ.current ?? new Quaternion()).copy(orient);
+
+      if (cassiniModel?.visible) {
+        // Камера смотрит в центр тела. Масштаб считаем по глубине в кадре, включая позиции близко к краям.
+        const distance = camera.position.length();
+        const depth = Math.max(0.05, distance - camera.position.dot(satPos) / distance);
+        const screenPpu = pixelsPerUnit(size.height, (camera as PerspectiveCamera).fov, depth);
+        cassiniModel.scale.setScalar(cassiniFrame(size.width, size.height).modelPxPerUnit / screenPpu);
+      }
 
       // Радиус-вектор r: от центра Земли к спутнику
       buf.radius[3] = satPos.x;
@@ -845,7 +894,11 @@ export function GlobeScene({ overlay, onReady }: { overlay: React.RefObject<HTML
     // со спутником, и при ускорении подпись иначе отстаёт от точки на десятки километров
     camera.updateMatrixWorld();
     earthGroup.current.updateMatrixWorld();
-    labelLayer.current?.update(camera, size.width, size.height, polarRatio);
+    const reserve = showCassini && !board ? {
+      centerRadiusPx: SATURN_RING_OUTER * pixelsPerUnit(size.height, (camera as PerspectiveCamera).fov, camera.position.length()),
+      top: cassiniFrame(size.width, size.height).top,
+    } : undefined;
+    labelLayer.current?.update(camera, size.width, size.height, polarRatio, reserve);
   });
 
   const places = placesFor(bodyId, record?.elements.noradId);

@@ -21,7 +21,7 @@ import { ensureFullImage, LIGHT_DEVICE, NIGHT_LIGHTS, SURFACE, surfaceCredit, us
 import { registerSnapshot } from '../snapshot';
 import { frameDue, MIN_SHIFT_PX, peakAngularRateDeg, simMsPerShift } from '../frameRate';
 import { pickLevel } from '../imageChunks';
-import { nodesInWindow, orbitSource, Revolutions, revolutionColor, revolutionsAhead, TrackCache, trackSpan } from '../trackCache';
+import { futureTrackLegend, nodesInWindow, orbitSource, Revolutions, revolutionColor, revolutionsAhead, TrackCache, trackSpan } from '../trackCache';
 import { venusCloudShift } from '../venusClouds';
 import type { BorderPaths } from './geo';
 import { loadBorders, WORLD_W } from './geo';
@@ -82,6 +82,7 @@ export default function MapView() {
   /** До этого момента слежение не вмешивается: идёт анимация «К спутнику». */
   const followHoldRef = useRef(0);
   const [borders, setBorders] = useState<BorderPaths | null>(null);
+  const [archiveLegend, setArchiveLegend] = useState<ReturnType<typeof futureTrackLegend> | null>(null);
 
   const body = useAppStore((s) => s.body);
   const venusClouds = useAppStore((s) => s.layers.venusClouds);
@@ -302,6 +303,7 @@ export default function MapView() {
     const trackCache = new TrackCache();
     let revs: Revolutions | null = null;
     let revsRevision = -1;
+    let shownArchiveLegend: typeof archiveLegend = null;
     let nodePoints: MapScene['nodePoints'] = [];
     let lastSub = { lat: NaN, lon: NaN };
     let lastMaskAt = 0;
@@ -424,14 +426,23 @@ export default function MapView() {
       const track = src && span ? trackCache.get(src, st.simTime, span.back, span.forward) : null;
       // Витки: границы — восходящие узлы. Начало каждого витка на показанной трассе отмечается точкой:
       // у прошедших — тихой, у следующих — с подписью. Считаются заново, когда окно трассы сдвинулось на шаг сетки
-      if (o && src && span && track && track.revision !== revsRevision) {
+      if (o && src && span && track && (track.revision !== revsRevision || revs?.offsetAt(st.simTime) !== 0)) {
         revsRevision = track.revision;
-        const r = new Revolutions(o, st.simTime, span.back, span.forward);
+        const shownSpan = src.toMs === undefined ? span : {
+          back: (st.simTime - src.fromMs) / (1000 * o.T),
+          forward: (src.toMs - st.simTime) / (1000 * o.T),
+        };
+        const r = new Revolutions(o, st.simTime, shownSpan.back, shownSpan.forward);
         revs = r;
-        nodePoints = nodesInWindow(r, st.simTime, span.back, span.forward, o.T).flatMap(({ time, offset }) => {
+        nodePoints = nodesInWindow(r, st.simTime, shownSpan.back, shownSpan.forward, o.T).flatMap(({ time, offset }) => {
           const point = src.at(time);
           return point ? [{ offset, point }] : [];
         });
+      }
+      const nextLegend = src?.toMs !== undefined && track && revs ? futureTrackLegend(track.future, revs) : null;
+      if (nextLegend?.current !== shownArchiveLegend?.current || nextLegend?.forward !== shownArchiveLegend?.forward) {
+        shownArchiveLegend = nextLegend;
+        setArchiveLegend(nextLegend);
       }
       // Точка пролётов — только если пользователь поставил её щелчком по карте
       const target = passTargetOf(st, st.body);
@@ -621,7 +632,7 @@ export default function MapView() {
           </button>
         </div>
       </div>
-      <Legend listRef={legendRef} />
+      <Legend listRef={legendRef} archiveLegend={archiveLegend} />
       <div className={styles.footer} ref={footerRef}>
         <span ref={coordsRef} className={`${styles.coords} num`} data-chrome="" />
         <span className={styles.credit}>{surfaceCredit(body, venusClouds)}</span>
@@ -636,11 +647,16 @@ function MapRevsControl() {
 }
 
 /** Условные обозначения: цвета витков (сколько показано вперёд), прочие значки. */
-function Legend({ listRef }: { listRef: React.Ref<HTMLUListElement> }) {
+function Legend({ listRef, archiveLegend }: { listRef: React.Ref<HTMLUListElement>; archiveLegend: ReturnType<typeof futureTrackLegend> | null }) {
   // Сколько следующих витков действительно начинается на показанной трассе. У обычных орбит — сколько
   // выбрано; у очень долгих (Луна) окно короче витка, и «+1» бывает, только когда узел попал в окно.
   // Число меняется редко — легенда перерисовывается только тогда
-  const forward = useAppStore((s) => (s.orbit ? revolutionsAhead(s.orbit, s.simTime, trackSpan(s.orbit, 0, s.revsForward).forward) : s.revsForward));
+  const historical = useAppStore((s) => cassiniWindow(s.record?.elements.body, s.record?.elements.noradId));
+  const ordinaryForward = useAppStore((s) => {
+    if (cassiniWindow(s.orbit?.elements.body, s.orbit?.elements.noradId)) return 0;
+    return s.orbit ? revolutionsAhead(s.orbit, s.simTime, trackSpan(s.orbit, 0, s.revsForward).forward) : s.revsForward;
+  });
+  const forward = historical ? archiveLegend?.forward ?? 0 : ordinaryForward;
   const revs = Array.from({ length: Math.min(forward, 3) }, (_, k) => k + 1);
   const line = (color: string, dashed: boolean, opacity = 1) => (
     <svg width="22" height="8" aria-hidden="true">
@@ -653,10 +669,12 @@ function Legend({ listRef }: { listRef: React.Ref<HTMLUListElement> }) {
         {line(revolutionColor(-1), false)}
         прошедшие
       </li>
-      <li>
-        {line(revolutionColor(0), true)}
-        текущий виток
-      </li>
+      {(!historical || archiveLegend?.current) && (
+        <li>
+          {line(revolutionColor(0), true)}
+          текущий виток
+        </li>
+      )}
       {revs.map((k) => (
         <li key={k}>
           {line(revolutionColor(k), true)}

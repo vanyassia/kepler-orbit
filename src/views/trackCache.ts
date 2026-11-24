@@ -260,6 +260,13 @@ export function revolutionsAhead(orbit: PreparedOrbit, t: number, forwardRevs: n
   return ascendingNodeTimes(orbit, t, t + forwardRevs * orbit.T * 1000).filter((n) => n > t).length;
 }
 
+/** В архивной легенде — цвета реально нарисованных отрезков. Карта красит отрезок по его середине. */
+export function futureTrackLegend(points: TrackPoint[], revs: Revolutions): { current: boolean; forward: number } {
+  if (points.length < 2) return { current: false, forward: 0 };
+  const offset = (i: number) => revs.offsetAt((points[i].timeMs + points[i + 1].timeMs) / 2);
+  return { current: offset(0) === 0, forward: offset(points.length - 2) };
+}
+
 /**
  * Начала витков (восходящие узлы), которые попадают на показанную трассу: от её начала до конца.
  * Прошедшие (не позже t) отмечаются на карте тихой точкой, будущие — точкой с подписью «+1», «+2»…
