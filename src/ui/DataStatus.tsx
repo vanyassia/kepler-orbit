@@ -1,5 +1,5 @@
 import { useWallClock } from '../hooks/useSimClock';
-import { cassiniWindow } from '../data/orbiters';
+import { archiveWindow } from '../data/orbiters';
 import { useAppStore } from '../state/store';
 import styles from './DataStatus.module.css';
 import { fmtAge } from './format';
@@ -30,10 +30,10 @@ export function DataStatus() {
   }
 
   const epochAgeDays = (now - record.elements.epochMs) / 86_400_000;
-  const archive = cassiniWindow(record.elements.body, record.elements.noradId);
+  const archive = archiveWindow(record.elements.body, record.elements.noradId);
   const historic = record.source === 'historic' || !!archive;
   const stale = !historic && Math.abs(epochAgeDays) > 3;
-  const detail = archive ? 'архив, виток № 292' :
+  const detail = archive ? `архив, ${archive.label}` :
     record.source === 'manual' || record.source === 'custom' || historic
       ? null
       : record.source === 'fallback' || record.source === 'horizons'

@@ -12,7 +12,7 @@
  *   json  — для программ: описание, единицы и массив строк.
  */
 import { RAD } from '../physics/constants';
-import { cassiniWindow } from './orbiters';
+import { archiveWindow } from './orbiters';
 import type { PreparedOrbit, SatelliteState } from '../physics/propagate';
 import { propagate } from '../physics/propagate';
 
@@ -125,7 +125,7 @@ export interface Table {
 
 export function buildTrackTable(orbit: PreparedOrbit, opt: TrackExportOptions): Table {
   const columns = [...BASE_COLUMNS, ...(['motion', 'anomalies', 'eci', 'ecef'] as const).filter((g) => opt.groups.includes(g)).flatMap((g) => GROUP_COLUMNS[g])];
-  const historical = cassiniWindow(orbit.elements.body, orbit.elements.noradId);
+  const historical = archiveWindow(orbit.elements.body, orbit.elements.noradId);
   const times = exportTimes(Math.max(opt.fromMs, historical?.startMs ?? -Infinity), Math.min(opt.toMs, historical?.endMs ?? Infinity), opt.stepSec);
   const rows = times.map((t) => {
     const s = propagate(orbit, t);

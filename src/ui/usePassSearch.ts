@@ -4,7 +4,7 @@
  */
 import { useEffect, useMemo, useState } from 'react';
 import { useThrottledSimTime } from '../hooks/useSimClock';
-import { cassiniWindow } from '../data/orbiters';
+import { archiveWindow } from '../data/orbiters';
 import type { Pass, PassSearch } from '../physics/passes';
 import { findPasses } from '../physics/passes';
 import type { PreparedOrbit } from '../physics/propagate';
@@ -48,7 +48,7 @@ export function usePassSearch(): PassSearchState | null {
   // Начинаем на 15 минут раньше: пролёт, который идёт прямо сейчас, остаётся в списке
   const result = useMemo(() => {
     if (!orbit || !target) return null;
-    const historical = cassiniWindow(orbit.elements.body, orbit.elements.noradId);
+    const historical = archiveWindow(orbit.elements.body, orbit.elements.noradId);
     const from = Math.max(historical?.startMs ?? -Infinity, anchor - 15 * 60_000);
     const to = Math.min(historical?.endMs ?? Infinity, anchor + days * DAY_MS);
     return findPasses(orbit, target, from, to, { maxDistanceKm: radius });

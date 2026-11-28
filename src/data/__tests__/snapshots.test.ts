@@ -79,6 +79,7 @@ describe('Снимок JPL Horizons (orbiters.json)', () => {
     const expected: Record<string, [number, number]> = {
       moon: [4902.7, 4902.9], mars: [42828, 42829], venus: [324858, 324859], earth: [398600, 403600],
       saturn: [37_931_206, 37_940_185], // У Титана Horizons включает μ спутника
+      mercury: [22_031.8, 22_031.9],
     };
     for (const it of orbiters.items) {
       const n = (it.meanMotionDegPerSec * Math.PI) / 180;

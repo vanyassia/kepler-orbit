@@ -7,6 +7,7 @@ describe('Регионы Луны, Марса и Венеры (справочн�
     expect(REGIONS.moon.length).toBeGreaterThan(50);
     expect(REGIONS.mars.length).toBeGreaterThan(50);
     expect(REGIONS.venus.length).toBeGreaterThan(50);
+    expect(REGIONS.mercury.length).toBeGreaterThan(20);
   });
 
   it('координаты и размеры корректны, у каждого — русская подпись', () => {
@@ -34,5 +35,12 @@ describe('Регионы Луны, Марса и Венеры (справочн�
     expect(maxwell.title).toBe('Горы Максвелла');
     expect(maxwell.lat).toBeCloseTo(65.2, 1);
     expect(maxwell.lon).toBeCloseTo(3.3, 1);
+  });
+
+  it('бассейн Равнины Жары на Меркурии находится на 162° в. д.', () => {
+    const caloris = REGIONS.mercury.find((r) => r.name === 'Caloris Planitia')!;
+    expect(caloris.title).toBe('Равнина Жары');
+    expect(caloris.lat).toBeCloseTo(31.65, 1);
+    expect(caloris.lon).toBeCloseTo(161.98, 1);
   });
 });

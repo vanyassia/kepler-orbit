@@ -1,7 +1,7 @@
 import { Pause, Play, RotateCcw } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
 import { useThrottledSimTime, useWallClock } from '../hooks/useSimClock';
-import { cassiniWindow } from '../data/orbiters';
+import { archiveWindow } from '../data/orbiters';
 import { ascendingNodeTimes } from '../physics/propagate';
 import { SPEEDS, useAppStore } from '../state/store';
 import styles from './Timeline.module.css';
@@ -24,7 +24,7 @@ export function Timeline() {
   useEffect(() => {
     if (Math.abs(t - center) > HALF_WINDOW_MS) setCenter(t);
   }, [t, center]);
-  const historical = cassiniWindow(orbit?.elements.body, orbit?.elements.noradId);
+  const historical = archiveWindow(orbit?.elements.body, orbit?.elements.noradId);
   const start = historical?.startMs ?? center - HALF_WINDOW_MS;
   const span = historical ? historical.endMs - historical.startMs : 2 * HALF_WINDOW_MS;
 

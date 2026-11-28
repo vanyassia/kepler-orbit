@@ -113,4 +113,5 @@ export const CUSTOM_DEFAULTS: Record<BodyId, { hPeri: number; hApo: number; incl
   mars: { hPeri: 300, hApo: 300, inclinationDeg: 93 },
   venus: { hPeri: 300, hApo: 300, inclinationDeg: 90 },
   saturn: { hPeri: 100_000, hApo: 100_000, inclinationDeg: 90 },
+  mercury: { hPeri: 400, hApo: 400, inclinationDeg: 90 },
 };

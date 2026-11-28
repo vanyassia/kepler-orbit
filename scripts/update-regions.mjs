@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /**
- * Регионы Луны, Марса и Венеры из справочника USGS Gazetteer of Planetary Nomenclature (названия IAU)
+ * Регионы Луны, Марса, Венеры и Меркурия из справочника USGS Gazetteer of Planetary Nomenclature (названия IAU)
  * → src/data/regions.json.
  *
  * Источник: шейп-файлы центров объектов (asc-planetarynames-data, *_nomenclature_center_pts.zip).
@@ -8,7 +8,7 @@
  * крупные площадные объекты (см. RULES), чтобы карта читалась.
  *
  * Запуск: npm run update:regions (нужны curl и unzip — есть в macOS и Linux).
- * USGS_DIR=<папка> — взять уже распакованные архивы (подпапки MOON, MARS, VENUS).
+ * USGS_DIR=<папка> — взять уже распакованные архивы (подпапки MOON, MARS, VENUS, MERCURY).
  */
 import { execFileSync } from 'node:child_process';
 import { mkdirSync, readFileSync, readdirSync, writeFileSync } from 'node:fs';
@@ -66,14 +66,18 @@ const RULES = {
     { re: /^Corona/, kind: 'crater', min: 1000, outline: true },
     { re: /^(Vallis|Chasma)/, kind: 'linear', min: 3000, outline: false },
   ],
+  mercury: [
+    { re: /^Planitia/, kind: 'plain', min: 400, outline: false },
+    { re: /^Crater/, kind: 'crater', min: 245, outline: false },
+  ],
 };
 
 const tmp = join(ROOT, '.cache', 'usgs');
 mkdirSync(tmp, { recursive: true });
 const out = [];
 
-for (const body of ['moon', 'mars', 'venus']) {
-  // USGS_DIR — папка с уже распакованными архивами (MOON/, MARS/), чтобы не скачивать заново
+for (const body of Object.keys(RULES)) {
+  // USGS_DIR — папка с уже распакованными архивами, чтобы не скачивать заново.
   let dir = process.env.USGS_DIR ? join(process.env.USGS_DIR, body.toUpperCase()) : join(tmp, body);
   if (!process.env.USGS_DIR) {
     const zip = join(tmp, `${body}.zip`);

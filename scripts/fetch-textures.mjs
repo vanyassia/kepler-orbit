@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /**
- * Скачивание и подготовка текстур Земли.
+ * Скачивание и подготовка текстур планет.
  *
  * Исходники:
  *  - NASA Visible Earth, Blue Marble Next Generation (июль 2004, рельеф + батиметрия),
@@ -8,21 +8,26 @@
  *  - NASA Earth Observatory, Black Marble 2016 (ночные огни), 13500×6750, общественное достояние.
  *  - NASA Visible Earth, облачный покров, 8192×4096, общественное достояние.
  *  - Solar System Scope: карта нормалей, маска бликов (океаны), звёздное небо, карты Луны и Марса, CC BY 4.0.
+ *  - NASA Mercury Trek: глобальная трёхцветная мозаика MESSENGER MDIS (NASA / JHU APL / USGS).
  *
  * Пережатие выполняется встроенной в macOS утилитой `sips`, затем `cwebp` (brew install webp).
  * Качество WebP подобрано так, чтобы SSIM к JPEG был не ниже 0,99. Mars 8K и Земля 16K остаются в JPEG:
  * зернистый снимок Марса в WebP того же качества почти не легчает, а 16384 пикселя WebP не вмещает.
  * Запуск: npm run fetch:textures
+ * Только Меркурий: npm run fetch:textures -- --mercury. Для сборки мозаики нужен ffmpeg.
  * Переменная SRC_DIR позволяет указать папку с уже скачанными исходниками.
  */
-import { execFileSync } from 'node:child_process';
-import { existsSync, mkdirSync, rmSync, statSync } from 'node:fs';
+import { execFile, execFileSync } from 'node:child_process';
+import { existsSync, mkdirSync, renameSync, rmSync, statSync } from 'node:fs';
 import { join, resolve } from 'node:path';
+import { promisify } from 'node:util';
 
 const ROOT = resolve(import.meta.dirname, '..');
 const SRC = resolve(process.env.SRC_DIR ?? join(ROOT, '.cache', 'textures-src'));
 const OUT = join(ROOT, 'public', 'textures');
 const SSS_REFERER = 'https://www.solarsystemscope.com/textures/';
+const MERCURY_MOSAIC = 'mercury_mdis_4k.png';
+const mercuryOnly = process.argv.includes('--mercury');
 
 const sources = {
   'day_21600.jpg':
@@ -60,6 +65,8 @@ const WEBP = {
   'venus_clouds_2k.jpg': 88,
   'saturn_4k.jpg': 86,
   'saturn_2k.jpg': 88,
+  'mercury_4k.jpg': 88,
+  'mercury_2k.jpg': 88,
 };
 
 /** Значки тел в переключателе. */
@@ -69,6 +76,7 @@ const THUMBS = {
   'mars_2k.jpg': 'thumb_mars.webp',
   'venus_2k.jpg': 'thumb_venus.webp',
   'saturn_2k.jpg': 'thumb_saturn.webp',
+  'mercury_2k.jpg': 'thumb_mercury.webp',
 };
 
 /**
@@ -98,12 +106,33 @@ const outputs = [
   ['sss_venus_atmo.jpg', 'venus_clouds_2k.jpg', 2048, 96],
   ['sss_saturn.jpg', 'saturn_4k.jpg', 4096, 96],
   ['sss_saturn.jpg', 'saturn_2k.jpg', 2048, 96],
+  [MERCURY_MOSAIC, 'mercury_4k.jpg', 4096, 94],
+  [MERCURY_MOSAIC, 'mercury_2k.jpg', 2048, 94],
 ];
+
+/** Уровень 3 NASA Trek: 16 × 8 тайлов по 256 px от 180° з. д. к 180° в. д. */
+async function fetchMercuryMosaic(dst) {
+  if (existsSync(dst)) return;
+  const url = 'https://trek.nasa.gov/tiles/Mercury/EQ/Mercury_MESSENGER_MDIS_Basemap_MD3Color_Mosaic_Global_665m/1.0.0/default/default028mm/3';
+  const tiles = join(SRC, 'mercury-mdis-tiles');
+  mkdirSync(tiles, { recursive: true });
+  const run = promisify(execFile);
+  for (let row = 0; row < 8; row++) {
+    console.log(`↓ Меркурий: ряд ${row + 1} из 8`);
+    await Promise.all(Array.from({ length: 16 }, async (_, col) => {
+      const file = join(tiles, `${String(row * 16 + col).padStart(3, '0')}.jpg`);
+      if (existsSync(file)) return;
+      await run('curl', ['-fsSL', '--retry', '3', '--max-time', '30', '-o', `${file}.part`, `${url}/${row}/${col}.jpg`]);
+      renameSync(`${file}.part`, file);
+    }));
+  }
+  execFileSync('ffmpeg', ['-v', 'error', '-y', '-i', join(tiles, '%03d.jpg'), '-vf', 'tile=16x8:nb_frames=128', '-frames:v', '1', dst], { stdio: 'inherit' });
+}
 
 mkdirSync(SRC, { recursive: true });
 mkdirSync(OUT, { recursive: true });
 
-for (const [file, url] of Object.entries(sources)) {
+for (const [file, url] of mercuryOnly ? [] : Object.entries(sources)) {
   const dst = join(SRC, file);
   if (existsSync(dst) && statSync(dst).size > 100_000) continue;
   console.log(`↓ ${file}`);
@@ -112,7 +141,9 @@ for (const [file, url] of Object.entries(sources)) {
   execFileSync('curl', args, { stdio: 'inherit' });
 }
 
+await fetchMercuryMosaic(join(SRC, MERCURY_MOSAIC));
 for (const [src, out, width, quality] of outputs) {
+  if (mercuryOnly && src !== MERCURY_MOSAIC) continue;
   const dst = join(OUT, out);
   console.log(`⚙ ${out} (${width}×${width / 2})`);
   execFileSync(

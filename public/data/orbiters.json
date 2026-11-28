@@ -274,6 +274,32 @@
       "meanAnomalyDeg": 180.6800848417002,
       "meanMotionDegPerSec": 0.0006453923032183675,
       "semiMajorAxisKm": 668648.8751004661
+    },
+    {
+      "naifId": -236,
+      "body": "mercury",
+      "name": "MESSENGER (spacecraft) (-236)",
+      "epoch": "2011-05-18T23:58:53.816Z",
+      "eccentricity": 0.7244332428418176,
+      "inclinationDeg": 83.06768160421174,
+      "raanDeg": 349.1289721817033,
+      "argPerigeeDeg": 117.4685165056308,
+      "meanAnomalyDeg": 67.95617716756166,
+      "meanMotionDegPerSec": 0.008283437047472851,
+      "semiMajorAxisKm": 10177.12592394453
+    },
+    {
+      "naifId": -121,
+      "body": "mercury",
+      "name": "MPO-BepiColombo (Spacecraft) (-121)",
+      "epoch": "2026-11-27T23:58:50.816Z",
+      "eccentricity": 0.8274906504752702,
+      "inclinationDeg": 89.35586738099673,
+      "raanDeg": 67.86996162806348,
+      "argPerigeeDeg": 357.171835338433,
+      "meanAnomalyDeg": 58.15936342902629,
+      "meanMotionDegPerSec": 0.003606544235588999,
+      "semiMajorAxisKm": 17716.23190868971
     }
   ]
 }

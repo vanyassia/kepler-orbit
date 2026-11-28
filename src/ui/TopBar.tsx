@@ -36,7 +36,7 @@ export function TopBar() {
         </span>
       </div>
       <BodySwitcher />
-      <SatelliteSearch />
+      <SatelliteSearch className={styles.search} />
       <div className={styles.right}>
         <DataStatus />
         <button

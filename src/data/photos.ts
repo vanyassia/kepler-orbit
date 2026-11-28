@@ -139,6 +139,10 @@ export const PHOTOS: Record<string, SatellitePhoto> = {
   'saturn:602': { image: 'enceladus', commons: 'Enceladus_in_the_Visual.jpg', kind: 'photo', caption: 'Энцелад в видимом свете, 6 ноября 2011 года', author: 'NASA / JPL-Caltech / Space Science Institute', license: PD },
   'saturn:606': { image: 'titan', commons: 'Titan_in_natural_color_Cassini.jpg', kind: 'photo', caption: 'Титан в естественных цветах, 16 апреля 2005 года', author: 'NASA / JPL / Space Science Institute', license: PD },
   'saturn:-82': { image: 'cassini', commons: 'PIA21439_-_Cassini_Grand_Finale_Dive_(Illustration).jpg', kind: 'render', caption: '«Кассини» проходит между Сатурном и кольцами. Иллюстрация заключительного этапа миссии', author: 'NASA / JPL-Caltech', license: PD },
+
+  // Меркурий
+  'mercury:-236': { image: 'messenger', commons: 'MESSENGER.jpg', kind: 'render', caption: 'MESSENGER на орбите Меркурия', author: NASA, license: PD },
+  'mercury:-121': { image: 'bepicolombo', commons: 'BepiColombo_stack_ESA380728.jpg', kind: 'photo', caption: 'BepiColombo в сборе на испытаниях в центре ESA, 2017', author: 'ESA / C. Carreau', license: 'CC BY-SA 3.0 IGO' },
 };
 
 /** Снимок аппарата или null, если его нет (свой спутник, не нашлось свободного снимка). */

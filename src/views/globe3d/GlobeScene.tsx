@@ -141,6 +141,7 @@ const LOOK: Record<BodyId, { haze: [number, number, number]; hazeStrength: numbe
   mars: { haze: [0.95, 0.62, 0.42], hazeStrength: 0.28, dusk: 0.5, nightAmbient: 0.06, atmo: [0.62, 0.36, 0.22] },
   venus: { haze: [0.98, 0.82, 0.48], hazeStrength: 0.55, dusk: 0.7, nightAmbient: 0.06, atmo: [0.92, 0.72, 0.34] },
   saturn: { haze: [0.79, 0.67, 0.48], hazeStrength: 0.24, dusk: 0.35, nightAmbient: 0.04, atmo: null },
+  mercury: { haze: [0, 0, 0], hazeStrength: 0, dusk: 0, nightAmbient: 0.07, atmo: null },
 };
 
 const _m = new Matrix4();
@@ -434,7 +435,7 @@ export function GlobeScene({ overlay, onReady }: { overlay: React.RefObject<HTML
       }
     }
     if (regionsOn) {
-      const minKm = bodyId === 'moon' ? 400 : bodyId === 'venus' ? 2800 : 1200;
+      const minKm = bodyId === 'moon' ? 400 : bodyId === 'venus' ? 2800 : bodyId === 'mercury' ? 700 : 1200;
       for (const r of REGIONS[bodyId].filter((x) => x.diameterKm >= minKm)) {
         specs.push({
           id: `region-${r.name}`,

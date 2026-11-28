@@ -138,3 +138,20 @@
   --field-edge: #826d50;
   --space-glow: #231c14;
 }
+
+:root[data-body='mercury'] {
+  --bg-0: #100f11;
+  --bg-1: #181719;
+  --bg-2: #211f23;
+  --bg-3: #2c292e;
+  --line: #3c383e;
+  --line-strong: #57505a;
+  --field-edge: #827784;
+  --space-glow: #252228;
+}
+
+@media (max-width: 540px) {
+  :root {
+    --topbar-h: 94px;
+  }
+}

@@ -1,5 +1,5 @@
 import { Canvas } from '@react-three/fiber';
-import { cassiniWindow } from '../../data/orbiters';
+import { archiveWindow } from '../../data/orbiters';
 import { Earth, Move3d, Satellite, ScanEye } from 'lucide-react';
 import { Suspense, useEffect, useRef, useState } from 'react';
 import type { RootState } from '@react-three/fiber';
@@ -29,8 +29,8 @@ export default function GlobeView() {
   const quality = useAppStore((s) => s.quality);
   const setQuality = useAppStore((s) => s.setQuality);
   const body = useAppStore((s) => s.body);
-  const withBody = { earth: 'С Землёй', moon: 'С Луной', mars: 'С Марсом', venus: 'С Венерой', saturn: 'С Сатурном' }[body];
-  const historical = useAppStore((s) => cassiniWindow(s.record?.elements.body, s.record?.elements.noradId));
+  const withBody = { earth: 'С Землёй', moon: 'С Луной', mars: 'С Марсом', venus: 'С Венерой', saturn: 'С Сатурном', mercury: 'С Меркурием' }[body];
+  const historical = useAppStore((s) => archiveWindow(s.record?.elements.body, s.record?.elements.noradId));
   const overlay = useRef<HTMLDivElement>(null);
   const [ready, setReady] = useState(false);
   // На отдельной карте глобус скрыт, но не закрывается: снимки в видеокарте остаются, а кадры не рисуются
@@ -112,13 +112,15 @@ export default function GlobeView() {
               ? ['night', 'clouds', 'helpers', 'cities']
               : body === 'saturn'
                 ? ['night', 'helpers']
-                : body === 'venus'
-                  ? ['venusClouds', 'regions', 'night', 'helpers', 'cities']
-                  : ['regions', 'night', 'helpers', 'cities']
+                : body === 'mercury'
+                  ? ['regions', 'night', 'helpers']
+                  : body === 'venus'
+                    ? ['venusClouds', 'regions', 'night', 'helpers', 'cities']
+                    : ['regions', 'night', 'helpers', 'cities']
           }
         >
           {!historical && <RevsControl />}
-          {body === 'saturn' ? <p className={styles.quality}>{SURFACE_CREDIT.saturn}</p> : <div className={styles.quality}>
+          {body === 'saturn' || body === 'mercury' ? <p className={styles.quality}>{SURFACE_CREDIT[body]}</p> : <div className={styles.quality}>
             <span>Детализация снимка</span>
             <div className={styles.segmented} role="radiogroup" aria-label="Детализация снимка" onKeyDown={(e) => rovingKeyDown(e, QUALITIES, quality, setQuality)}>
               <button type="button" role="radio" aria-checked={quality === 'standard'} tabIndex={rovingTabIndex(quality === 'standard')} onClick={() => setQuality('standard')}>

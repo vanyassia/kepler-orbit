@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /**
- * Снимок элементов орбит спутников Луны, Марса, Венеры и Сатурна
+ * Снимок элементов орбит спутников Луны, Марса, Венеры, Сатурна и Меркурия
  * (и самой Луны вокруг Земли) из JPL Horizons → public/data/orbiters.json.
  *
  * Запрашиваются оскулирующие элементы (EPHEM_TYPE=ELEMENTS) относительно центра тела
@@ -18,10 +18,13 @@ import { join, resolve } from 'node:path';
 
 const ROOT = resolve(import.meta.dirname, '..');
 const API = 'https://ssd.jpl.nasa.gov/api/horizons.api';
-const TARGET = { earth: '399', moon: '301', mars: '499', venus: '299', saturn: '699' };
-// Снимок «Кассини» — начало витка № 292 (время запроса Horizons — TDB).
-const FIXED_EPOCH = { 'saturn:-82': '2017-09-05T19:00:00Z' };
+const TARGET = { earth: '399', moon: '301', mars: '499', venus: '299', saturn: '699', mercury: '199' };
 const TDB_MINUS_UTC_MS = 69_184;
+// Эпохи архивных витков в TDB и поправки к UTC на даты полётов.
+const FIXED_EPOCH = {
+  'saturn:-82': { tdb: '2017-09-05T19:00:00Z', offsetMs: TDB_MINUS_UTC_MS },
+  'mercury:-236': { tdb: '2011-05-19T00:00:00Z', offsetMs: 66_184 },
+};
 
 const src = readFileSync(join(ROOT, 'src', 'data', 'orbiters.ts'), 'utf8');
 const list = [...src.matchAll(/naifId:\s*(-?\d+),\s*body:\s*'(\w+)'/g)].map((m) => ({ id: Number(m[1]), body: m[2] }));
@@ -96,12 +99,13 @@ for (const { id, body } of list) {
         REF_PLANE: 'BODY',
         OUT_UNITS: 'KM-S',
       });
-    const requestedEpoch = fixedEpoch ? Date.parse(fixedEpoch) - TDB_MINUS_UTC_MS : null;
-    if (old && requestedEpoch !== null && Math.abs(Date.parse(old.epoch) - requestedEpoch) < 1000 && !process.argv.includes('--fixture')) {
+    const offsetMs = fixedEpoch?.offsetMs ?? TDB_MINUS_UTC_MS;
+    const requestedEpoch = fixedEpoch ? Date.parse(fixedEpoch.tdb) - offsetMs : null;
+    if (old && requestedEpoch !== null && Math.abs(Date.parse(old.epoch) - requestedEpoch) < 1000) {
       items.push(old);
       continue;
     }
-    const { name, row } = await elementsAt(fixedEpoch ? new Date(fixedEpoch) : now).catch(async (e) => {
+    const { name, row } = await elementsAt(fixedEpoch ? new Date(fixedEpoch.tdb) : now).catch(async (e) => {
       if (fixedEpoch) throw e;
       const end = ephemerisEnd(e.message);
       if (end === null) throw e;
@@ -113,7 +117,7 @@ for (const { id, body } of list) {
       return res;
     });
     const [jdTdb, , EC, , IN, OM, W, , N, MA, , A] = row;
-    const epochMs = (Number(jdTdb) - 2440587.5) * 86_400_000 - TDB_MINUS_UTC_MS;
+    const epochMs = (Number(jdTdb) - 2440587.5) * 86_400_000 - offsetMs;
     const candidate = {
       naifId: id,
       body,
@@ -147,7 +151,7 @@ for (const { id, body } of list) {
   }
   items.push(item);
 
-  if (process.argv.includes('--fixture') && body !== 'saturn') {
+  if (process.argv.includes('--fixture') && body !== 'saturn' && body !== 'mercury') {
     try {
       // Контроль: наблюдатель — сам КА, цель — центральное тело; величины 14 и 15 —
       // точка под наблюдателем (подспутниковая) и подсолнечная точка на теле.

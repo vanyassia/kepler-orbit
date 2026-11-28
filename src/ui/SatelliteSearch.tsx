@@ -15,7 +15,7 @@ type Popular = { kind: 'popular'; noradId: number; title: string; note: string; 
 type Item = Popular | { kind: 'result'; record: SatelliteRecord };
 
 /** Поиск спутника: по своему списку (в том числе по-русски), каталогу CelesTrak (латиницей) и номеру NORAD. */
-export function SatelliteSearch() {
+export function SatelliteSearch({ className }: { className: string }) {
   const [query, setQuery] = useState('');
   const [open, setOpen] = useState(false);
   const [busy, setBusy] = useState(false);
@@ -116,7 +116,7 @@ export function SatelliteSearch() {
   };
 
   return (
-    <div className={styles.root} ref={rootRef}>
+    <div className={`${styles.root} ${className}`} ref={rootRef}>
       <label className={styles.field}>
         {busy ? <LoaderCircle className={styles.spin} size={16} /> : <Search size={16} />}
         <span className="visually-hidden">Поиск спутника</span>
@@ -137,7 +137,9 @@ export function SatelliteSearch() {
                     ? 'Venus Express, Акацуки…'
                     : body === 'saturn'
                       ? 'Энцелад, Титан…'
-                      : 'MRO, TGO, Hope…'
+                      : body === 'mercury'
+                        ? 'MESSENGER…'
+                        : 'MRO, TGO, Hope…'
           }
           onChange={(e) => {
             setQuery(e.target.value);

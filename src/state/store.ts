@@ -14,7 +14,7 @@ import { CUSTOM_ID_BASE, customToRecord, isCustomId, isStoredCustom } from '../d
 import type { TunePatch } from '../data/orbitTune';
 import { shapeOf, tuneElements } from '../data/orbitTune';
 import { historicFlight } from '../data/historicOrbiters';
-import { cassiniWindow, DEFAULT_SATELLITE, isOrbiterId, legacyBodyFor, loadOrbiter } from '../data/orbiters';
+import { archiveWindow, DEFAULT_SATELLITE, isOrbiterId, legacyBodyFor, loadOrbiter } from '../data/orbiters';
 import type { BodyId } from '../physics/bodies';
 import type { PreparedOrbit } from '../physics/propagate';
 import { prepareOrbit } from '../physics/propagate';
@@ -55,8 +55,9 @@ export const PASS_RADIUS_OPTIONS: Record<BodyId, number[]> = {
   mars: [100, 250, 500, 1000],
   venus: [250, 500, 1000, 2000],
   saturn: [1000, 2500, 5000, 10000],
+  mercury: [100, 250, 500, 1000],
 };
-const DEFAULT_PASS_RADIUS: Record<BodyId, number> = { earth: 1000, moon: 250, mars: 500, venus: 1000, saturn: 5000 };
+const DEFAULT_PASS_RADIUS: Record<BodyId, number> = { earth: 1000, moon: 250, mars: 500, venus: 1000, saturn: 5000, mercury: 500 };
 /** Насколько вперёд искать пролёты, сутки. */
 export const PASS_DAYS_OPTIONS = [1, 3, 7] as const;
 
@@ -180,18 +181,18 @@ export function clockOnSelect(prevId: number | null | undefined, nextId: number,
 function clockForRecord(prev: SatelliteRecord | null, next: SatelliteRecord) {
   const realNow = performance.now();
   const { body, noradId, epochMs } = next.elements;
-  const window = cassiniWindow(body, noradId);
+  const window = archiveWindow(body, noradId);
   if (window) {
-    return { simTime: epochMs, anchorSim: epochMs, anchorReal: realNow, speed: 5000, playing: false, flightEnd: null };
+    return { simTime: epochMs, anchorSim: epochMs, anchorReal: realNow, speed: window.speed, playing: false, flightEnd: null };
   }
-  if (cassiniWindow(prev?.elements.body, prev?.elements.noradId) && !historicFlight(noradId)) {
+  if (archiveWindow(prev?.elements.body, prev?.elements.noradId) && !historicFlight(noradId)) {
     const now = Date.now();
     return { simTime: now, anchorSim: now, anchorReal: realNow, speed: 1, playing: true, flightEnd: null };
   }
   return clockOnSelect(prev?.elements.noradId, noradId, realNow, Date.now());
 }
 
-const selectedWindow = ({ record }: Pick<AppState, 'record'>) => cassiniWindow(record?.elements.body, record?.elements.noradId);
+const selectedWindow = ({ record }: Pick<AppState, 'record'>) => archiveWindow(record?.elements.body, record?.elements.noradId);
 
 export const useAppStore = create<AppState>()(
   persist(

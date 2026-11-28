@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import type { CustomSatellite } from '../custom';
 import { customToElements, isStoredCustom, validateCustom } from '../custom';
 import { gcd, isTemplateName, REPEAT_DEFAULTS, repeatError, repeatHeight, repeatPeriod, repeatTemplate } from '../orbitTemplates';
-import { ROTATION_PERIOD } from '../../physics/bodies';
+import { BODY_IDS, ROTATION_PERIOD } from '../../physics/bodies';
 import { prepareOrbit, propagate } from '../../physics/propagate';
 import { trackSpan } from '../../views/trackCache';
 
@@ -37,6 +37,7 @@ describe('повторяющаяся трасса', () => {
     ['mars', 43, 3],
     ['venus', 7, 1],
     ['venus', 15, 1],
+    ['mercury', 15, 1],
   ] as const) {
     it(`${body}: через ${n} витков спутник над той же точкой, а раньше — нет`, () => {
       const el = customToElements(repeatSat(body, n, m));
@@ -53,7 +54,7 @@ describe('повторяющаяся трасса', () => {
   }
 
   it('шаблон проходит проверку окна, n и m проверяются', () => {
-    for (const b of ['earth', 'moon', 'mars', 'venus'] as const) {
+    for (const b of BODY_IDS) {
       const d = REPEAT_DEFAULTS[b];
       expect(repeatError(b, d)).toBeNull();
       expect(validateCustom({ ...repeatTemplate(b, d, d.inclinationDeg), name: 'Цветок' })).toEqual({});

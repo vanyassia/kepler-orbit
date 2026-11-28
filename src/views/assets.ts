@@ -28,6 +28,8 @@ export const TEXTURES = {
   venusClouds4k: `${base}textures/venus_clouds_4k.webp`,
   saturn2k: `${base}textures/saturn_2k.webp`,
   saturn4k: `${base}textures/saturn_4k.webp`,
+  mercury2k: `${base}textures/mercury_2k.webp`,
+  mercury4k: `${base}textures/mercury_4k.webp`,
 } as const;
 
 /** Значки тел в переключателе: 160×80 пикселей, а не полные снимки. */
@@ -37,6 +39,7 @@ export const BODY_THUMB: Record<BodyId, string> = {
   mars: `${base}textures/thumb_mars.webp`,
   venus: `${base}textures/thumb_venus.webp`,
   saturn: `${base}textures/thumb_saturn.webp`,
+  mercury: `${base}textures/thumb_mercury.webp`,
 };
 
 /**
@@ -50,13 +53,14 @@ export const LIGHT_DEVICE =
 
 /** Снимок поверхности тела: сначала лёгкий, затем подробный (в лёгком режиме — только лёгкий). */
 export const SURFACE: Record<BodyId, readonly string[]> = LIGHT_DEVICE
-  ? { earth: [TEXTURES.day2k], moon: [TEXTURES.moon2k], mars: [TEXTURES.mars2k], venus: [TEXTURES.venus2k], saturn: [TEXTURES.saturn2k] }
+  ? { earth: [TEXTURES.day2k], moon: [TEXTURES.moon2k], mars: [TEXTURES.mars2k], venus: [TEXTURES.venus2k], saturn: [TEXTURES.saturn2k], mercury: [TEXTURES.mercury2k] }
   : {
       earth: [TEXTURES.day2k, TEXTURES.day8k],
       moon: [TEXTURES.moon2k, TEXTURES.moon6k],
       mars: [TEXTURES.mars2k, TEXTURES.mars8k],
       venus: [TEXTURES.venus2k, TEXTURES.venus8k],
       saturn: [TEXTURES.saturn2k, TEXTURES.saturn4k],
+      mercury: [TEXTURES.mercury2k, TEXTURES.mercury4k],
     };
 
 /** Ночные огни Земли. */
@@ -74,6 +78,7 @@ export const SURFACE_CREDIT: Record<BodyId, string> = {
   mars: 'Solar System Scope (CC BY 4.0) по данным NASA',
   venus: 'Solar System Scope (CC BY 4.0) по данным NASA Magellan',
   saturn: 'Облачный слой: Solar System Scope (CC BY 4.0)',
+  mercury: 'Мозаика MESSENGER: NASA / JHU APL / USGS',
 };
 
 /** Подпись об источнике облачного слоя Венеры. */

@@ -3,7 +3,7 @@
  * и пересчитываются, только когда окно отображения выходит за пределы кэша.
  */
 import { historicFlight } from '../data/historicOrbiters';
-import { cassiniWindow } from '../data/orbiters';
+import { archiveWindow } from '../data/orbiters';
 import { ROTATION_PERIOD } from '../physics/bodies';
 import { RAD } from '../physics/constants';
 import type { TrackPoint } from '../physics/groundTrack';
@@ -34,7 +34,7 @@ const sources = new WeakMap<object, TrackSource>();
 export function orbitSource(orbit: PreparedOrbit): TrackSource {
   let s = sources.get(orbit);
   if (!s) {
-    const archive = cassiniWindow(orbit.elements.body, orbit.elements.noradId);
+    const archive = archiveWindow(orbit.elements.body, orbit.elements.noradId);
     s = {
       key: orbit,
       periodSec: orbit.T,

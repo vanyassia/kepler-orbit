@@ -104,7 +104,7 @@
   transform: scale(1.06);
 }
 
-@media (max-width: 900px) {
+@media (max-width: 1220px) {
   .label {
     display: none;
   }
@@ -115,6 +115,11 @@
 
 @media (max-width: 380px) {
   .item {
-    padding-inline: 4px;
+    padding-inline: 3px;
+  }
+
+  .item .disc {
+    width: 20px;
+    height: 20px;
   }
 }

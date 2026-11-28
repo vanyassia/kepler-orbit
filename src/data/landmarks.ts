@@ -47,7 +47,7 @@ const VENUS: City[] = [
   { name: 'Пионер-Венера-2 (дневной зонд)', lat: -31.3, lon: -43.0 },
 ];
 
-export const PLACES: Record<BodyId, City[]> = { earth: CITIES, moon: MOON, mars: MARS, venus: VENUS, saturn: [] };
+export const PLACES: Record<BodyId, City[]> = { earth: CITIES, moon: MOON, mars: MARS, venus: VENUS, saturn: [], mercury: [] };
 
 const withFlight = new Map<number, City[]>();
 
@@ -75,4 +75,5 @@ export const PLACES_LABEL: Record<BodyId, string> = {
   mars: 'Места посадок и объекты',
   venus: 'Места посадок и объекты',
   saturn: 'Объекты',
+  mercury: 'Объекты',
 };

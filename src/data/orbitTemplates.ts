@@ -228,6 +228,28 @@ export const ORBIT_TEMPLATES: OrbitTemplate[] = [
     ...zeroAngles,
     note: 'Круговая наклонная орбита между облачным слоем и кольцом D.',
   },
+  {
+    id: 'mercury-polar',
+    label: 'Полярная',
+    satName: 'Полярная орбита Меркурия',
+    body: 'mercury',
+    hPeri: 400,
+    hApo: 400,
+    inclinationDeg: 90,
+    ...zeroAngles,
+    note: 'Круговая орбита высотой 400 км, проходящая над обоими полюсами Меркурия.',
+  },
+  {
+    id: 'mercury-elliptic',
+    label: 'Вытянутая',
+    satName: 'Вытянутая орбита Меркурия',
+    body: 'mercury',
+    hPeri: 350,
+    hApo: 15_000,
+    inclinationDeg: 83,
+    ...zeroAngles,
+    note: 'Высота меняется от 350 до 15 000 км. Близка по форме и наклонению к орбите MESSENGER в мае 2011 года.',
+  },
 ];
 
 export const templatesFor = (body: BodyId) => ORBIT_TEMPLATES.filter((t) => t.body === body);
@@ -250,6 +272,7 @@ export const REPEAT_DEFAULTS: Record<BodyId, RepeatCycle & { inclinationDeg: num
   mars: { n: 5, m: 1, inclinationDeg: 60 },
   venus: { n: 15, m: 1, inclinationDeg: 60 },
   saturn: { n: 3, m: 5, inclinationDeg: 60 },
+  mercury: { n: 15, m: 1, inclinationDeg: 60 },
 };
 
 /** Период повторяющейся орбиты, с: T = m·T_сут / n. */
@@ -296,6 +319,7 @@ const DAY_NAME: Record<BodyId, string> = {
   moon: 'звёздные сутки Луны — 27,3 земных суток',
   mars: 'звёздные сутки Марса — 24 ч 37 мин',
   saturn: 'звёздные сутки Сатурна по системе III — около 10 ч 39 мин',
+  mercury: 'звёздные сутки Меркурия — около 58,6 земных суток',
   venus: 'звёздные сутки Венеры — 243 земных суток; из-за медленного вращения такие орбиты только высокие',
 };
 

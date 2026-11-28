@@ -1,5 +1,5 @@
 /**
- * Центральные тела: Земля, Луна, Марс, Венера, Сатурн — формулы (18)–(20), docs/formulas.md.
+ * Центральные тела — формулы (18)–(20), docs/formulas.md.
  *
  * Для каждого тела модель одна и та же — задача двух тел с его гравитационным параметром μ.
  * Различаются:
@@ -19,7 +19,7 @@ import { sunDirectionInertial } from './sun';
 import { greenwichToInertial, inertialToGreenwich } from './frames';
 import { greenwichSiderealTime, julianDate } from './time';
 
-export type BodyId = 'earth' | 'moon' | 'mars' | 'venus' | 'saturn';
+export type BodyId = 'earth' | 'moon' | 'mars' | 'venus' | 'saturn' | 'mercury';
 
 export interface CentralBody {
   id: BodyId;
@@ -330,7 +330,57 @@ export const SATURN: CentralBody = {
   rotationSymbol: 'W',
 };
 
-export const BODIES: Record<BodyId, CentralBody> = { earth: EARTH, moon: MOON, mars: MARS, venus: VENUS, saturn: SATURN };
+const MERCURY_ROTATION = 6.1385108;
+const MERCURY_LIBRATION: readonly [phase: number, rate: number, amplitude: number][] = [
+  [174.7910857, 4.092335, 0.01067257],
+  [349.5821714, 8.184670, -0.00112309],
+  [164.3732571, 12.277005, -0.00011040],
+  [339.1643429, 16.369340, -0.00002539],
+  [153.9554286, 20.461675, -0.00000571],
+];
+
+/** Ориентация Меркурия по IAU 2015 (NAIF PCK00011), включая либрации. */
+function mercuryOrientation(t: number) {
+  const d = days(t);
+  const T = d / 36525;
+  const libration = MERCURY_LIBRATION.reduce((sum, [phase, rate, amplitude]) =>
+    sum + amplitude * Math.sin((phase + rate * d) * DEG), 0);
+  return {
+    alpha0: (281.0103 - 0.0328 * T) * DEG,
+    delta0: (61.4155 - 0.0049 * T) * DEG,
+    W: wrap2Pi((329.5988 + MERCURY_ROTATION * d + libration) * DEG),
+  };
+}
+
+/** Гелиоцентрическое положение Меркурия, таблица JPL на 1800–2050 гг. */
+const mercuryHeliocentric = (t: number) => planetHeliocentric(t, {
+  a: [0.38709927, 0.00000037],
+  e: [0.20563593, 0.00001906],
+  I: [7.00497902, -0.00594749],
+  L: [252.25032350, 149472.67411175],
+  varpi: [77.45779628, 0.16047689],
+  Om: [48.33076593, -0.12534081],
+});
+
+export const MERCURY: CentralBody = {
+  id: 'mercury',
+  name: 'Меркурий',
+  nameLocative: 'на Меркурии',
+  mu: 22031.868551,
+  radius: 2439.7,
+  rotationAngle: (t) => mercuryOrientation(t).W,
+  turn: (t0, t) => turnSince((x) => mercuryOrientation(x).W, MERCURY_ROTATION, t0, t),
+  toFixed: (v, t) => inertialToGreenwich(v, mercuryOrientation(t).W),
+  toInertial: (v, t) => greenwichToInertial(v, mercuryOrientation(t).W),
+  sunDirection: (t) => {
+    const { alpha0, delta0 } = mercuryOrientation(t);
+    const r = mercuryHeliocentric(t);
+    return icrfToBodyEquator(normalize({ x: -r.x, y: -r.y, z: -r.z }), alpha0, delta0);
+  },
+  rotationSymbol: 'W',
+};
+
+export const BODIES: Record<BodyId, CentralBody> = { earth: EARTH, moon: MOON, mars: MARS, venus: VENUS, saturn: SATURN, mercury: MERCURY };
 export const BODY_IDS = Object.keys(BODIES) as BodyId[];
 
 export function isBodyId(value: unknown): value is BodyId {
@@ -344,5 +394,6 @@ export const ROTATION_PERIOD: Record<BodyId, number> = {
   mars: (360 / 350.89198226) * 86400,
   venus: (360 / 1.4813688) * 86400,
   saturn: (360 / SATURN_ROTATION) * 86400,
+  mercury: (360 / MERCURY_ROTATION) * 86400,
 };
 

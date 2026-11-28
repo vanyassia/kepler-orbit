@@ -16,7 +16,7 @@ import {
   tableToText,
   toInputValue,
 } from '../data/exportData';
-import { cassiniWindow } from '../data/orbiters';
+import { archiveWindow } from '../data/orbiters';
 import { BODIES } from '../physics/bodies';
 import type { PreparedOrbit } from '../physics/propagate';
 import { useAppStore } from '../state/store';
@@ -149,7 +149,7 @@ function ExportForm({ orbit, onClose }: { orbit: PreparedOrbit; onClose: () => v
   const tle = record.tle;
 
   // Интервал таблицы
-  const historical = cassiniWindow(el.body, el.noradId);
+  const historical = archiveWindow(el.body, el.noradId);
   const requestedRange = useMemo(() => {
     switch (prefs.range) {
       case 'shown': {

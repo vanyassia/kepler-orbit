@@ -2,7 +2,7 @@ import { Download, History, Plus, Presentation, X } from 'lucide-react';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { customToRecord } from '../data/custom';
 import { historicById } from '../data/historicOrbiters';
-import { cassiniWindow, ORBITERS } from '../data/orbiters';
+import { archiveWindow, ORBITERS } from '../data/orbiters';
 import { photoFor } from '../data/photos';
 import { POPULAR_GROUPS, POPULAR_SATELLITES } from '../data/popular';
 import { BODIES } from '../physics/bodies';
@@ -132,6 +132,8 @@ function SatelliteCard() {
     );
   }
   const el = record.elements;
+  const archive = archiveWindow(el.body, el.noradId);
+  const orbiterDetail = ORBITERS.find((entry) => entry.body === el.body && entry.naifId === el.noradId)?.detail;
   const { title, subtitle } = satelliteTitle(el);
   // У своего спутника снимка нет: номер у него условный
   const photo = record.source === 'custom' ? null : photoFor(el.body, el.noradId);
@@ -189,7 +191,8 @@ function SatelliteCard() {
       </div>
       {tuned && <p className={styles.satNote}>Орбита изменена ползунками в разделе «Изменить орбиту».</p>}
       {record.source === 'historic' && <p className={styles.satNote}>{historicById(el.noradId)?.detail}</p>}
-      {cassiniWindow(el.body, el.noradId) && <p className={styles.satNote}>Виток № 292, 5–12 сентября 2017 года. Расчёт по элементам орбиты на начало витка.</p>}
+      {archive && <p className={styles.satNote}>{archive.note}</p>}
+      {orbiterDetail && <p className={styles.satNote}>{orbiterDetail}</p>}
       {error && (
         <p className={styles.error} role="alert">
           {error}

@@ -36,6 +36,7 @@ export const TUNE_HEIGHT: Record<BodyId, { min: number; max: number }> = {
   mars: { min: 50, max: 25_000 },
   venus: { min: 150, max: 400_000 },
   saturn: { min: 1000, max: 400_000 },
+  mercury: { min: 100, max: 100_000 },
 };
 
 /** Самая вытянутая орбита на ползунке. */

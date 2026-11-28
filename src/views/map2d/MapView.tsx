@@ -6,7 +6,7 @@ import { zoom, zoomIdentity } from 'd3-zoom';
 import { useEffect, useRef, useState } from 'react';
 import { cityShown, type City } from '../../data/cities';
 import { placesFor } from '../../data/landmarks';
-import { cassiniWindow, naturalSatellite, ownLook } from '../../data/orbiters';
+import { archiveWindow, naturalSatellite, ownLook } from '../../data/orbiters';
 import { REGIONS } from '../../data/regions';
 import { BODIES } from '../../physics/bodies';
 import { greenwichToGeo } from '../../physics/frames';
@@ -610,9 +610,11 @@ export default function MapView() {
               ? ['imagery', 'night', 'borders', 'grid', 'cities']
               : body === 'saturn'
                 ? ['imagery', 'night', 'grid']
-                : body === 'venus'
-                  ? ['venusClouds', 'regions', 'imagery', 'night', 'grid', 'cities']
-                  : ['regions', 'imagery', 'night', 'grid', 'cities']
+                : body === 'mercury'
+                  ? ['regions', 'imagery', 'night', 'grid']
+                  : body === 'venus'
+                    ? ['venusClouds', 'regions', 'imagery', 'night', 'grid', 'cities']
+                    : ['regions', 'imagery', 'night', 'grid', 'cities']
           }
         >
           <MapRevsControl />
@@ -642,7 +644,7 @@ export default function MapView() {
 }
 
 function MapRevsControl() {
-  const historical = useAppStore((s) => cassiniWindow(s.record?.elements.body, s.record?.elements.noradId));
+  const historical = useAppStore((s) => archiveWindow(s.record?.elements.body, s.record?.elements.noradId));
   return historical ? null : <RevsControl />;
 }
 
@@ -651,9 +653,9 @@ function Legend({ listRef, archiveLegend }: { listRef: React.Ref<HTMLUListElemen
   // Сколько следующих витков действительно начинается на показанной трассе. У обычных орбит — сколько
   // выбрано; у очень долгих (Луна) окно короче витка, и «+1» бывает, только когда узел попал в окно.
   // Число меняется редко — легенда перерисовывается только тогда
-  const historical = useAppStore((s) => cassiniWindow(s.record?.elements.body, s.record?.elements.noradId));
+  const historical = useAppStore((s) => archiveWindow(s.record?.elements.body, s.record?.elements.noradId));
   const ordinaryForward = useAppStore((s) => {
-    if (cassiniWindow(s.orbit?.elements.body, s.orbit?.elements.noradId)) return 0;
+    if (archiveWindow(s.orbit?.elements.body, s.orbit?.elements.noradId)) return 0;
     return s.orbit ? revolutionsAhead(s.orbit, s.simTime, trackSpan(s.orbit, 0, s.revsForward).forward) : s.revsForward;
   });
   const forward = historical ? archiveLegend?.forward ?? 0 : ordinaryForward;

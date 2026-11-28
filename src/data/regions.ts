@@ -1,5 +1,5 @@
 /**
- * Регионы Луны и Марса: названия IAU, центры и размеры из справочника USGS Gazetteer of
+ * Названия IAU, центры и размеры регионов из справочника USGS Gazetteer of
  * Planetary Nomenclature (src/data/regions.json, обновление — npm run update:regions).
  * Русские названия — по сложившейся традиции (атласы ГАИШ, «Атлас обратной стороны Луны»);
  * объекты без устоявшегося русского названия подписываются официальным латинским.
@@ -332,11 +332,21 @@ const RU: Record<string, string> = {
   Isabella: 'Изабелла',
   Meitner: 'Мейтнер',
   Klenova: 'Клёнова',
+  // Меркурий
+  'Caloris Planitia': 'Равнина Жары',
+  'Borealis Planitia': 'Северная равнина',
+  Rembrandt: 'Рембрандт',
+  Beethoven: 'Бетховен',
+  Rachmaninoff: 'Рахманинов',
+  Tolstoj: 'Толстой',
+  Dostoevskij: 'Достоевский',
+  Goethe: 'Гёте',
+  Shakespeare: 'Шекспир',
 };
 
 const items = (data as { items: Omit<Region, 'title'>[] }).items;
 
-export const REGIONS: Record<BodyId, Region[]> = { earth: [], moon: [], mars: [], venus: [], saturn: [] };
+export const REGIONS: Record<BodyId, Region[]> = { earth: [], moon: [], mars: [], venus: [], saturn: [], mercury: [] };
 for (const r of items) REGIONS[r.body].push({ ...r, title: RU[r.name] ?? r.name });
 
 /** Цвета видов регионов: тёмные равнины — холодный, нагорья — тёплый, горы и кратеры — нейтральный. */

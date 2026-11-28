@@ -1,5 +1,5 @@
 /**
- * Спутники Луны, Марса и Венеры: аппараты, а у Марса ещё Фобос и Деймос. Сюда же — сама Луна как спутник Земли. Элементы орбит берутся из JPL Horizons
+ * Космические аппараты и естественные спутники. Элементы орбит берутся из JPL Horizons
  * (оскулирующие элементы в системе «экватор тела и узел») и хранятся снимком
  * в public/data/orbiters.json — у Horizons нет CORS, браузер не может запросить его напрямую.
  * Обновление: npm run update:orbiters.
@@ -15,6 +15,7 @@ export interface Orbiter {
   body: BodyId;
   title: string;
   note: string;
+  detail?: string;
 }
 
 export const ORBITERS: Orbiter[] = [
@@ -40,6 +41,12 @@ export const ORBITERS: Orbiter[] = [
   { naifId: 602, body: 'saturn', title: 'Энцелад', note: 'Ледяной спутник, период ≈ 33 ч' },
   { naifId: 606, body: 'saturn', title: 'Титан', note: 'Крупнейший спутник Сатурна, период ≈ 16 суток' },
   { naifId: -82, body: 'saturn', title: 'Кассини', note: 'Последний полный виток, 5–12 сентября 2017 года' },
+  { naifId: -236, body: 'mercury', title: 'MESSENGER', note: 'Первый орбитальный аппарат Меркурия, архивный виток 19 мая 2011 года' },
+  {
+    naifId: -121, body: 'mercury', title: 'BepiColombo',
+    note: 'БепиКоломбо, миссия ESA и JAXA',
+    detail: 'Элементы орбиты берутся из траектории ESA в JPL Horizons. Траектория может включать прогноз.',
+  },
   // Исторические орбиты; у Земли (Восток-1, Спутник-1) они стоят в списке popular.ts
   ...HISTORIC_ORBITERS.map((o): Orbiter => ({ naifId: o.id, body: o.body, title: o.title, note: o.note })),
 ];
@@ -47,20 +54,35 @@ export const ORBITERS: Orbiter[] = [
 /** Спутник из снимка JPL Horizons, а не из каталога CelesTrak. */
 export const isOrbiterId = (body: BodyId, id: number) => ORBITERS.some((o) => o.body === body && o.naifId === id);
 
-/** Тело для старой ссылки без параметра body. Новые спутники Сатурна требуют явного тела. */
+/** Тело для старой ссылки без параметра body. Спутники Сатурна и Меркурия требуют явного тела. */
 export const legacyBodyFor = (id: number): BodyId =>
-  ORBITERS.find((o) => o.body !== 'saturn' && o.naifId === id)?.body ?? 'earth';
+  ORBITERS.find((o) => o.body !== 'saturn' && o.body !== 'mercury' && o.naifId === id)?.body ?? 'earth';
 
 export const CASSINI_WINDOW = {
   startMs: Date.UTC(2017, 8, 5, 18, 47),
   endMs: Date.UTC(2017, 8, 12, 5, 27),
+  speed: 5000,
+  label: 'виток № 292',
+  note: 'Виток № 292, 5–12 сентября 2017 года. Расчёт по элементам орбиты на начало витка.',
+};
+
+/** 19 мая 2011 г. 00:00 TDB и один период обращения по элементам JPL Horizons. */
+const MESSENGER_WINDOW = {
+  startMs: Date.UTC(2011, 4, 19) - 66_184,
+  endMs: Date.UTC(2011, 4, 19) - 66_184 + 43_460_220,
+  speed: 1000,
+  label: 'виток MESSENGER',
+  note: 'Виток 19 мая 2011 года. Расчёт по архивным элементам орбиты JPL Horizons.',
 };
 
 const isCassini = (body: BodyId | undefined, id: number | undefined) => body === 'saturn' && id === -82;
 
-/** Границы витка № 292 по журналу NASA; общие для часов, трассы и выгрузки. */
-export const cassiniWindow = (body: BodyId | undefined, id: number | undefined) =>
-  isCassini(body, id) ? CASSINI_WINDOW : null;
+/** Архивный интервал и подписи, общие для часов, трассы, графиков и выгрузки. */
+export function archiveWindow(body: BodyId | undefined, id: number | undefined) {
+  if (isCassini(body, id)) return CASSINI_WINDOW;
+  if (body === 'mercury' && id === -236) return MESSENGER_WINDOW;
+  return null;
+}
 
 export type NaturalSatellite = 'moon' | 'phobos' | 'deimos' | 'enceladus' | 'titan';
 
@@ -96,7 +118,7 @@ export function ownLook(el: { noradId: number; body?: BodyId }): OwnLook | null 
 }
 
 /** Спутник по умолчанию для каждого тела. */
-export const DEFAULT_SATELLITE: Record<BodyId, number> = { earth: 25544, moon: -85, mars: -74, venus: -248, saturn: 602 };
+export const DEFAULT_SATELLITE: Record<BodyId, number> = { earth: 25544, moon: -85, mars: -74, venus: -248, saturn: 602, mercury: -236 };
 
 // ── Загрузка снимка ─────────────────────────────────────────────────────────
 

@@ -19,6 +19,7 @@ export function BodySwitcher() {
           type="button"
           role="radio"
           aria-checked={body === id}
+          aria-label={BODIES[id].name}
           tabIndex={rovingTabIndex(body === id)}
           className={styles.item}
           data-body={id}

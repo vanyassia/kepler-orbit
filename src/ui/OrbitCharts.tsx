@@ -1,6 +1,6 @@
 /**
  * «Графики за виток»: высота h, скорость V, широта φ и истинная аномалия ν
- * от перицентра до следующего перицентра или за архивный интервал «Кассини».
+ * от перицентра до следующего перицентра или за архивный виток аппарата.
  * По краям — перицентр, посередине — апоцентр: на вытянутых орбитах («Молния», «Меридиан»)
  * хорошо видно, как аппарат быстро проносится у перицентра и долго висит у апоцентра.
  *
@@ -9,7 +9,7 @@
  * Расчёт точек — src/physics/orbitProfile.ts.
  */
 import { type KeyboardEvent, useEffect, useMemo, useRef, useState } from 'react';
-import { cassiniWindow } from '../data/orbiters';
+import { archiveWindow } from '../data/orbiters';
 import { useThrottledSimTime } from '../hooks/useSimClock';
 import { RAD } from '../physics/constants';
 import type { OrbitProfile, ProfilePoint } from '../physics/orbitProfile';
@@ -75,7 +75,7 @@ const CHARTS: ChartDef[] = [
 export function OrbitCharts() {
   const orbit = useAppStore((s) => s.orbit);
   const t = useThrottledSimTime(100);
-  const archive = cassiniWindow(orbit?.elements.body, orbit?.elements.noradId);
+  const archive = archiveWindow(orbit?.elements.body, orbit?.elements.noradId);
   const startMs = archive?.startMs ?? (orbit ? Math.round(perigeeBefore(orbit, t)) : 0);
   const profile = useMemo(() => {
     if (!orbit) return null;
