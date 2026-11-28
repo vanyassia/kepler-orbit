@@ -1,6 +1,7 @@
-import { DoubleSide, ShaderMaterial, SphereGeometry, Vector3 } from 'three';
+import { DataTexture, DoubleSide, LinearFilter, LinearMipmapLinearFilter, ShaderMaterial, SphereGeometry, Vector3 } from 'three';
 import { SATURN } from '../../physics/bodies';
 import { radialScale } from './coords';
+import ringProfile from './saturn-rings.base64?raw';
 
 /** Полярная полуось NAIF PCK00011. В расчёт высоты входит только SATURN.radius. */
 export const SATURN_POLAR_RATIO = SATURN.polarRadius! / SATURN.radius;
@@ -25,10 +26,25 @@ export function saturnGlobeGeometry(): SphereGeometry {
   return mesh;
 }
 
-/** Границы полос по NASA PDS Ring-Moon Systems Node. Плотность и цвет приближённые. */
+/** Радиальный профиль из снимка «Кассини» PIA11142. См. scripts/build-saturn-rings.mjs. */
 export function saturnRingMaterial(sunDir: { value: Vector3 }, nightOn: { value: number }) {
-  return new ShaderMaterial({
-    uniforms: { sunDir, nightOn, radiusKm: { value: SATURN.radius }, polarRatio: { value: SATURN_POLAR_RATIO } },
+  const bytes = atob(ringProfile);
+  const data = Uint8Array.from(bytes, (byte) => byte.charCodeAt(0));
+  const profile = new DataTexture(data, data.length / 4, 1);
+  profile.magFilter = LinearFilter;
+  profile.minFilter = LinearMipmapLinearFilter;
+  profile.generateMipmaps = true;
+  profile.needsUpdate = true;
+
+  const material = new ShaderMaterial({
+    uniforms: {
+      sunDir,
+      nightOn,
+      ringProfile: { value: profile },
+      ringInner: { value: SATURN_RING_INNER },
+      ringSpan: { value: SATURN_RING_OUTER - SATURN_RING_INNER },
+      polarRatio: { value: SATURN_POLAR_RATIO },
+    },
     side: DoubleSide,
     transparent: true,
     depthWrite: false,
@@ -44,27 +60,15 @@ export function saturnRingMaterial(sunDir: { value: Vector3 }, nightOn: { value:
     fragmentShader: /* glsl */ `
       uniform vec3 sunDir;
       uniform float nightOn;
-      uniform float radiusKm;
+      uniform sampler2D ringProfile;
+      uniform float ringInner;
+      uniform float ringSpan;
       uniform float polarRatio;
       varying vec3 vRingPosition;
 
-      float band(float r, float edge, float from, float to) {
-        return smoothstep(from - edge, from + edge, r) * (1.0 - smoothstep(to - edge, to + edge, r));
-      }
-
       void main() {
-        float r = length(vRingPosition.xz) * radiusKm;
-        float edge = max(12.0, fwidth(r) * 0.65);
-        float d = band(r, edge, 66900.0, 74491.0);
-        float c = band(r, edge, 74491.0, 91975.0);
-        float b = band(r, edge, 91975.0, 117545.0);
-        float a = band(r, edge, 122050.0, 136770.0) * (1.0 - 0.82 * band(r, edge, 133423.0, 133745.0));
-        float f = band(r, edge, 139826.0, 140612.0);
-        float alpha = 0.045 * d + 0.31 * c + 0.87 * b + 0.64 * a + 0.36 * f;
-        float stripes = 0.88
-          + 0.085 * sin(r * 0.00155) * (1.0 - smoothstep(700.0, 2500.0, edge))
-          + 0.065 * sin(r * 0.0044) * (1.0 - smoothstep(210.0, 850.0, edge));
-        vec3 color = mix(vec3(0.69, 0.58, 0.43), vec3(0.92, 0.81, 0.64), b);
+        float u = (length(vRingPosition.xz) - ringInner) / ringSpan;
+        vec4 profile = texture2D(ringProfile, vec2(u, 0.5));
 
         // Луч от точки кольца к Солнцу. Растяжение по Y сводит пересечение эллипсоида к шару.
         vec3 p = vRingPosition;
@@ -75,10 +79,12 @@ export function saturnRingMaterial(sunDir: { value: Vector3 }, nightOn: { value:
         float sameSide = step(0.0, viewDir.y * sunDir.y);
         float illumination = mix(0.78, 0.72 + 0.48 * abs(sunDir.y), sameSide);
         float light = mix(1.0, illumination * mix(0.16, 1.0, clear), nightOn);
-        gl_FragColor = vec4(color * stripes * light, alpha);
+        gl_FragColor = vec4(profile.rgb * light / max(profile.a, 0.001), profile.a);
         #include <tonemapping_fragment>
         #include <colorspace_fragment>
       }
     `,
   });
+  material.addEventListener('dispose', () => profile.dispose());
+  return material;
 }

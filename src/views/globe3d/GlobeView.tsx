@@ -144,7 +144,12 @@ export default function GlobeView() {
           }
         >
           {!historical && <RevsControl />}
-          {body !== 'earth' || !ultraSupported ? <p className={styles.quality}>{SURFACE_CREDIT[body]}</p> : <div className={styles.quality}>
+          {body !== 'earth' || !ultraSupported ? (
+            <p className={styles.quality}>
+              {SURFACE_CREDIT[body]}
+              {body === 'saturn' && <><br />Кольца: NASA / JPL / Space Science Institute</>}
+            </p>
+          ) : <div className={styles.quality}>
             <span>Детализация снимка</span>
             <div className={styles.segmented} role="radiogroup" aria-label="Детализация снимка" onKeyDown={(e) => rovingKeyDown(e, QUALITIES, quality, setQuality)}>
               <button type="button" role="radio" aria-checked={quality === 'standard'} tabIndex={rovingTabIndex(quality === 'standard')} onClick={() => setQuality('standard')}>
