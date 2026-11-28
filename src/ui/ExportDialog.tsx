@@ -174,7 +174,7 @@ function ExportForm({ orbit, onClose }: { orbit: PreparedOrbit; onClose: () => v
     : requestedRange.to <= requestedRange.from
       ? 'Конец интервала должен быть позже начала'
       : range.to <= range.from
-        ? 'Выберите время в пределах витка № 292'
+        ? 'Выберите время в пределах архивного витка'
         : null;
   const rows = rangeError ? 0 : rowCount(range.from, range.to, step);
   const tooMany = rows > MAX_ROWS;
@@ -358,7 +358,7 @@ function ExportForm({ orbit, onClose }: { orbit: PreparedOrbit; onClose: () => v
                 </div>
               ) : (
                 <p className={styles.note}>
-                  {prefs.range === 'shown' && (historical ? 'Виток № 292. ' : <>{revsLabel(revsBack)} назад и {revsLabel(revsForward)} вперёд от текущего момента. </>)}
+                  {prefs.range === 'shown' && (historical ? `Архивный ${historical.label}. ` : <>{revsLabel(revsBack)} назад и {revsLabel(revsForward)} вперёд от текущего момента. </>)}
                   {!rangeError && (
                     <span className="num">
                       {fmtDateTime(range.from)} — {fmtDateTime(range.to)} UTC
@@ -409,7 +409,7 @@ function ExportForm({ orbit, onClose }: { orbit: PreparedOrbit; onClose: () => v
                     hint={g.hint}
                   />
                 ))}
-                <Check2 checked={prefs.msk} onChange={(msk) => update({ msk })} label="Московское время" hint="ещё один столбец, UTC+3" />
+                <Check2 checked={prefs.msk} onChange={(msk) => update({ msk })} label="Московское время" hint="ещё один столбец" />
               </div>
             </Field>
           </>

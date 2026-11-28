@@ -59,12 +59,12 @@ describe('таблица трассы', () => {
     expect(table.keys).toContain('vz_eci_kms');
     expect(table.keys).not.toContain('nu_deg');
     expect(table.keys).not.toContain('x_ecef_km');
-    expect(table.titles.slice(0, 2)).toEqual(['Время UTC', 'Время МСК (UTC+3)']);
+    expect(table.titles.slice(0, 2)).toEqual(['Время UTC', 'Время МСК']);
   });
 
   it('CSV для Excel: «;», десятичная запятая, метка UTF-8 и CRLF', () => {
     const text = tableToText(table, 'excel', meta);
-    expect(text.startsWith('﻿Время UTC;Время МСК (UTC+3);t − t₀ (с);')).toBe(true);
+    expect(text.startsWith('﻿Время UTC;Время МСК;t − t₀ (с);')).toBe(true);
     const lines = text.split('\r\n');
     expect(lines).toHaveLength(table.times.length + 2); // заголовок + строки + пустая после последнего перевода
     expect(lines[1].startsWith('2026-11-04 12:00:00;2026-11-04 15:00:00;0,0;')).toBe(true);
@@ -88,6 +88,18 @@ describe('таблица трассы', () => {
     expect(data.rows[0].time_msk).toBe('2026-11-04 15:00:00');
     expect(data.columns.find((c: { key: string }) => c.key === 'h_km').unit).toBe('km');
     expect(typeof data.rows[3].lat_deg).toBe('number');
+  });
+
+  it('для архивной эпохи московское время учитывает действовавшее смещение UTC+4', () => {
+    const fromMs = Date.UTC(2011, 4, 18, 23, 58, 53, 816);
+    const archive = buildTrackTable(orbit, { fromMs, toMs: fromMs, stepSec: 60, groups: [], msk: true });
+    const expected = '2011-05-19 03:58:53';
+    const formats = { excel: ';', csv: ',', tsv: '\t' } as const;
+    for (const format of ['excel', 'csv', 'tsv'] as const) {
+      expect(tableToText(archive, format, meta).split('\n')[1].split(formats[format]).slice(0, 2))
+        .toEqual(['2011-05-18 23:58:53', expected]);
+    }
+    expect(JSON.parse(tableToText(archive, 'json', meta)).rows[0].time_msk).toBe(expected);
   });
 });
 

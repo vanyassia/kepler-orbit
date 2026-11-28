@@ -113,7 +113,7 @@
  * сначала «Показ» и «Выгрузка» остаются значками (подпись — во всплывающей подсказке),
  * затем плашка источника данных — одной точкой (DataStatus.module.css, тот же порог 1360 px).
  */
-@media (max-width: 1500px) {
+@media (max-width: 1540px) {
   .exportBtn {
     width: 36px;
     padding: 0;
@@ -145,8 +145,14 @@
 }
 
 /* Часы есть и в нижней панели: у самой узкой «компьютерной» ширины их место отдаём поиску */
-@media (max-width: 780px) {
+@media (max-width: 860px) {
   .clocks {
+    display: none;
+  }
+}
+
+@media (max-width: 780px) {
+  .name {
     display: none;
   }
 }
@@ -155,12 +161,6 @@
   .bar {
     gap: var(--sp-3);
     padding: 0 var(--sp-3);
-  }
-  .name {
-    display: none;
-  }
-  .clocks {
-    display: none;
   }
   /* На телефоне место в шапке нужнее полю поиска: выгрузка — в боковой панели */
   .exportBtn {

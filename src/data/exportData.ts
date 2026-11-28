@@ -132,7 +132,7 @@ export function buildTrackTable(orbit: PreparedOrbit, opt: TrackExportOptions): 
     return columns.map((c) => c.value(s));
   });
   return {
-    titles: ['Время UTC', ...(opt.msk ? ['Время МСК (UTC+3)'] : []), ...columns.map((c) =>
+    titles: ['Время UTC', ...(opt.msk ? ['Время МСК'] : []), ...columns.map((c) =>
       orbit.body.id === 'saturn' && c.key === 'h_km' ? 'Высота h от экваториального радиуса 60 268 км (км)' : c.title,
     )],
     keys: ['time_utc', ...(opt.msk ? ['time_msk'] : []), ...columns.map((c) => c.key)],
@@ -145,14 +145,25 @@ export function buildTrackTable(orbit: PreparedOrbit, opt: TrackExportOptions): 
   };
 }
 
-const MSK_OFFSET_MS = 3 * 3600_000; // Москва — UTC+3 круглый год
-
 const pad = (n: number, w = 2) => String(n).padStart(w, '0');
 
 /** «2026-11-04 12:00:05» — так время понимают Excel, Numbers и Google Таблицы. */
-export function fmtTableTime(ms: number, offsetMs = 0): string {
-  const d = new Date(Math.floor(ms / 1000) * 1000 + offsetMs); // доли секунды отбрасываются, как в остальном интерфейсе
+export function fmtTableTime(ms: number): string {
+  const d = new Date(Math.floor(ms / 1000) * 1000); // доли секунды отбрасываются, как в остальном интерфейсе
   return `${d.getUTCFullYear()}-${pad(d.getUTCMonth() + 1)}-${pad(d.getUTCDate())} ${pad(d.getUTCHours())}:${pad(d.getUTCMinutes())}:${pad(d.getUTCSeconds())}`;
+}
+
+const moscowTime = new Intl.DateTimeFormat('en', {
+  timeZone: 'Europe/Moscow',
+  year: 'numeric', month: '2-digit', day: '2-digit',
+  hour: '2-digit', minute: '2-digit', second: '2-digit', hourCycle: 'h23',
+});
+
+function fmtTableMoscowTime(ms: number): string {
+  const { year, month, day, hour, minute, second } = Object.fromEntries(
+    moscowTime.formatToParts(Math.floor(ms / 1000) * 1000).map(({ type, value }) => [type, value]),
+  );
+  return `${year}-${month}-${day} ${hour}:${minute}:${second}`;
 }
 
 /** ISO 8601 с миллисекундами в UTC: «2026-11-04T12:00:05.000Z». */
@@ -203,7 +214,7 @@ export function tableToText(table: Table, format: ExportFormat, meta: ExportMeta
     const off = table.msk ? 2 : 1;
     const rows = table.times.map((t, k) => {
       const o: Record<string, string | number> = { time_utc: iso(t) };
-      if (table.msk) o.time_msk = fmtTableTime(t, MSK_OFFSET_MS);
+      if (table.msk) o.time_msk = fmtTableMoscowTime(t);
       table.rows[k].forEach((v, j) => (o[table.keys[j + off]] = Number(v.toFixed(table.digits[j]))));
       return o;
     });
@@ -224,7 +235,7 @@ export function tableToText(table: Table, format: ExportFormat, meta: ExportMeta
   const d = DIALECTS[format];
   const lines = [table.titles.map((t) => cell(t, d.sep)).join(d.sep)];
   table.times.forEach((t, k) => {
-    const time = [fmtTableTime(t), ...(table.msk ? [fmtTableTime(t, MSK_OFFSET_MS)] : [])];
+    const time = [fmtTableTime(t), ...(table.msk ? [fmtTableMoscowTime(t)] : [])];
     lines.push([...time, ...table.rows[k].map((v, j) => num(v, table.digits[j], d.comma))].join(d.sep));
   });
   return (d.bom ? '﻿' : '') + lines.join(d.eol) + d.eol;
