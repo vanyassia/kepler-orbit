@@ -118,7 +118,7 @@ export function Workspace() {
 /** Переключатель вида Венеры: радиолокационная поверхность Magellan или плотный облачный покров. */
 function VenusSurfaceSwitch() {
   const body = useAppStore((s) => s.body);
-  const venusClouds = useAppStore((s) => s.layers.venusClouds);
+  const venusClouds = useAppStore((s) => s.layers.venusClouds && s.layers.imagery);
   const setVenusClouds = useAppStore((s) => s.setVenusClouds);
   if (body !== 'venus') return null;
   const current: VenusLayerMode = venusClouds ? 'clouds' : 'surface';
@@ -194,7 +194,7 @@ function EmptyState({ error }: { error: string | null }) {
             <h2>Не удалось получить элементы орбиты</h2>
             <p>{error}</p>
             <p className={styles.emptyHint}>
-              Проверьте подключение к интернету и повторите запрос, выберите другой спутник или введите TLE вручную через поиск.
+              Проверьте подключение к интернету и повторите запрос. Можно выбрать другой спутник{body === 'earth' ? ' или ввести TLE вручную через поиск' : ''}.
             </p>
             <div className={styles.actions}>
               <button type="button" className={styles.retry} onClick={retry}>

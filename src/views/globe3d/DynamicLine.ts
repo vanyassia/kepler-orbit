@@ -46,6 +46,10 @@ export class DynamicLine extends Line2 {
    */
   setPoints(xyz: ArrayLike<number>, count: number, rgb?: ArrayLike<number>): void {
     const n = Math.max(0, Math.min(count, this.capacity) - 1);
+    this.n = n;
+    (this.geometry as LineGeometry).instanceCount = n;
+    // WebGL2 трактует длину 0 как передачу всего остатка массива.
+    if (n === 0) return;
     const s = this.seg.array as Float32Array;
     const d = this.dist.array as Float32Array;
     let acc = 0;
@@ -88,8 +92,6 @@ export class DynamicLine extends Line2 {
     }
     upload(this.seg, 0, n * 6);
     upload(this.dist, 0, n * 2);
-    this.n = n;
-    (this.geometry as LineGeometry).instanceCount = n;
   }
 
   /** Сдвиг начала линии. Штрихи отсчитываются от него, поэтому смещаются и расстояния дальше по линии. */

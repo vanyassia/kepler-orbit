@@ -21,7 +21,7 @@ import { ensureFullImage, LIGHT_DEVICE, NIGHT_LIGHTS, SURFACE, surfaceCredit, us
 import { registerSnapshot } from '../snapshot';
 import { frameDue, MIN_SHIFT_PX, peakAngularRateDeg, simMsPerShift } from '../frameRate';
 import { pickLevel } from '../imageChunks';
-import { futureTrackLegend, nodesInWindow, orbitSource, Revolutions, revolutionColor, revolutionsAhead, TrackCache, trackSpan } from '../trackCache';
+import { futureTrackLegend, nodesInWindow, orbitSource, Revolutions, revolutionColor, TrackCache, trackSpan } from '../trackCache';
 import { venusCloudShift } from '../venusClouds';
 import type { BorderPaths } from './geo';
 import { loadBorders, WORLD_W } from './geo';
@@ -82,10 +82,10 @@ export default function MapView() {
   /** До этого момента слежение не вмешивается: идёт анимация «К спутнику». */
   const followHoldRef = useRef(0);
   const [borders, setBorders] = useState<BorderPaths | null>(null);
-  const [archiveLegend, setArchiveLegend] = useState<ReturnType<typeof futureTrackLegend> | null>(null);
+  const [trackLegend, setTrackLegend] = useState<ReturnType<typeof futureTrackLegend> | null>(null);
 
   const body = useAppStore((s) => s.body);
-  const venusClouds = useAppStore((s) => s.layers.venusClouds);
+  const venusClouds = useAppStore((s) => s.layers.venusClouds && s.layers.imagery);
   const surface = useProgressiveImage(SURFACE[body]);
   const clouds = useProgressiveImage(body === 'venus' && venusClouds ? VENUS_CLOUDS : []);
   const movingClouds = body === 'venus' && venusClouds && clouds !== null;
@@ -118,12 +118,12 @@ export default function MapView() {
   }, [body, borders]);
 
   // Цикл кадров живёт всё время, новые снимки и границы читает отсюда
-  const dataRef = useRef({ day, night, borders, movingClouds });
+  const dataRef = useRef({ body, day, night, borders, movingClouds });
   // Перерисовка при смене изображений/данных
   useEffect(() => {
-    dataRef.current = { day, night, borders, movingClouds };
+    dataRef.current = { body, day, night, borders, movingClouds };
     dirtyRef.current = true;
-  }, [day, night, borders, movingClouds]);
+  }, [body, day, night, borders, movingClouds]);
   useEffect(
     () =>
       useAppStore.subscribe((s, p) => {
@@ -268,7 +268,7 @@ export default function MapView() {
     const ro = new ResizeObserver(([entry]) => {
       const { width, height } = entry.contentRect;
       if (width === 0 || height === 0) return; // панель скрыта: холст и его снимок остаются до возвращения
-      const dpr = Math.min(window.devicePixelRatio || 1, 2.5);
+      const dpr = Math.min(window.devicePixelRatio || 1, LIGHT_DEVICE ? 1.5 : 2.5);
       sizeRef.current = { w: width, h: height, dpr };
       canvas.width = Math.round(width * dpr);
       canvas.height = Math.round(height * dpr);
@@ -303,10 +303,13 @@ export default function MapView() {
     const trackCache = new TrackCache();
     let revs: Revolutions | null = null;
     let revsRevision = -1;
-    let shownArchiveLegend: typeof archiveLegend = null;
+    let shownTrackLegend: typeof trackLegend = null;
     let nodePoints: MapScene['nodePoints'] = [];
     let lastSub = { lat: NaN, lon: NaN };
     let lastMaskAt = 0;
+    let maskBody: string | null = null;
+    let maskVersion = 0;
+    let lightsMaskVersion = -1;
     let lightsKey = '';
     let baseSource: ImageBitmap | HTMLImageElement | null = null;
     let lightsSource: ImageBitmap | HTMLImageElement | null = null;
@@ -346,14 +349,19 @@ export default function MapView() {
 
       const earth = st.body === 'earth';
       const { imagery, grid, borders: bordersOn } = st.layers;
-      const { day, night, borders, movingClouds } = dataRef.current;
+      const data = dataRef.current;
+      const matchesBody = data.body === st.body;
+      const day = matchesBody && !data.day?.closed ? data.day : null;
+      const night = earth && matchesBody && !data.night?.closed ? data.night : null;
+      const { borders } = data;
+      const movingClouds = matchesBody && data.movingClouds;
       // Ширина всей карты на экране в пикселях: под неё подбираются копии снимков
       const worldPx = 360 * view.s * dpr;
       const redraw = () => {
         dirtyRef.current = true;
       };
-      if (day) ensureFullImage(day, worldPx, redraw);
-      if (night) ensureFullImage(night, worldPx, redraw);
+      if (day && imagery) ensureFullImage(day, worldPx, redraw);
+      if (night && imagery && st.layers.night) ensureFullImage(night, worldPx, redraw);
       const daySource = day && pickLevel(day.levels, worldPx);
       const nightSource = night && pickLevel(night.levels, worldPx);
 
@@ -385,23 +393,23 @@ export default function MapView() {
       const subRad = { lat: sunGeo.lat, lon: sunGeo.lon };
       const sub = { lat: subRad.lat * RAD, lon: subRad.lon * RAD };
       // (при быстрой перемотке — не чаще 20 раз в секунду)
-      let masksChanged = false;
       const moved = !(Math.abs(sub.lat - lastSub.lat) < 0.05 && Math.abs(sub.lon - lastSub.lon) < 0.05);
-      if (moved && (nowMs - lastMaskAt > 50 || Number.isNaN(lastSub.lat))) {
+      if (maskBody !== st.body || (moved && (!st.playing || nowMs - lastMaskAt > 50))) {
         updateNightMasks(masks, subRad);
         lastSub = sub;
+        maskBody = st.body;
         lastMaskAt = nowMs;
-        masksChanged = true;
+        maskVersion++;
       }
 
       // Слой огней городов = ночной снимок в масштабе вида × маска
       const key = `${canvas.width}x${canvas.height}|${view.s}|${view.ox}|${view.oy}`;
-      if (earth && nightSource && st.layers.night) {
+      if (earth && nightSource && imagery && st.layers.night) {
         const world = [dpr * view.s, 0, 0, dpr * view.s, dpr * view.ox, dpr * view.oy] as const;
         if (key !== lightsKey || nightSource !== lightsSource) {
           lightsKey = key;
           lightsSource = nightSource;
-          masksChanged = true;
+          lightsMaskVersion = -1;
           lightsScaled.width = lights.width = canvas.width;
           lightsScaled.height = lights.height = canvas.height;
           const sctx = lightsScaled.getContext('2d')!;
@@ -409,7 +417,8 @@ export default function MapView() {
           sctx.imageSmoothingQuality = smoothingFor(nightSource);
           sctx.drawImage(nightSource, 0, 0, 360, 180);
         }
-        if (masksChanged) {
+        if (lightsMaskVersion !== maskVersion) {
+          lightsMaskVersion = maskVersion;
           const lctx = lights.getContext('2d')!;
           lctx.setTransform(1, 0, 0, 1, 0, 0);
           lctx.globalCompositeOperation = 'copy';
@@ -439,10 +448,10 @@ export default function MapView() {
           return point ? [{ offset, point }] : [];
         });
       }
-      const nextLegend = src?.toMs !== undefined && track && revs ? futureTrackLegend(track.future, revs) : null;
-      if (nextLegend?.current !== shownArchiveLegend?.current || nextLegend?.forward !== shownArchiveLegend?.forward) {
-        shownArchiveLegend = nextLegend;
-        setArchiveLegend(nextLegend);
+      const nextLegend = track && revs ? futureTrackLegend(track.future, revs) : null;
+      if (nextLegend?.current !== shownTrackLegend?.current || nextLegend?.forward !== shownTrackLegend?.forward) {
+        shownTrackLegend = nextLegend;
+        setTrackLegend(nextLegend);
       }
       // Точка пролётов — только если пользователь поставил её щелчком по карте
       const target = passTargetOf(st, st.body);
@@ -454,7 +463,7 @@ export default function MapView() {
           lat: target.lat,
           lon: target.lon,
           custom: target.name === null,
-          circle: circleAround(target, radiusKm, b.radius),
+          circle: circleAround(target, radiusKm, b.radius, 128, b.polarRadius),
           radiusLabel: `${fmt(radiusKm)} км`,
         };
       }
@@ -567,8 +576,9 @@ export default function MapView() {
   };
   const centerOnSatellite = () => {
     const st = useAppStore.getState();
-    if (!st.orbit || !zoomRef.current) return;
-    const tr = orbitSource(st.orbit).at(st.simTime)!;
+    const z = zoomRef.current;
+    const tr = st.orbit && orbitSource(st.orbit).at(st.simTime);
+    if (!z || !tr) return;
     const { w, h } = sizeRef.current;
     // На телефоне и в узкой панели карта снова следит за спутником (после анимации наведения);
     // на компьютере с широкой картой — как раньше, без слежения
@@ -578,10 +588,11 @@ export default function MapView() {
     const k = Math.max(3, transformRef.current.k);
     const bx = ox0 + s0 * (tr.lon + 180);
     const by = oy0 + s0 * (90 - tr.lat);
+    const position = zoomIdentity.translate(w / 2, h / 2).scale(k).translate(-bx, -by);
     select(canvasRef.current!)
       .transition()
       .duration(400)
-      .call(zoomRef.current.transform, zoomIdentity.translate(w / 2, h / 2).scale(k).translate(-bx, -by));
+      .call(z.transform, z.constrain()(position, [[0, 0], [w, h]], z.translateExtent()));
   };
 
   return (
@@ -634,7 +645,7 @@ export default function MapView() {
           </button>
         </div>
       </div>
-      <Legend listRef={legendRef} archiveLegend={archiveLegend} />
+      <Legend listRef={legendRef} trackLegend={trackLegend} />
       <div className={styles.footer} ref={footerRef}>
         <span ref={coordsRef} className={`${styles.coords} num`} data-chrome="" />
         <span className={styles.credit}>{surfaceCredit(body, venusClouds)}</span>
@@ -649,16 +660,8 @@ function MapRevsControl() {
 }
 
 /** Условные обозначения: цвета витков (сколько показано вперёд), прочие значки. */
-function Legend({ listRef, archiveLegend }: { listRef: React.Ref<HTMLUListElement>; archiveLegend: ReturnType<typeof futureTrackLegend> | null }) {
-  // Сколько следующих витков действительно начинается на показанной трассе. У обычных орбит — сколько
-  // выбрано; у очень долгих (Луна) окно короче витка, и «+1» бывает, только когда узел попал в окно.
-  // Число меняется редко — легенда перерисовывается только тогда
-  const historical = useAppStore((s) => archiveWindow(s.record?.elements.body, s.record?.elements.noradId));
-  const ordinaryForward = useAppStore((s) => {
-    if (archiveWindow(s.orbit?.elements.body, s.orbit?.elements.noradId)) return 0;
-    return s.orbit ? revolutionsAhead(s.orbit, s.simTime, trackSpan(s.orbit, 0, s.revsForward).forward) : s.revsForward;
-  });
-  const forward = historical ? archiveLegend?.forward ?? 0 : ordinaryForward;
+function Legend({ listRef, trackLegend }: { listRef: React.Ref<HTMLUListElement>; trackLegend: ReturnType<typeof futureTrackLegend> | null }) {
+  const forward = trackLegend?.forward ?? 0;
   const revs = Array.from({ length: Math.min(forward, 3) }, (_, k) => k + 1);
   const line = (color: string, dashed: boolean, opacity = 1) => (
     <svg width="22" height="8" aria-hidden="true">
@@ -671,7 +674,7 @@ function Legend({ listRef, archiveLegend }: { listRef: React.Ref<HTMLUListElemen
         {line(revolutionColor(-1), false)}
         прошедшие
       </li>
-      {(!historical || archiveLegend?.current) && (
+      {trackLegend?.current && (
         <li>
           {line(revolutionColor(0), true)}
           текущий виток

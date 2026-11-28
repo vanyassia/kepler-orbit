@@ -6,7 +6,8 @@
  * Холсты 2D/3D берут значение напрямую из useAppStore.getState() в своём цикле отрисовки.
  */
 import { create } from 'zustand';
-import { createJSONStorage, persist } from 'zustand/middleware';
+import { persist, type PersistStorage } from 'zustand/middleware';
+import { shallow } from 'zustand/shallow';
 import type { SatelliteRecord } from '../data/celestrak';
 import { loadByNorad } from '../data/celestrak';
 import type { CustomSatellite } from '../data/custom';
@@ -193,6 +194,49 @@ function clockForRecord(prev: SatelliteRecord | null, next: SatelliteRecord) {
 }
 
 const selectedWindow = ({ record }: Pick<AppState, 'record'>) => archiveWindow(record?.elements.body, record?.elements.noradId);
+const selectedFlight = ({ record }: Pick<AppState, 'record'>) => historicFlight(record?.elements.noradId ?? 0);
+
+const preferences = (s: AppState) => ({
+  camera: s.camera === 'board' ? 'free' as const : s.camera,
+  quality: s.quality,
+  layers: s.layers,
+  revsBack: s.revsBack,
+  revsForward: s.revsForward,
+  customSats: s.customSats,
+  passRadius: s.passRadius,
+  passDays: s.passDays,
+});
+
+/** Часы обновляются каждый кадр, а настройки сохраняются только при изменении. */
+type Preferences = ReturnType<typeof preferences>;
+let lastSaved: Preferences | undefined;
+const preferenceStorage: PersistStorage<Preferences> = {
+  getItem(name) {
+    try {
+      const saved = localStorage.getItem(name);
+      return saved ? JSON.parse(saved) : null;
+    } catch {
+      return null;
+    }
+  },
+  setItem(name, value) {
+    if (shallow(lastSaved, value.state)) return;
+    lastSaved = value.state;
+    try {
+      if (typeof localStorage !== 'undefined') localStorage.setItem(name, JSON.stringify(value));
+    } catch {
+      // Если браузер запретил запись, приложение продолжает работать с настройками в памяти.
+    }
+  },
+  removeItem(name) {
+    lastSaved = undefined;
+    try {
+      localStorage.removeItem(name);
+    } catch {
+      // Хранилище может быть недоступно.
+    }
+  },
+};
 
 export const useAppStore = create<AppState>()(
   persist(
@@ -305,7 +349,8 @@ export const useAppStore = create<AppState>()(
     loadSeq++; // загрузка другого спутника, начатая раньше, уже не нужна
     // Свой спутник запоминает новую орбиту (одним обновлением — без лишней перерисовки)
     const sh = shapeOf(elements);
-    const next = { ...custom, hPeri: sh.hPeri, hApo: sh.hApo, inclinationDeg: elements.inclinationDeg, repeat };
+    const hPeri = Math.max(1, sh.hPeri);
+    const next = { ...custom, hPeri, hApo: Math.max(hPeri, Math.min(1_000_000, sh.hApo)), inclinationDeg: elements.inclinationDeg, repeat };
     const customSats = s.customSats.map((x) => (x.id === id ? next : x));
     set({ record, orbit: prepareOrbit(elements), tuneBase, customSats });
   },
@@ -318,14 +363,17 @@ export const useAppStore = create<AppState>()(
   },
 
   setSimTime: (t) => {
-    const window = selectedWindow(get());
-    const time = window ? Math.min(window.endMs, Math.max(window.startMs, t)) : t;
+    const state = get();
+    const window = selectedWindow(state);
+    const start = window?.startMs ?? selectedFlight(state)?.startMs ?? -Infinity;
+    const time = Math.min(window?.endMs ?? Infinity, Math.max(start, t));
     set({ simTime: time, anchorSim: time, anchorReal: performance.now() });
   },
   tick: (realNow) => {
     const { playing, speed, anchorSim, anchorReal, simTime, flightEnd } = get();
-    if (!playing) return;
+    if (!playing || realNow < anchorReal) return;
     const t = anchorSim + (realNow - anchorReal) * speed;
+    if (t <= simTime) return;
     const window = selectedWindow(get());
     if (window && t >= window.endMs) {
       set({ simTime: window.endMs, anchorSim: window.endMs, anchorReal: realNow, playing: false });
@@ -338,13 +386,17 @@ export const useAppStore = create<AppState>()(
     }
     set({ simTime: t });
   },
-  setPlaying: (p) => set((s) => ({ playing: p, anchorSim: s.simTime, anchorReal: performance.now() })),
+  setPlaying: (p) => set((s) => {
+    const archive = selectedWindow(s);
+    const time = p && !s.playing && archive && s.simTime >= archive.endMs ? archive.startMs : s.simTime;
+    return { playing: p, simTime: time, anchorSim: time, anchorReal: performance.now() };
+  }),
   setSpeed: (v) => set((s) => ({ speed: v, anchorSim: s.simTime, anchorReal: performance.now() })),
   resetToNow: () => {
-    const window = selectedWindow(get());
-    if (window) {
-      get().setSimTime(window.startMs);
-      get().setPlaying(false);
+    const state = get();
+    const start = selectedWindow(state)?.startMs ?? selectedFlight(state)?.startMs;
+    if (start !== undefined) {
+      set({ simTime: start, anchorSim: start, anchorReal: performance.now(), playing: false });
       return;
     }
     const now = Date.now();
@@ -391,21 +443,11 @@ export const useAppStore = create<AppState>()(
       // v2: вид и последний спутник больше не запоминаются (по умолчанию — МКС на карте)
       // v3: новые слои по умолчанию (вспомогательная геометрия выключена) — сохранённые слои сбрасываются
       migrate: (persisted, version) => {
-        const p = persisted as Partial<AppState>;
-        return (version < 3 ? { ...p, layers: undefined } : p) as AppState;
+        const p = persisted as Preferences | null;
+        return (version < 3 ? { ...p, layers: undefined } : p) as Preferences;
       },
-      storage: createJSONStorage(() => localStorage),
-      partialize: (s) => ({
-        // «Вид с борта» не запоминается: при запуске глобус открывается обычным видом
-        camera: s.camera === 'board' ? 'free' : s.camera,
-        quality: s.quality,
-        layers: s.layers,
-        revsBack: s.revsBack,
-        revsForward: s.revsForward,
-        customSats: s.customSats,
-        passRadius: s.passRadius,
-        passDays: s.passDays,
-      }),
+      storage: preferenceStorage,
+      partialize: preferences,
       merge: (persisted, current) => {
         const p = (persisted ?? {}) as Partial<AppState>;
         // Берём только существующие слои: у старых версий был слой эталона SGP4
@@ -416,7 +458,26 @@ export const useAppStore = create<AppState>()(
         // Место пролётов не восстанавливается (его сохраняла прошлая версия): при запуске — только трассы
         // Свои спутники — только целые записи (испорченная запись в хранилище не должна ронять панель)
         const customSats = Array.isArray(p.customSats) ? p.customSats.filter(isStoredCustom) : [];
-        return { ...current, ...p, layers, customSats, passTargets: {} };
+        const passRadius = Object.fromEntries(
+          Object.entries(PASS_RADIUS_OPTIONS)
+            .flatMap(([body, options]) => {
+              const value = p.passRadius?.[body as BodyId];
+              return value !== undefined && options.includes(value) ? [[body, value]] : [];
+            }),
+        );
+        const count = (v: number | undefined, min: number, max: number, fallback: number) =>
+          typeof v === 'number' && Number.isInteger(v) && v >= min && v <= max ? v : fallback;
+        return {
+          ...current,
+          camera: p.camera === 'free' || p.camera === 'follow' || p.camera === 'earth' ? p.camera : current.camera,
+          quality: p.quality === 'ultra' ? 'ultra' : current.quality,
+          layers,
+          customSats,
+          passRadius,
+          passDays: PASS_DAYS_OPTIONS.some((days) => days === p.passDays) ? p.passDays! : current.passDays,
+          revsBack: count(p.revsBack, 0, 5, current.revsBack),
+          revsForward: count(p.revsForward, 1, 8, current.revsForward),
+        };
       },
     },
   ),

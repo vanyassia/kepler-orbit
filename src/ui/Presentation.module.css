@@ -43,9 +43,13 @@
   opacity: 1;
 }
 
-@media (pointer: coarse) {
+@media (any-pointer: coarse) {
   .exit {
     height: 40px;
+  }
+  .exit[data-idle] {
+    opacity: 1;
+    pointer-events: auto;
   }
 }
 

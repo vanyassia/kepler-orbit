@@ -6,7 +6,7 @@
  */
 import type { BodyId } from '../physics/bodies';
 import type { SatelliteRecord } from './celestrak';
-import { HISTORIC_ORBITERS, historicById, historicRecord, SPUTNIK1_ID, VOSTOK1_ID } from './historicOrbiters';
+import { HISTORIC_ORBITERS, historicById, historicFlight, historicRecord, SPUTNIK1_ID, VOSTOK1_ID } from './historicOrbiters';
 import { MOON_NAIF_ID } from './popular';
 
 export interface Orbiter {
@@ -16,6 +16,7 @@ export interface Orbiter {
   title: string;
   note: string;
   detail?: string;
+  ended?: boolean;
 }
 
 export const ORBITERS: Orbiter[] = [
@@ -26,18 +27,18 @@ export const ORBITERS: Orbiter[] = [
   { naifId: -155, body: 'moon', title: 'Danuri', note: 'Корейский лунный орбитер' },
   { naifId: -192, body: 'moon', title: 'ARTEMIS-P1', note: 'Бывший THEMIS-B, вытянутая орбита' },
   { naifId: -193, body: 'moon', title: 'ARTEMIS-P2', note: 'Бывший THEMIS-C, вытянутая орбита' },
-  { naifId: -86, body: 'moon', title: 'Чандраян-1', note: 'Индийский орбитер, данные до октября 2022' },
+  { naifId: -86, body: 'moon', title: 'Чандраян-1', note: 'Индийский орбитер, данные до октября 2022', ended: true },
   { naifId: -74, body: 'mars', title: 'MRO', note: 'Съёмка высокого разрешения, ~280 км' },
   { naifId: -143, body: 'mars', title: 'TGO', note: 'ExoMars (ЕКА и Роскосмос)' },
   { naifId: -53, body: 'mars', title: 'Mars Odyssey', note: 'Солнечно-синхронная орбита' },
   { naifId: -41, body: 'mars', title: 'Mars Express', note: 'Вытянутая орбита, e ≈ 0,57' },
   { naifId: -62, body: 'mars', title: 'Hope', note: 'Высокая орбита, до 43 000 км' },
-  { naifId: -202, body: 'mars', title: 'MAVEN', note: 'Изучение атмосферы, данные до марта 2026' },
-  { naifId: -3, body: 'mars', title: 'Mangalyaan', note: 'Индийский орбитер, данные до ноября 2022' },
+  { naifId: -202, body: 'mars', title: 'MAVEN', note: 'Изучение атмосферы, данные до марта 2026', ended: true },
+  { naifId: -3, body: 'mars', title: 'Mangalyaan', note: 'Индийский орбитер, данные до ноября 2022', ended: true },
   { naifId: 401, body: 'mars', title: 'Фобос', note: 'Естественный спутник, T ≈ 7,7 ч' },
   { naifId: 402, body: 'mars', title: 'Деймос', note: 'Естественный спутник, T ≈ 30,3 ч' },
-  { naifId: -248, body: 'venus', title: 'Venus Express', note: 'Полярная орбита ЕКА, данные до декабря 2014' },
-  { naifId: -5, body: 'venus', title: 'Акацуки', note: 'Японский орбитер, обратная орбита, данные до июля 2025' },
+  { naifId: -248, body: 'venus', title: 'Venus Express', note: 'Полярная орбита ЕКА, данные до декабря 2014', ended: true },
+  { naifId: -5, body: 'venus', title: 'Акацуки', note: 'Японский орбитер, обратная орбита, данные до июля 2025', ended: true },
   { naifId: 602, body: 'saturn', title: 'Энцелад', note: 'Ледяной спутник, период ≈ 33 ч' },
   { naifId: 606, body: 'saturn', title: 'Титан', note: 'Крупнейший спутник Сатурна, период ≈ 16 суток' },
   { naifId: -82, body: 'saturn', title: 'Кассини', note: 'Последний полный виток, 5–12 сентября 2017 года' },
@@ -82,6 +83,15 @@ export function archiveWindow(body: BodyId | undefined, id: number | undefined) 
   if (isCassini(body, id)) return CASSINI_WINDOW;
   if (body === 'mercury' && id === -236) return MESSENGER_WINDOW;
   return null;
+}
+
+/** Начало исторической трассы и, если задан, конец архивного витка. */
+export function orbitTimeBounds({ body, noradId }: { body?: BodyId; noradId: number }) {
+  const archive = archiveWindow(body, noradId);
+  return {
+    startMs: archive?.startMs ?? historicFlight(noradId)?.startMs ?? -Infinity,
+    endMs: archive?.endMs ?? Infinity,
+  };
 }
 
 export type NaturalSatellite = 'moon' | 'phobos' | 'deimos' | 'enceladus' | 'titan';

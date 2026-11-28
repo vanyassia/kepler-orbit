@@ -40,35 +40,35 @@ function readDbf(path) {
   return rows;
 }
 
-/** Тип IAU → вид региона в приложении и минимальный размер, км. outline: рисовать ли контур. */
+/** Тип IAU → вид региона в приложении и минимальный размер, км. */
 const RULES = {
   moon: [
-    { re: /^(Mare|Oceanus)/, kind: 'mare', min: 0, outline: true },
-    { re: /^(Lacus|Sinus|Palus)/, kind: 'mare', min: 150, outline: true },
-    { re: /^Mons/, kind: 'mons', min: 300, outline: true },
-    { re: /^Crater/, kind: 'crater', min: 200, outline: true },
+    { re: /^(Mare|Oceanus)/, kind: 'mare', min: 0 },
+    { re: /^(Lacus|Sinus|Palus)/, kind: 'mare', min: 150 },
+    { re: /^Mons/, kind: 'mons', min: 300 },
+    { re: /^Crater/, kind: 'crater', min: 200 },
   ],
   mars: [
-    { re: /^Terra/, kind: 'land', min: 0, outline: true },
-    { re: /^(Planitia|Vastitas)/, kind: 'plain', min: 0, outline: true },
-    { re: /^Planum/, kind: 'plain', min: 800, outline: true },
-    { re: /^(Mons|Tholus|Patera)/, kind: 'mons', min: 300, outline: true },
-    { re: /^Crater/, kind: 'crater', min: 200, outline: true },
-    { re: /^(Vallis|Labyrinthus|Chasma)/, kind: 'linear', min: 1100, outline: false },
+    { re: /^Terra/, kind: 'land', min: 0 },
+    { re: /^(Planitia|Vastitas)/, kind: 'plain', min: 0 },
+    { re: /^Planum/, kind: 'plain', min: 800 },
+    { re: /^(Mons|Tholus|Patera)/, kind: 'mons', min: 300 },
+    { re: /^Crater/, kind: 'crater', min: 200 },
+    { re: /^(Vallis|Labyrinthus|Chasma)/, kind: 'linear', min: 1100 },
   ],
   venus: [
-    { re: /^Terra/, kind: 'land', min: 0, outline: true },
-    { re: /^Regio/, kind: 'land', min: 1400, outline: true },
-    { re: /^Planitia/, kind: 'plain', min: 1800, outline: true },
-    { re: /^Planum/, kind: 'plain', min: 800, outline: true },
-    { re: /^Mons/, kind: 'mons', min: 650, outline: true },
-    { re: /^Crater/, kind: 'crater', min: 140, outline: true },
-    { re: /^Corona/, kind: 'crater', min: 1000, outline: true },
-    { re: /^(Vallis|Chasma)/, kind: 'linear', min: 3000, outline: false },
+    { re: /^Terra/, kind: 'land', min: 0 },
+    { re: /^Regio/, kind: 'land', min: 1400 },
+    { re: /^Planitia/, kind: 'plain', min: 1800 },
+    { re: /^Planum/, kind: 'plain', min: 800 },
+    { re: /^Mons/, kind: 'mons', min: 650 },
+    { re: /^Crater/, kind: 'crater', min: 140 },
+    { re: /^Corona/, kind: 'crater', min: 1000 },
+    { re: /^(Vallis|Chasma)/, kind: 'linear', min: 3000 },
   ],
   mercury: [
-    { re: /^Planitia/, kind: 'plain', min: 400, outline: false },
-    { re: /^Crater/, kind: 'crater', min: 245, outline: false },
+    { re: /^Planitia/, kind: 'plain', min: 400 },
+    { re: /^Crater/, kind: 'crater', min: 245 },
   ],
 };
 
@@ -101,7 +101,6 @@ for (const body of Object.keys(RULES)) {
       name: r.name || r.clean_name,
       type: r.type.split(',')[0],
       kind: rule.kind,
-      outline: rule.outline,
       lat: Math.round(Number(r.center_lat) * 1000) / 1000,
       lon: Math.round(lon * 1000) / 1000,
       diameterKm: Math.round(d),

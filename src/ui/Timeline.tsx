@@ -1,6 +1,7 @@
 import { Pause, Play, RotateCcw } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
 import { useThrottledSimTime, useWallClock } from '../hooks/useSimClock';
+import { historicFlight } from '../data/historicOrbiters';
 import { archiveWindow } from '../data/orbiters';
 import { ascendingNodeTimes } from '../physics/propagate';
 import { SPEEDS, useAppStore } from '../state/store';
@@ -25,8 +26,13 @@ export function Timeline() {
     if (Math.abs(t - center) > HALF_WINDOW_MS) setCenter(t);
   }, [t, center]);
   const historical = archiveWindow(orbit?.elements.body, orbit?.elements.noradId);
-  const start = historical?.startMs ?? center - HALF_WINDOW_MS;
-  const span = historical ? historical.endMs - historical.startMs : 2 * HALF_WINDOW_MS;
+  const flight = historicFlight(orbit?.elements.noradId ?? 0);
+  const start = historical?.startMs ?? Math.max(flight?.startMs ?? -Infinity, center - HALF_WINDOW_MS);
+  const end = historical?.endMs ?? Math.max(center, start) + HALF_WINDOW_MS;
+  const span = end - start;
+  const sliderStep = 30_000;
+  const sliderMax = Math.ceil(span / sliderStep);
+  const sliderValue = t >= end ? sliderMax : Math.floor(Math.max(0, t - start) / sliderStep);
 
   const nodes = useMemo(() => (orbit ? ascendingNodeTimes(orbit, start, start + span) : []), [orbit, start, span]);
   // При очень коротком периоде засечек слишком много — прореживаем
@@ -94,10 +100,10 @@ export function Timeline() {
             type="range"
             className={styles.range}
             min={0}
-            max={span / 1000}
-            step={30}
-            value={Math.round((t - start) / 1000)}
-            onChange={(e) => setSimTime(start + Number(e.target.value) * 1000)}
+            max={sliderMax}
+            step={1}
+            value={sliderValue}
+            onChange={(e) => setSimTime(Math.min(end, start + Number(e.target.value) * sliderStep))}
             aria-label="Время симуляции"
             aria-valuetext={fmtDateTime(t, 'MSK') + ' МСК'}
             onPointerDown={() => setDragging(true)}
@@ -114,10 +120,10 @@ export function Timeline() {
       </div>
 
       <div className={styles.readout}>
-        <div className={styles.time}>{fmtDateTime(t, 'MSK')}</div>
+        <div className={styles.time}>{fmtDateTime(t, 'MSK')} <span className={styles.smallZone}>МСК</span></div>
         <div className={styles.sub}>
           МСК, <span className="num">UTC {fmtTime(t)}</span>
-          {!historical && !live && Math.abs(offsetH) >= 0.01 && (
+          {!historical && !flight && !live && Math.abs(offsetH) >= 0.01 && (
             <span className={styles.offset}>
               {' '}
               {offsetH > 0 ? '+' : '−'}
@@ -132,13 +138,13 @@ export function Timeline() {
         className={styles.nowBtn}
         onClick={resetToNow}
         data-live={live || undefined}
-        aria-label={historical ? 'Вернуться к началу витка' : live ? 'В реальном времени' : 'Вернуться к текущему времени'}
+        aria-label={historical ? 'Вернуться к началу витка' : flight ? 'Вернуться к началу полёта' : live ? 'В реальном времени' : 'Вернуться к текущему времени'}
       >
         <RotateCcw size={15} aria-hidden="true" />
         {/* Обе надписи занимают место всегда: ширина кнопки не меняется, и ползунок не растягивается при нажатии */}
         <span className={styles.nowLabel}>
           <span hidden={!live || undefined}>В реальном времени</span>
-          <span hidden={live || undefined}>{historical ? 'К началу витка' : 'Сейчас'}</span>
+          <span hidden={live || undefined}>{historical ? 'К началу витка' : flight ? 'К началу полёта' : 'Сейчас'}</span>
         </span>
       </button>
       <KeyboardShortcuts />
@@ -159,6 +165,7 @@ function KeyboardShortcuts() {
       // Стрелки уже обработаны группой переключателей, глобусом или картой — не сдвигаем время
       if (typing || e.defaultPrevented || e.metaKey || e.ctrlKey || e.altKey) return;
       const s = useAppStore.getState();
+      if (s.presenting || document.querySelector('dialog[open]')) return;
       if (e.code === 'Space' && tag !== 'BUTTON') {
         e.preventDefault();
         s.setPlaying(!s.playing);

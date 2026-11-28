@@ -36,6 +36,10 @@ async function stream(renderer: WebGLRenderer, url: string, kind: TextureKind, a
   const state = renderer.state;
   const id = newImageId();
   const { width, height } = await askWorker<{ id: number; width: number; height: number }>({ type: 'open', id, url });
+  if (!alive() || Math.max(width, height) > renderer.capabilities.maxTextureSize) {
+    tellWorker({ type: 'close', id });
+    return null;
+  }
   const channels = kind === 'mask' ? 1 : 4;
   const glTex = gl.createTexture();
   const bind = () => {
@@ -48,6 +52,11 @@ async function stream(renderer: WebGLRenderer, url: string, kind: TextureKind, a
   try {
     bind();
     gl.texStorage2D(gl.TEXTURE_2D, mipLevels(width, height), kind === 'mask' ? gl.R8 : kind === 'color' ? gl.SRGB8_ALPHA8 : gl.RGBA8, width, height);
+    if (gl.getError() !== gl.NO_ERROR) {
+      console.warn('Видеокарта не выделила память для снимка:', url);
+      gl.deleteTexture(glTex);
+      return null;
+    }
     // По долготе снимок замкнут (облака сдвигаются по u) — повторяем, а не растягиваем край
     gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.REPEAT);
     gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
@@ -75,6 +84,12 @@ async function stream(renderer: WebGLRenderer, url: string, kind: TextureKind, a
     }
     bind();
     gl.generateMipmap(gl.TEXTURE_2D);
+    if (gl.getError() !== gl.NO_ERROR) {
+      console.warn('Видеокарта не приняла снимок:', url);
+      gl.deleteTexture(glTex);
+      state.unbindTexture();
+      return null;
+    }
     state.unbindTexture();
     const t = new ExternalTexture(glTex);
     t.colorSpace = kind === 'color' ? SRGBColorSpace : NoColorSpace;

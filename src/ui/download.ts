@@ -25,13 +25,15 @@ export function canShareFile(): boolean {
   }
 }
 
-/** Системное окно «Поделиться»; false — пользователь закрыл его или браузер отказал. */
-export async function shareFile(blob: Blob, name: string): Promise<boolean> {
+/** Системное окно «Поделиться». Готовый файл можно передать повторным нажатием. */
+export async function shareFile(blob: Blob, name: string): Promise<'shared' | 'cancelled' | 'blocked' | 'failed'> {
   try {
     await navigator.share({ files: [new File([blob], name, { type: blob.type })], title: name });
-    return true;
-  } catch {
-    return false;
+    return 'shared';
+  } catch (e) {
+    if (e instanceof DOMException && e.name === 'AbortError') return 'cancelled';
+    if (e instanceof DOMException && e.name === 'NotAllowedError') return 'blocked';
+    return 'failed';
   }
 }
 

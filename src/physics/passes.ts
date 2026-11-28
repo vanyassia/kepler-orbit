@@ -6,8 +6,8 @@
  *   1. Трасса просматривается с шагом T/360 (не меньше 5 с и не больше 60 с).
  *   2. Точка сетки, где расстояние меньше, чем у обеих соседних, — грубый минимум.
  *   3. Минимум уточняется методом золотого сечения между соседними точками сетки (до 0,05 с).
- * Расстояние — по дуге большого круга: d = R·σ, где σ — центральный угол между точками
- * (формула гаверсинусов, точна и для малых углов).
+ * На сфере расстояние — R·σ, где σ — центральный угол между точками.
+ * На Сатурне дугу радиально проецируем на сжатую поверхность.
  */
 import { DEG, RAD } from './constants';
 import type { PreparedOrbit } from './propagate';
@@ -66,6 +66,35 @@ export function passStepSeconds(orbit: PreparedOrbit): number {
   return Math.min(60, Math.max(5, orbit.T / 360));
 }
 
+// Узлы и веса квадратуры Гаусса по углу дуги.
+const QUADRATURE = [
+  [0, 0.5688888888888889],
+  [-0.5384693101056831, 0.4786286704993665],
+  [0.5384693101056831, 0.4786286704993665],
+  [-0.906179845938664, 0.2369268850561891],
+  [0.906179845938664, 0.2369268850561891],
+];
+
+/** Длина дуги на сфере или её радиальной проекции на сжатую поверхность. Углы в радианах. */
+export function surfaceArc(lat: number, azimuth: number, angle: number, R: number, polarRadius = R): number {
+  if (polarRadius === R) return R * angle;
+  const f = (R / polarRadius) ** 2 - 1;
+  const z0 = Math.sin(lat);
+  const z1 = Math.cos(lat) * Math.cos(azimuth);
+  // z и dz/dθ описывают направление луча от центра тела.
+  let sum = 0;
+  for (const [x, weight] of QUADRATURE) {
+    const theta = (x + 1) * angle / 2;
+    const sin = Math.sin(theta);
+    const cos = Math.cos(theta);
+    const z = z0 * cos + z1 * sin;
+    const dz = z1 * cos - z0 * sin;
+    const r = R / Math.sqrt(1 + f * z * z);
+    sum += weight * Math.hypot(r, r * f * z * dz / (1 + f * z * z));
+  }
+  return sum * angle / 2;
+}
+
 /**
  * Все пролёты над местом target на интервале [fromMs, toMs].
  * Пролёт — местный минимум расстояния от подспутниковой точки до места.
@@ -74,9 +103,15 @@ export function findPasses(orbit: PreparedOrbit, target: GeoTarget, fromMs: numb
   const R = orbit.body.radius;
   const tLat = target.lat * DEG;
   const tLon = target.lon * DEG;
+  const polar = orbit.body.polarRadius ?? R;
   const dist = (t: number) => {
     const p = subPointAt(orbit, t);
-    return centralAngle(p.lat, p.lon, tLat, tLon);
+    const angle = centralAngle(p.lat, p.lon, tLat, tLon);
+    if (polar === R) return angle * R;
+    const dLon = p.lon - tLon;
+    const azimuth = Math.atan2(Math.sin(dLon) * Math.cos(p.lat),
+      Math.cos(tLat) * Math.sin(p.lat) - Math.sin(tLat) * Math.cos(p.lat) * Math.cos(dLon));
+    return surfaceArc(tLat, azimuth, angle, R, polar);
   };
   const maxCount = opts.maxCount ?? 50;
   const stepMs = Math.max(passStepSeconds(orbit) * 1000, (toMs - fromMs) / MAX_SAMPLES);
@@ -84,18 +119,21 @@ export function findPasses(orbit: PreparedOrbit, target: GeoTarget, fromMs: numb
   const found: Pass[] = [];
   let closest: Pass | null = null;
   let truncated = false;
+  if (!Number.isFinite(fromMs) || !Number.isFinite(toMs) || fromMs > toMs) return { passes: found, closest, truncated };
   // Скользящее окно из трёх соседних точек сетки: (ta, da) — (tb, db) — (tc, dc)
   let ta = fromMs - stepMs;
   let da = dist(ta);
   let tb = fromMs;
   let db = dist(tb);
-  for (let tc = fromMs + stepMs; tb < toMs; tc += stepMs) {
+  for (let tc = fromMs + stepMs; tb < toMs + stepMs; tc += stepMs) {
     const dc = dist(tc);
-    // Порог 1e-9 рад (≈ 6 мм): у неподвижной подспутниковой точки шум округления не считается минимумом
-    if (db < da - 1e-9 && db <= dc) {
-      const t = goldenMin(dist, ta, tc);
-      if (t >= fromMs && t <= toMs) {
-        const pass = makePass(orbit, t, dist(t) * R);
+    if (db < da && db <= dc) {
+      const refined = goldenMin(dist, ta, tc);
+      const t = Math.min(toMs, Math.max(fromMs, refined));
+      const distance = dist(t);
+      // Проверяем глубину уже уточнённого минимума: шум неподвижной точки и медленный пролёт различимы.
+      if (Math.abs(t - refined) <= 25 && Math.min(da, dc) - distance > 1e-9) {
+        const pass = makePass(orbit, t, distance);
         if (!closest || pass.distanceKm < closest.distanceKm) closest = pass;
         if (pass.distanceKm <= opts.maxDistanceKm) {
           if (found.length < maxCount) found.push(pass);
@@ -152,18 +190,27 @@ function makePass(orbit: PreparedOrbit, t: number, distanceKm: number): Pass {
 }
 
 /**
- * Окружность радиуса distanceKm вокруг места на поверхности тела радиуса R (геодезический круг),
+ * Круг поиска радиуса distanceKm на поверхности тела с экваториальным радиусом R,
  * для отрисовки на карте: n + 1 точек [широта, долгота] в градусах, долгота в (−180°, 180°].
  * Точка на азимуте A: sin φ = sin φ₀·cos σ + cos φ₀·sin σ·cos A,
  *                     λ = λ₀ + atan2(sin A·sin σ·cos φ₀, cos σ − sin φ₀·sin φ).
  */
-export function circleAround(target: GeoTarget, distanceKm: number, R: number, n = 128): [number, number][] {
-  const sigma = Math.min(Math.PI, distanceKm / R);
+export function circleAround(target: GeoTarget, distanceKm: number, R: number, n = 128, polarRadius = R): [number, number][] {
   const lat0 = target.lat * DEG;
   const lon0 = target.lon * DEG;
   const pts: [number, number][] = [];
   for (let k = 0; k <= n; k++) {
     const A = (k / n) * 2 * Math.PI;
+    let sigma = Math.min(Math.PI, distanceKm / R);
+    if (polarRadius !== R) {
+      let lo = sigma;
+      let hi = Math.min(Math.PI, distanceKm / polarRadius);
+      for (let j = 0; j < 18; j++) {
+        sigma = (hi + lo) / 2;
+        if (surfaceArc(lat0, A, sigma, R, polarRadius) < distanceKm) lo = sigma;
+        else hi = sigma;
+      }
+    }
     const sinLat = Math.sin(lat0) * Math.cos(sigma) + Math.cos(lat0) * Math.sin(sigma) * Math.cos(A);
     const lat = Math.asin(Math.max(-1, Math.min(1, sinLat)));
     const lon = lon0 + Math.atan2(Math.sin(A) * Math.sin(sigma) * Math.cos(lat0), Math.cos(sigma) - Math.sin(lat0) * sinLat);

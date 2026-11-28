@@ -2,9 +2,9 @@
  * Поиск пролётов над поставленной точкой — общий для раздела в боковой панели и плашки на карте.
  * Пока точки нет, ничего не считается.
  */
-import { useEffect, useMemo, useState } from 'react';
+import { createContext, createElement, useContext, useEffect, useMemo, useState, type PropsWithChildren } from 'react';
 import { useThrottledSimTime } from '../hooks/useSimClock';
-import { archiveWindow } from '../data/orbiters';
+import { orbitTimeBounds } from '../data/orbiters';
 import type { Pass, PassSearch } from '../physics/passes';
 import { findPasses } from '../physics/passes';
 import type { PreparedOrbit } from '../physics/propagate';
@@ -28,7 +28,15 @@ export interface PassSearchState {
   stateOf: (p: Pass) => 'past' | 'now' | 'next';
 }
 
-export function usePassSearch(): PassSearchState | null {
+const PassSearchContext = createContext<PassSearchState | null>(null);
+
+export function PassSearchProvider({ children }: PropsWithChildren) {
+  return createElement(PassSearchContext.Provider, { value: usePassCalculation() }, children);
+}
+
+export const usePassSearch = () => useContext(PassSearchContext);
+
+function usePassCalculation(): PassSearchState | null {
   const orbit = useAppStore((s) => s.orbit);
   const body = useAppStore((s) => s.body);
   const target = useAppStore((s) => s.passTargets[body] ?? null);
@@ -48,9 +56,9 @@ export function usePassSearch(): PassSearchState | null {
   // Начинаем на 15 минут раньше: пролёт, который идёт прямо сейчас, остаётся в списке
   const result = useMemo(() => {
     if (!orbit || !target) return null;
-    const historical = archiveWindow(orbit.elements.body, orbit.elements.noradId);
-    const from = Math.max(historical?.startMs ?? -Infinity, anchor - 15 * 60_000);
-    const to = Math.min(historical?.endMs ?? Infinity, anchor + days * DAY_MS);
+    const { startMs, endMs } = orbitTimeBounds(orbit.elements);
+    const from = Math.max(startMs, anchor - 15 * 60_000);
+    const to = Math.min(endMs, anchor + days * DAY_MS);
     return findPasses(orbit, target, from, to, { maxDistanceKm: radius });
   }, [orbit, target, anchor, days, radius]);
 

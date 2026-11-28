@@ -2,8 +2,7 @@
  * Скользящий кэш трассы: точки считаются с запасом в четверть витка с каждой стороны
  * и пересчитываются, только когда окно отображения выходит за пределы кэша.
  */
-import { historicFlight } from '../data/historicOrbiters';
-import { archiveWindow } from '../data/orbiters';
+import { orbitTimeBounds } from '../data/orbiters';
 import { ROTATION_PERIOD } from '../physics/bodies';
 import { RAD } from '../physics/constants';
 import type { TrackPoint } from '../physics/groundTrack';
@@ -34,15 +33,15 @@ const sources = new WeakMap<object, TrackSource>();
 export function orbitSource(orbit: PreparedOrbit): TrackSource {
   let s = sources.get(orbit);
   if (!s) {
-    const archive = archiveWindow(orbit.elements.body, orbit.elements.noradId);
+    const { startMs, endMs } = orbitTimeBounds(orbit.elements);
     s = {
       key: orbit,
       periodSec: orbit.T,
       stepSec: trackStepSeconds(orbit),
-      fromMs: archive?.startMs ?? historicFlight(orbit.elements.noradId)?.startMs ?? -Infinity,
-      toMs: archive?.endMs,
+      fromMs: startMs,
+      toMs: Number.isFinite(endMs) ? endMs : undefined,
       at: (t) => {
-        if (archive && (t < archive.startMs || t > archive.endMs)) return null;
+        if (t < startMs || t > endMs) return null;
         const p = subPointAt(orbit, t);
         return { timeMs: t, lat: p.lat * RAD, lon: p.lon * RAD, h: p.h };
       },

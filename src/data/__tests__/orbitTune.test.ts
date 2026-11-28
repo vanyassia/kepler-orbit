@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { customToElements, validateCustom } from '../custom';
 import { ORBIT_TEMPLATES, templatesFor } from '../orbitTemplates';
 import { APO_MAX, E_MAX, heightFromSlider, maxEccentricity, niceHeight, shapeOf, sliderFromHeight, tuneElements } from '../orbitTune';
-import { BODIES, ROTATION_PERIOD } from '../../physics/bodies';
+import { BODIES, BODY_IDS, ROTATION_PERIOD } from '../../physics/bodies';
 import type { OrbitalElements } from '../../physics/propagate';
 import { prepareOrbit, propagate } from '../../physics/propagate';
 
@@ -10,7 +10,7 @@ const asCustom = (t: (typeof ORBIT_TEMPLATES)[number]) => ({ ...t, id: 9_000_001
 
 describe('шаблоны орбит', () => {
   it('у каждого тела есть шаблоны, все проходят проверку окна', () => {
-    for (const b of ['earth', 'moon', 'mars', 'venus'] as const) expect(templatesFor(b).length).toBeGreaterThan(0);
+    for (const b of BODY_IDS) expect(templatesFor(b).length).toBeGreaterThan(0);
     for (const t of ORBIT_TEMPLATES) expect(validateCustom({ ...t, name: t.satName })).toEqual({});
   });
 
@@ -69,6 +69,13 @@ describe('изменение орбиты ползунками', () => {
     const el = tuneElements(iss, {});
     expect(el.meanMotion).toBeCloseTo(iss.meanMotion, 9);
     expect(el.eccentricity).toBe(iss.eccentricity);
+  });
+
+  it('изменение наклонения сохраняет период и вытянутость орбиты за пределом обычного ползунка', () => {
+    const satellite = customToElements({ id: 9000001, name: 'Высокая', body: 'earth', hPeri: 400, hApo: 200_000,
+      inclinationDeg: 25, raanDeg: 0, argPerigeeDeg: 0, meanAnomalyDeg: 0, epochMs: 0 });
+    expect(satellite.eccentricity).toBeGreaterThan(0.9);
+    expect(tuneElements(satellite, { inclinationDeg: 80 })).toEqual({ ...satellite, inclinationDeg: 80 });
   });
 
   it('высота перицентра и e задают орбиту, остальные элементы не меняются', () => {

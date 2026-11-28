@@ -130,6 +130,7 @@
 }
 
 .range {
+  touch-action: none;
   position: absolute;
   inset: 0;
   width: 100%;
@@ -405,7 +406,16 @@
   }
 }
 
+.smallZone {
+  display: none;
+}
+
 @media (max-width: 480px) {
+  .smallZone {
+    display: inline;
+    color: var(--text-2);
+    font-size: var(--fs-micro);
+  }
   .nowLabel {
     display: none;
   }

@@ -21,6 +21,8 @@ const CAMERA_MODES: { id: CameraMode; label: string; hint: string; icon: typeof 
 ];
 const CAMERA_IDS = CAMERA_MODES.map((m) => m.id);
 const QUALITIES = ['standard', 'ultra'] as const;
+const BOARD_LINES = 'M0 -26 V -15 M0 15 V 26 M-26 0 H -15 M15 0 H 26';
+const BOARD_ARROW = 'M-5 -30 L0 -37 L5 -30';
 
 /** 3D-вид: глобус, орбита, трасса. Загружается отдельным чанком (three.js). */
 export default function GlobeView() {
@@ -33,6 +35,7 @@ export default function GlobeView() {
   const historical = useAppStore((s) => archiveWindow(s.record?.elements.body, s.record?.elements.noradId));
   const overlay = useRef<HTMLDivElement>(null);
   const [ready, setReady] = useState(false);
+  const [ultraSupported, setUltraSupported] = useState(false);
   // На отдельной карте глобус скрыт, но не закрывается: снимки в видеокарте остаются, а кадры не рисуются
   const hidden = useAppStore((s) => s.view === '2d');
   // Картинка для выгрузки: кадр перерисовывается и копируется сразу, пока браузер его не стёр
@@ -47,6 +50,24 @@ export default function GlobeView() {
           return st.gl.domElement;
         },
         labels: () => overlay.current,
+        overlay: (ctx, scale, width, height) => {
+          if (useAppStore.getState().camera !== 'board') return;
+          ctx.save();
+          ctx.translate(width / 2, height / 2);
+          ctx.scale(scale, scale);
+          ctx.globalAlpha = 0.85;
+          ctx.strokeStyle = '#ffb547';
+          ctx.lineCap = 'round';
+          ctx.lineJoin = 'round';
+          ctx.lineWidth = 1.5;
+          ctx.beginPath();
+          ctx.arc(0, 0, 11, 0, 2 * Math.PI);
+          ctx.stroke();
+          ctx.stroke(new Path2D(BOARD_LINES));
+          ctx.lineWidth = 2;
+          ctx.stroke(new Path2D(BOARD_ARROW));
+          ctx.restore();
+        },
         background: '#04060a',
       }),
     [],
@@ -68,7 +89,10 @@ export default function GlobeView() {
         aria-label="Центральное тело, орбита и трасса спутника. Стрелки — вращение, плюс и минус — приближение"
         tabIndex={0}
         data-globe-keys=""
-        onCreated={(st) => (three.current = st)}
+        onCreated={(st) => {
+          three.current = st;
+          setUltraSupported(!LIGHT_DEVICE && st.gl.capabilities.maxTextureSize >= 16384);
+        }}
       >
         <Suspense fallback={null}>
           <GlobeScene overlay={overlay} onReady={() => setReady(true)} />
@@ -79,8 +103,8 @@ export default function GlobeView() {
       {camera === 'board' && (
         <svg className={styles.boardMark} viewBox="-40 -40 80 80" aria-hidden="true">
           <circle r="11" />
-          <path d="M0 -26 V -15 M0 15 V 26 M-26 0 H -15 M15 0 H 26" />
-          <path className={styles.boardArrow} d="M-5 -30 L0 -37 L5 -30" />
+          <path d={BOARD_LINES} />
+          <path className={styles.boardArrow} d={BOARD_ARROW} />
         </svg>
       )}
       <div className={styles.loader} data-done={ready} role={ready ? undefined : 'status'} aria-hidden={ready || undefined}>
@@ -120,7 +144,7 @@ export default function GlobeView() {
           }
         >
           {!historical && <RevsControl />}
-          {body === 'saturn' || body === 'mercury' ? <p className={styles.quality}>{SURFACE_CREDIT[body]}</p> : <div className={styles.quality}>
+          {body !== 'earth' || !ultraSupported ? <p className={styles.quality}>{SURFACE_CREDIT[body]}</p> : <div className={styles.quality}>
             <span>Детализация снимка</span>
             <div className={styles.segmented} role="radiogroup" aria-label="Детализация снимка" onKeyDown={(e) => rovingKeyDown(e, QUALITIES, quality, setQuality)}>
               <button type="button" role="radio" aria-checked={quality === 'standard'} tabIndex={rovingTabIndex(quality === 'standard')} onClick={() => setQuality('standard')}>

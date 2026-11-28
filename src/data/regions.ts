@@ -18,8 +18,6 @@ export interface Region {
   /** Название для подписи: русское, если есть, иначе официальное. */
   title: string;
   kind: RegionKind;
-  /** Рисовать ли контур (для протяжённых объектов — только подпись). */
-  outline: boolean;
   lat: number;
   lon: number;
   diameterKm: number;

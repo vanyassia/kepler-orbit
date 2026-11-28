@@ -58,19 +58,21 @@ export function shapeOf(el: OrbitalElements): OrbitShape {
 }
 
 /** Наибольший эксцентриситет при данной высоте перицентра: апоцентр не дальше APO_MAX. */
-export function maxEccentricity(hPeri: number, R: number): number {
+export function maxEccentricity(hPeri: number, R: number, limit = E_MAX): number {
   const rp = R + hPeri;
   const ra = R + APO_MAX;
-  return Math.max(0, Math.min(E_MAX, (ra - rp) / (ra + rp)));
+  return Math.max(0, Math.min(limit, (ra - rp) / (ra + rp)));
 }
 
 /** Новые элементы орбиты: остальные элементы (Ω, ω, M₀, эпоха) не меняются. */
 export function tuneElements(el: OrbitalElements, patch: TunePatch): OrbitalElements {
+  const inclinationDeg = Math.min(180, Math.max(0, patch.inclinationDeg ?? el.inclinationDeg));
+  if (patch.hPeri === undefined && patch.e === undefined) return { ...el, inclinationDeg };
   const body = BODIES[el.body ?? 'earth'];
   const cur = shapeOf(el);
   const hPeri = Math.max(1, patch.hPeri ?? cur.hPeri);
-  const e = Math.min(Math.max(0, patch.e ?? cur.e), maxEccentricity(hPeri, body.radius));
-  const inclinationDeg = Math.min(180, Math.max(0, patch.inclinationDeg ?? cur.inclinationDeg));
+  const limit = maxEccentricity(hPeri, body.radius, Math.max(E_MAX, cur.e, patch.e ?? 0));
+  const e = Math.min(Math.max(0, patch.e ?? cur.e), limit);
   const a = (body.radius + hPeri) / (1 - e);
   return { ...el, eccentricity: e, inclinationDeg, meanMotion: SECONDS_PER_DAY / periodOf(a, body.mu) };
 }

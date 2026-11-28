@@ -60,4 +60,13 @@ describe('Линия с обновлением на месте', () => {
     }).not.toThrow();
     expect(l.geometry.instanceCount).toBe(0);
   });
+
+  it('при очистке линии не создаётся обновление длины ноль', () => {
+    const line = make(true);
+    const buffers = ['instanceStart', 'instanceDistanceStart', 'instanceColorStart'].map((key) => attr(line, key).data);
+    for (const buffer of buffers) buffer.clearUpdateRanges();
+    line.setPoints(pts, 1, pts);
+    expect(line.geometry.instanceCount).toBe(0);
+    for (const buffer of buffers) expect(buffer.updateRanges).toEqual([]);
+  });
 });

@@ -48,6 +48,8 @@ export function isStoredCustom(x: unknown): x is CustomSatellite {
     isBodyId(c.body) &&
     nums.every((k) => typeof c[k] === 'number' && Number.isFinite(c[k])) &&
     isCustomId(c.id as number) &&
+    Number.isInteger(c.id) &&
+    Object.keys(validateCustom(c as unknown as CustomSatellite)).length === 0 &&
     (c.repeat === undefined || isRepeat(c.repeat))
   );
 }

@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import type { CustomSatellite } from '../custom';
 import { customToElements, isStoredCustom, validateCustom } from '../custom';
-import { gcd, isTemplateName, REPEAT_DEFAULTS, repeatError, repeatHeight, repeatPeriod, repeatTemplate } from '../orbitTemplates';
+import { gcd, isTemplateName, REPEAT_DEFAULTS, REPEAT_M_MAX, REPEAT_N_MAX, repeatError, repeatHeight, repeatPeriod, repeatTemplate } from '../orbitTemplates';
 import { BODY_IDS, ROTATION_PERIOD } from '../../physics/bodies';
 import { prepareOrbit, propagate } from '../../physics/propagate';
 import { trackSpan } from '../../views/trackCache';
@@ -37,6 +37,7 @@ describe('повторяющаяся трасса', () => {
     ['mars', 43, 3],
     ['venus', 7, 1],
     ['venus', 15, 1],
+    ['saturn', 3, 5],
     ['mercury', 15, 1],
   ] as const) {
     it(`${body}: через ${n} витков спутник над той же точкой, а раньше — нет`, () => {
@@ -70,6 +71,27 @@ describe('повторяющаяся трасса', () => {
     expect(gcd(10, 2)).toBe(2);
     expect(repeatHeight('earth', { n: 10, m: 2 })).toBe(repeatHeight('earth', { n: 5, m: 1 }));
     expect(repeatTemplate('earth', { n: 10, m: 2 }, 60).note).toMatch(/тот же узор, что 5 витков за 1 сутки/);
+  });
+
+  it('все комбинации полей дают ограниченную круговую орбиту или причину отказа', () => {
+    let accepted = 0;
+    for (const body of BODY_IDS) {
+      for (let n = 1; n <= REPEAT_N_MAX; n++) {
+        for (let m = 1; m <= REPEAT_M_MAX; m++) {
+          const height = repeatHeight(body, { n, m });
+          const error = repeatError(body, { n, m });
+          if (height < 1 || height > 1_000_000) expect(error).not.toBeNull();
+          else {
+            expect(error).toBeNull();
+            const orbit = prepareOrbit(customToElements(repeatSat(body, n, m)));
+            const end = EPOCH + n * orbit.T * 1000;
+            expect(arcDeg(propagate(orbit, EPOCH), propagate(orbit, end))).toBeLessThan(body === 'moon' ? 1.2 : 0.05);
+            accepted++;
+          }
+        }
+      }
+    }
+    expect(accepted).toBe(5951);
   });
 
   it('название «Цветок n/m» считается названием шаблона', () => {

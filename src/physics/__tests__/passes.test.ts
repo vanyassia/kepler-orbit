@@ -5,7 +5,8 @@ import { describe, expect, it } from 'vitest';
 import { DEG, RAD } from '../constants';
 import type { OrbitalElements } from '../propagate';
 import { prepareOrbit, propagate, subPointAt } from '../propagate';
-import { centralAngle, circleAround, findPasses } from '../passes';
+import { centralAngle, circleAround, findPasses, surfaceArc } from '../passes';
+import { SATURN } from '../bodies';
 
 // МКС из контрольного примера листка
 const ISS: OrbitalElements = {
@@ -116,6 +117,13 @@ describe('Поиск пролётов', () => {
 });
 
 describe('Круг поиска на карте', () => {
+  it('на Сатурне учитывает меньший радиус у полюса', () => {
+    const { radius, polarRadius } = SATURN;
+    expect(surfaceArc(90 * DEG, 0, 0.001, radius, polarRadius)).toBeCloseTo(54.364, 4);
+    expect(surfaceArc(0, Math.PI / 2, 0.001, radius, polarRadius)).toBeCloseTo(60.268, 4);
+    const [[lat]] = circleAround({ lat: 90, lon: 0 }, 1000, radius, 4, polarRadius);
+    expect(surfaceArc(Math.PI / 2, 0, (90 - lat) * DEG, radius, polarRadius)).toBeCloseTo(1000, 3);
+  });
   it('все точки на заданном расстоянии от центра', () => {
     for (const c of [MOSCOW, { lat: -10, lon: 179.5 }, { lat: 80, lon: 0 }]) {
       const pts = circleAround(c, 1000, R, 64);
@@ -134,5 +142,28 @@ describe('Неподвижная подспутниковая точка', () =>
     const geo = prepareOrbit({ ...ISS, meanMotion: 1.00273790935, eccentricity: 0, inclinationDeg: 0, argPerigeeDeg: 0 });
     const res = findPasses(geo, { lat: 0, lon: 0 }, ISS.epochMs, ISS.epochMs + 3 * DAY, { maxDistanceKm: 1e9 });
     expect(res.passes.length).toBeLessThanOrEqual(3);
+  });
+});
+
+describe('Минимумы между точками сетки', () => {
+  it('находит пологий минимум Акацуки между почти равными точками сетки', () => {
+    const slow = prepareOrbit({
+      body: 'venus', name: 'Акацуки', noradId: -5, epochMs: Date.parse('2025-07-24T23:58:50.816Z'),
+      eccentricity: 0.9417604620249725, inclinationDeg: 160.5674663860033, raanDeg: 313.4762076371944,
+      argPerigeeDeg: 347.7812047328717, meanAnomalyDeg: 68.70727524979215, meanMotion: 0.0003772408189842064 * 240,
+    });
+    const from = Date.parse('2025-07-28T03:55:17.914Z');
+    const result = findPasses(slow, { lat: -4.79577552942214, lon: 147.25597236119347 }, from, from + 12 * 3_600_000, { maxDistanceKm: 2000 });
+    expect(result.passes).toHaveLength(1);
+    expect(result.passes[0].distanceKm).toBeCloseTo(1163, 3);
+  });
+
+  it('находит минимум в последней неполной ячейке сетки', () => {
+    const t = ISS.epochMs + 123_456;
+    const p = subPointAt(orbit, t);
+    const step = (orbit.T / 360) * 1000;
+    const result = findPasses(orbit, { lat: p.lat * RAD, lon: p.lon * RAD }, t - 9.8 * step, t + step * 0.1, { maxDistanceKm: 1 });
+    expect(result.passes).toHaveLength(1);
+    expect(Math.abs(result.passes[0].timeMs - t)).toBeLessThan(50);
   });
 });

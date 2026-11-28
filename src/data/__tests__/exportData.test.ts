@@ -3,7 +3,7 @@ import { RAD } from '../../physics/constants';
 import type { OrbitalElements } from '../../physics/propagate';
 import { prepareOrbit, propagate } from '../../physics/propagate';
 import type { ExportMeta } from '../exportData';
-import { buildTrackTable, defaultStep, elementsToText, exportFileName, exportTimes, fmtTableTime, fromInputValue, rowCount, tableToText, toInputValue } from '../exportData';
+import { buildTrackTable, defaultStep, elementsToText, exportFileName, exportTimes, fmtTableTime, forwardExportRange, fromInputValue, rowCount, tableToText, toInputValue } from '../exportData';
 
 const t0 = Date.UTC(2026, 10, 4, 12, 0, 0);
 
@@ -37,6 +37,10 @@ describe('моменты таблицы', () => {
   it('счёт строк без расчёта совпадает с расчётом', () => {
     for (const [a, b, s] of [[0, 5_577_580, 30], [t0, t0 + 86_400_000, 60], [5, 5, 1]] as const)
       expect(rowCount(a, b, s)).toBe(exportTimes(a, b, s).length);
+  });
+  it('в конце архива берёт последний доступный отрезок вместо пустого интервала', () => {
+    expect(forwardExportRange(120_036, 60_000, 0, 120_036)).toEqual({ from: 60_036, to: 120_036 });
+    expect(forwardExportRange(120_036, 180_000, 0, 120_036)).toEqual({ from: 0, to: 120_036 });
   });
 });
 

@@ -196,6 +196,7 @@ describe('Исторический полёт: трасса начинается
     expect(w.past[0].timeMs - start).toBeLessThan(src.stepSec * 1000);
     expect(Math.abs(w.past[0].lat - BAIKONUR.lat)).toBeLessThan(1);
     // Будущее до старта (если часы увели раньше) тоже не рисуется
-    expect(new TrackCache().get(src, start - 3_600_000, 1, 2)!.future.slice(1).every((p) => p.timeMs >= start)).toBe(true);
+    expect(new TrackCache().get(src, start - 3_600_000, 1, 2)).toBeNull();
+    expect(new TrackCache().get(src, start - 60_000, 1, 2)).toBeNull();
   });
 });

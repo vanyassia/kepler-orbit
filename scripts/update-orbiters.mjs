@@ -6,7 +6,7 @@
  * Запрашиваются оскулирующие элементы (EPHEM_TYPE=ELEMENTS) относительно центра тела
  * в системе «экватор тела и узел даты» (REF_PLANE=BODY) на текущий час; если эфемериды аппарата
  * уже закончились — за сутки до их конца.
- * Время Horizons — TDB; переводим в UTC: UTC = TDB − 69,184 с (TT − UTC при 37 високосных секундах).
+ * Время Horizons — TDB; поправку к UTC берём на дату элементов.
  * У Земли «узел» этой системы — не точка весны, поэтому Ω пересчитывается (см. earthRaan).
  *
  * Запуск: npm run update:orbiters
@@ -15,19 +15,21 @@
  */
 import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { join, resolve } from 'node:path';
+import { tdbMinusUtc } from '../src/physics/dynamicalTime.ts';
 
 const ROOT = resolve(import.meta.dirname, '..');
 const API = 'https://ssd.jpl.nasa.gov/api/horizons.api';
 const TARGET = { earth: '399', moon: '301', mars: '499', venus: '299', saturn: '699', mercury: '199' };
-const TDB_MINUS_UTC_MS = 69_184;
+const toUtc = (tdbMs) => tdbMs - tdbMinusUtc(tdbMs - tdbMinusUtc(tdbMs) * 1000) * 1000;
 // Эпохи архивных витков в TDB и поправки к UTC на даты полётов.
 const FIXED_EPOCH = {
-  'saturn:-82': { tdb: '2017-09-05T19:00:00Z', offsetMs: TDB_MINUS_UTC_MS },
-  'mercury:-236': { tdb: '2011-05-19T00:00:00Z', offsetMs: 66_184 },
+  'saturn:-82': '2017-09-05T19:00:00Z',
+  'mercury:-236': '2011-05-19T00:00:00Z',
 };
 
 const src = readFileSync(join(ROOT, 'src', 'data', 'orbiters.ts'), 'utf8');
-const list = [...src.matchAll(/naifId:\s*(-?\d+),\s*body:\s*'(\w+)'/g)].map((m) => ({ id: Number(m[1]), body: m[2] }));
+const list = [...src.matchAll(/naifId:\s*(-?\d+),\s*body:\s*'(\w+)',\s*title:\s*'([^']+)'/g)]
+  .map((m) => ({ id: Number(m[1]), body: m[2], title: m[3] }));
 
 const pad = (n) => String(n).padStart(2, '0');
 const stamp = (d) => `${d.getUTCFullYear()}-${pad(d.getUTCMonth() + 1)}-${pad(d.getUTCDate())} ${pad(d.getUTCHours())}:00`;
@@ -59,7 +61,7 @@ async function horizons(params) {
   const r = json.result ?? '';
   const i = r.indexOf('$$SOE');
   if (i < 0) throw new Error(r.trim().split('\n').slice(-3).join(' '));
-  const name = /Target body name:\s*(.+?)\s{2,}/.exec(r)?.[1] ?? '';
+  const name = /^[ \t]*Target body name:[ \t]*([^\r\n]+)/m.exec(r)?.[1].trim().split(/[ \t]{2,}/)[0] ?? '';
   return { name, row: r.slice(i + 5).trim().split('\n')[0].split(',').map((x) => x.trim()) };
 }
 
@@ -73,7 +75,8 @@ try {
   for (const item of JSON.parse(readFileSync(file, 'utf8')).items ?? []) {
     const k = key(item.body, item.naifId);
     const old = previous.get(k);
-    if (!old || item.epoch > old.epoch) previous.set(k, item);
+    const title = list.find((o) => o.id === item.naifId && o.body === item.body)?.title;
+    if (!old || item.epoch > old.epoch) previous.set(k, { ...item, name: item.name || title });
   }
 } catch {
   // снимка ещё нет — соберём заново
@@ -82,7 +85,7 @@ try {
 const items = [];
 const checks = [];
 let fresh = 0;
-for (const { id, body } of list) {
+for (const { id, body, title } of list) {
   const objectKey = key(body, id);
   const old = previous.get(objectKey);
   const fixedEpoch = FIXED_EPOCH[objectKey];
@@ -99,13 +102,12 @@ for (const { id, body } of list) {
         REF_PLANE: 'BODY',
         OUT_UNITS: 'KM-S',
       });
-    const offsetMs = fixedEpoch?.offsetMs ?? TDB_MINUS_UTC_MS;
-    const requestedEpoch = fixedEpoch ? Date.parse(fixedEpoch.tdb) - offsetMs : null;
+    const requestedEpoch = fixedEpoch ? toUtc(Date.parse(fixedEpoch)) : null;
     if (old && requestedEpoch !== null && Math.abs(Date.parse(old.epoch) - requestedEpoch) < 1000) {
       items.push(old);
       continue;
     }
-    const { name, row } = await elementsAt(fixedEpoch ? new Date(fixedEpoch.tdb) : now).catch(async (e) => {
+    const { name, row } = await elementsAt(fixedEpoch ? new Date(fixedEpoch) : now).catch(async (e) => {
       if (fixedEpoch) throw e;
       const end = ephemerisEnd(e.message);
       if (end === null) throw e;
@@ -117,11 +119,11 @@ for (const { id, body } of list) {
       return res;
     });
     const [jdTdb, , EC, , IN, OM, W, , N, MA, , A] = row;
-    const epochMs = (Number(jdTdb) - 2440587.5) * 86_400_000 - offsetMs;
+    const epochMs = toUtc((Number(jdTdb) - 2440587.5) * 86_400_000);
     const candidate = {
       naifId: id,
       body,
-      name,
+      name: name || old?.name || title,
       epoch: new Date(epochMs).toISOString(),
       eccentricity: Number(EC),
       inclinationDeg: Number(IN),
@@ -156,7 +158,7 @@ for (const { id, body } of list) {
       // Контроль: наблюдатель — сам КА, цель — центральное тело; величины 14 и 15 —
       // точка под наблюдателем (подспутниковая) и подсолнечная точка на теле.
       // Через 10 минут после эпохи; округление — чтобы 11:09:59,999 не превратилось в запрос на 11:09
-      const t = new Date(Math.round((Date.parse(item.epoch) + TDB_MINUS_UTC_MS + 600_000) / 60_000) * 60_000);
+      const t = new Date(Math.round((Date.parse(item.epoch) + tdbMinusUtc(Date.parse(item.epoch)) * 1000 + 600_000) / 60_000) * 60_000);
       const obs = await horizons({
         COMMAND: TARGET[body],
         EPHEM_TYPE: 'OBSERVER',

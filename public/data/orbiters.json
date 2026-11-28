@@ -31,7 +31,7 @@
     {
       "naifId": -152,
       "body": "moon",
-      "name": "",
+      "name": "Чандраян-2",
       "epoch": "2026-11-28T10:58:50.815Z",
       "eccentricity": 0.01436950405813241,
       "inclinationDeg": 92.17943224461027,
@@ -83,7 +83,7 @@
     {
       "naifId": -86,
       "body": "moon",
-      "name": "",
+      "name": "Чандраян-1",
       "epoch": "2022-09-29T23:58:50.816Z",
       "eccentricity": 0.02830321269161935,
       "inclinationDeg": 90.40593780677867,
@@ -96,7 +96,7 @@
     {
       "naifId": -74,
       "body": "mars",
-      "name": "",
+      "name": "MRO",
       "epoch": "2026-11-28T10:58:50.815Z",
       "eccentricity": 0.0088054416103193,
       "inclinationDeg": 92.93123617587415,
@@ -109,7 +109,7 @@
     {
       "naifId": -143,
       "body": "mars",
-      "name": "",
+      "name": "TGO",
       "epoch": "2026-11-28T10:58:50.815Z",
       "eccentricity": 0.006721440432428857,
       "inclinationDeg": 75.38314461660526,
@@ -122,7 +122,7 @@
     {
       "naifId": -53,
       "body": "mars",
-      "name": "",
+      "name": "Mars Odyssey",
       "epoch": "2026-11-28T10:58:50.815Z",
       "eccentricity": 0.007262575305708301,
       "inclinationDeg": 91.70788200394902,
@@ -135,7 +135,7 @@
     {
       "naifId": -41,
       "body": "mars",
-      "name": "",
+      "name": "Mars Express",
       "epoch": "2026-11-28T10:58:50.815Z",
       "eccentricity": 0.5685429047039614,
       "inclinationDeg": 88.45673957176089,
@@ -174,7 +174,7 @@
     {
       "naifId": -3,
       "body": "mars",
-      "name": "",
+      "name": "Mangalyaan",
       "epoch": "2022-11-24T23:58:50.816Z",
       "eccentricity": 0.899290875675891,
       "inclinationDeg": 153.9856815383972,
@@ -213,7 +213,7 @@
     {
       "naifId": -248,
       "body": "venus",
-      "name": "",
+      "name": "Venus Express",
       "epoch": "2014-12-30T22:58:50.815Z",
       "eccentricity": 0.8333772741828455,
       "inclinationDeg": 89.83252269467532,
@@ -291,7 +291,7 @@
     {
       "naifId": -121,
       "body": "mercury",
-      "name": "",
+      "name": "BepiColombo",
       "epoch": "2026-11-28T10:58:50.815Z",
       "eccentricity": 0.8274243930123584,
       "inclinationDeg": 89.40057618922948,

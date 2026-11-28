@@ -8,7 +8,9 @@
 export function rovingKeyDown<T>(e: React.KeyboardEvent<HTMLElement>, options: readonly T[], current: T, select: (value: T) => void): void {
   const n = options.length;
   const i = Math.max(0, options.indexOf(current));
+  const controls = e.currentTarget.querySelectorAll<HTMLButtonElement>('[role="radio"], [role="tab"]');
   let next: number;
+  let direction = 1;
   switch (e.key) {
     case 'ArrowRight':
     case 'ArrowDown':
@@ -16,6 +18,7 @@ export function rovingKeyDown<T>(e: React.KeyboardEvent<HTMLElement>, options: r
       break;
     case 'ArrowLeft':
     case 'ArrowUp':
+      direction = -1;
       next = (i - 1 + n) % n;
       break;
     case 'Home':
@@ -23,13 +26,18 @@ export function rovingKeyDown<T>(e: React.KeyboardEvent<HTMLElement>, options: r
       break;
     case 'End':
       next = n - 1;
+      direction = -1;
       break;
     default:
       return;
   }
   e.preventDefault();
+  for (let skipped = 0; controls[next]?.disabled; skipped++) {
+    if (skipped === n - 1) return;
+    next = (next + direction + n) % n;
+  }
   select(options[next]);
-  e.currentTarget.querySelectorAll<HTMLElement>('[role="radio"], [role="tab"]')[next]?.focus();
+  controls[next]?.focus();
 }
 
 /** tabIndex варианта в группе: только выбранный доступен по Tab. */

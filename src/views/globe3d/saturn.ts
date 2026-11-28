@@ -3,7 +3,7 @@ import { SATURN } from '../../physics/bodies';
 import { radialScale } from './coords';
 
 /** Полярная полуось NAIF PCK00011. В расчёт высоты входит только SATURN.radius. */
-export const SATURN_POLAR_RATIO = 54364 / SATURN.radius;
+export const SATURN_POLAR_RATIO = SATURN.polarRadius! / SATURN.radius;
 export const SATURN_RING_INNER = 66900 / SATURN.radius;
 export const SATURN_RING_OUTER = 140612 / SATURN.radius;
 

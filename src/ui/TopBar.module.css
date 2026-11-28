@@ -129,7 +129,7 @@
   }
 }
 
-@media (max-width: 1390px) {
+@media (max-width: 1720px) {
   .brand {
     width: auto;
   }
@@ -160,7 +160,7 @@
 @media (max-width: 720px) {
   .bar {
     gap: var(--sp-3);
-    padding: 0 var(--sp-3);
+    padding: env(safe-area-inset-top) max(var(--sp-3), env(safe-area-inset-right)) 0 max(var(--sp-3), env(safe-area-inset-left));
   }
   /* На телефоне место в шапке нужнее полю поиска: выгрузка — в боковой панели */
   .exportBtn {
@@ -173,7 +173,7 @@
   .bar {
     flex-wrap: wrap;
     align-content: center;
-    row-gap: 4px;
+    gap: 4px var(--sp-2);
     padding: env(safe-area-inset-top) max(var(--sp-3), env(safe-area-inset-right)) 0 max(var(--sp-3), env(safe-area-inset-left));
   }
 

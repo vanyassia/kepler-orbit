@@ -25,7 +25,12 @@ export function OrbitTuner() {
   // Ползунок шлёт много событий за кадр — пересчитываем орбиту не чаще одного раза за кадр
   const pending = useRef<TunePatch | null>(null);
   const frame = useRef(0);
-  useEffect(() => () => cancelAnimationFrame(frame.current), []);
+  const cancelTune = () => {
+    cancelAnimationFrame(frame.current);
+    frame.current = 0;
+    pending.current = null;
+  };
+  useEffect(() => cancelTune, [record?.elements.noradId]);
   const tune = (patch: TunePatch) => {
     pending.current = { ...pending.current, ...patch };
     if (frame.current) return;
@@ -33,7 +38,8 @@ export function OrbitTuner() {
       frame.current = 0;
       const p = pending.current;
       pending.current = null;
-      if (p) useAppStore.getState().tuneOrbit(p);
+      const state = useAppStore.getState();
+      if (p && state.record?.elements.noradId === record?.elements.noradId) state.tuneOrbit(p);
     });
   };
 
@@ -66,7 +72,7 @@ export function OrbitTuner() {
           Изменить орбиту
         </h2>
         {base && (
-          <button type="button" className={styles.reset} onClick={() => useAppStore.getState().resetTune()}>
+          <button type="button" className={styles.reset} onClick={() => { cancelTune(); useAppStore.getState().resetTune(); }}>
             <RotateCcw size={13} aria-hidden="true" /> Как было
           </button>
         )}
@@ -97,8 +103,8 @@ export function OrbitTuner() {
           type="range"
           className={styles.range}
           min={0}
-          max={E_MAX}
-          step={0.001}
+          max={Math.max(E_MAX, start.e)}
+          step={start.e > E_MAX ? 'any' : 0.001}
           value={sh.e}
           aria-valuetext={`эксцентриситет ${fmt(sh.e, 3)}`}
           onChange={(e) => tune({ e: Number(e.target.value) })}

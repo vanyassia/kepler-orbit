@@ -10,6 +10,7 @@ vi.hoisted(() => {
   };
 });
 import { historicFlight, SPUTNIK1_ID, VOSTOK1_ID } from '../../data/historicOrbiters';
+import { CASSINI_WINDOW } from '../../data/orbiters';
 import { clockOnSelect, FLIGHT_SPEED, useAppStore } from '../store';
 
 const NOW = Date.parse('2026-11-10T12:00:00Z');
@@ -43,7 +44,46 @@ describe('часы при выборе исторического полёта',
     // Пустили снова — дальше часы идут без остановки
     useAppStore.getState().setPlaying(true);
     const { anchorReal } = useAppStore.getState();
+    useAppStore.getState().tick(anchorReal - 1);
+    expect(useAppStore.getState().simTime).toBe(end);
     useAppStore.getState().tick(anchorReal + 1000);
     expect(useAppStore.getState().simTime).toBe(end + 60_000);
+  });
+
+  it('пуск в конце архива начинает виток заново и пропускает старую метку кадра', () => {
+    const state = useAppStore.getState();
+    const { startMs, endMs } = CASSINI_WINDOW;
+    try {
+      useAppStore.setState({ playing: false, simTime: endMs, speed: 5000, record: {
+        source: 'horizons', fetchedAt: NOW, elements: {
+          name: 'Кассини', body: 'saturn', noradId: -82, epochMs: startMs,
+          eccentricity: 0.9, meanMotion: 0.17, inclinationDeg: 60,
+          raanDeg: 0, argPerigeeDeg: 0, meanAnomalyDeg: 0,
+        },
+      } });
+      state.setPlaying(true);
+      const { anchorReal } = useAppStore.getState();
+      state.tick(anchorReal - 1);
+      expect(useAppStore.getState()).toMatchObject({ playing: true, simTime: startMs });
+      state.tick(anchorReal + 1);
+      expect(useAppStore.getState().simTime).toBe(startMs + 5000);
+    } finally {
+      useAppStore.setState(state);
+    }
+  });
+
+  it('часы пропускают запись прежних настроек и переживают отказ хранилища', () => {
+    const state = useAppStore.getState();
+    const write = vi.spyOn(localStorage, 'setItem').mockImplementation(() => { throw new Error('Нет места'); });
+    try {
+      state.setQuality(state.quality === 'ultra' ? 'standard' : 'ultra');
+      const { simTime, anchorReal } = useAppStore.getState();
+      for (let k = 1; k <= 60; k++) state.tick(anchorReal + 1_000_000 + k * 1000 / 60);
+      expect(write).toHaveBeenCalledTimes(1);
+      expect(useAppStore.getState().simTime).toBeGreaterThan(simTime);
+    } finally {
+      write.mockRestore();
+      useAppStore.setState(state);
+    }
   });
 });

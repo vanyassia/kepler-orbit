@@ -10,6 +10,7 @@ import { Sidebar } from './ui/Sidebar';
 import { Timeline } from './ui/Timeline';
 import { TopBar } from './ui/TopBar';
 import { Workspace } from './ui/Workspace';
+import { PassSearchProvider } from './ui/usePassSearch';
 
 const VIEWS: ViewMode[] = ['split', '3d', '2d'];
 
@@ -47,6 +48,27 @@ export function App() {
     if (bg) document.querySelector('meta[name="theme-color"]')?.setAttribute('content', bg);
   }, [body]);
 
+  // При экранной клавиатуре диалог остаётся в видимой части страницы.
+  useEffect(() => {
+    const viewport = window.visualViewport;
+    if (!viewport) return;
+    const root = document.documentElement;
+    const update = () => {
+      if (viewport.scale !== 1) return;
+      root.style.setProperty('--visible-height', `${viewport.height}px`);
+      root.style.setProperty('--visible-top', `${viewport.offsetTop}px`);
+    };
+    update();
+    viewport.addEventListener('resize', update);
+    viewport.addEventListener('scroll', update);
+    return () => {
+      viewport.removeEventListener('resize', update);
+      viewport.removeEventListener('scroll', update);
+      root.style.removeProperty('--visible-height');
+      root.style.removeProperty('--visible-top');
+    };
+  }, []);
+
   // Адрес страницы следует за выбранным спутником и видом
   useEffect(
     () =>
@@ -71,11 +93,13 @@ export function App() {
         К визуализации
       </a>
       <TopBar />
-      <Sidebar />
-      {sidebarOpen && <div className={styles.backdrop} onClick={() => setSidebarOpen(false)} aria-hidden="true" data-sidebar-backdrop="" />}
-      <main id="workspace" className={styles.main} tabIndex={-1}>
-        <Workspace />
-      </main>
+      <PassSearchProvider>
+        <Sidebar />
+        {sidebarOpen && <div className={styles.backdrop} onClick={() => setSidebarOpen(false)} aria-hidden="true" data-sidebar-backdrop="" />}
+        <main id="workspace" className={styles.main} tabIndex={-1}>
+          <Workspace />
+        </main>
+      </PassSearchProvider>
       <Timeline />
       <PresentationLayer />
     </div>

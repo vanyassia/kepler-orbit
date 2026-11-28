@@ -1,6 +1,6 @@
 .dialog {
   width: min(760px, calc(100vw - 32px));
-  max-height: calc(100dvh - 32px);
+  max-height: calc(var(--visible-height, 100dvh) - 32px);
   overflow-y: auto;
   overscroll-behavior: contain;
 }

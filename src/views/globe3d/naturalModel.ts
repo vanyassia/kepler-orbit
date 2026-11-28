@@ -97,6 +97,10 @@ export function loadMoonSurface(mesh: Mesh, onLoad: () => void) {
   new TextureLoader().load(
     TEXTURES.moon2k,
     (tex) => {
+      if (mesh.userData.disposed) {
+        tex.dispose();
+        return;
+      }
       tex.colorSpace = SRGBColorSpace;
       material.map = tex;
       material.color.set('#ffffff');

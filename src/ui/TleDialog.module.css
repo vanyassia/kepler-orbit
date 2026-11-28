@@ -1,4 +1,10 @@
 .dialog {
+  position: fixed;
+  top: var(--visible-top, 0px);
+  bottom: max(0px, calc(100dvh - var(--visible-height, 100dvh) - var(--visible-top, 0px)));
+  max-height: calc(100vh - 24px);
+  max-height: calc(var(--visible-height, 100dvh) - 24px);
+  overflow-y: auto;
   width: min(680px, calc(100vw - 32px));
   padding: 0;
   border: 1px solid var(--line-strong);

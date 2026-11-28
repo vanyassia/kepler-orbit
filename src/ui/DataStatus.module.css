@@ -19,6 +19,7 @@
   color: var(--text-1);
   white-space: nowrap;
   min-width: 0;
+  overflow: hidden;
 }
 
 /* Если места всё же не хватило (длинная подпись и «эпоха … сут»), подпись кончается многоточием */
@@ -31,6 +32,7 @@
 .status[data-kind='online'] {
   --c: var(--ok);
 }
+.status[data-kind='horizons'],
 .status[data-kind='cache'],
 .status[data-kind='loading'] {
   --c: var(--orbit);
@@ -88,7 +90,9 @@
 }
 
 .warn {
-  flex: none;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
   color: var(--warn);
   border-left: 1px solid color-mix(in srgb, var(--warn) 35%, transparent);
   padding-left: var(--sp-2);
@@ -128,7 +132,9 @@
 @media (max-width: 1360px) {
   .status {
     position: relative;
+    flex: none;
     height: auto;
+    overflow: visible;
     padding: 0;
     border: 0;
     background: none;

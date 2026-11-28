@@ -11,6 +11,7 @@ import type { TrackPoint } from '../../physics/groundTrack';
 import { splitAtAntimeridian } from '../../physics/groundTrack';
 import type { Layers } from '../../state/store';
 import type { BorderPaths } from './geo';
+import { roundedRect } from '../canvasPath';
 import { WORLD_H, WORLD_W } from './geo';
 import type { NightMasks } from './nightMask';
 import type { Revolutions, TrackWindow } from '../trackCache';
@@ -717,7 +718,7 @@ export function drawIss(ctx: CanvasRenderingContext2D, x: number, y: number, hea
   // Модули по ходу полёта: сзади российский сегмент, впереди американский
   const hull = (x0: number, x1: number, h: number, color: string) => {
     ctx.beginPath();
-    ctx.roundRect(x0, -h / 2, x1 - x0, h, h / 2);
+    roundedRect(ctx, x0, -h / 2, x1 - x0, h, h / 2);
     ctx.fillStyle = color;
     ctx.fill();
     ctx.strokeStyle = '#3d4654';
@@ -734,8 +735,8 @@ export function drawIss(ctx: CanvasRenderingContext2D, x: number, y: number, hea
   hull(5.8, 8.6, 3, '#f1f4f8'); // Гармония
   // «Коламбус» и «Кибо» поперёк у «Гармонии»
   ctx.beginPath();
-  ctx.roundRect(5.9, -4.6, 2.6, 3.2, 1.2);
-  ctx.roundRect(5.7, 1.4, 3, 4.6, 1.3);
+  roundedRect(ctx, 5.9, -4.6, 2.6, 3.2, 1.2);
+  roundedRect(ctx, 5.7, 1.4, 3, 4.6, 1.3);
   ctx.fillStyle = '#f1f4f8';
   ctx.fill();
   ctx.strokeStyle = '#3d4654';
@@ -949,7 +950,7 @@ function drawCassini(ctx: CanvasRenderingContext2D, x: number, y: number, headin
   hull.addColorStop(0.5, '#b9c3ce');
   hull.addColorStop(1, '#707b89');
   ctx.beginPath();
-  ctx.roundRect(-9, -5, 15, 10, 2);
+  roundedRect(ctx, -9, -5, 15, 10, 2);
   ctx.fillStyle = hull;
   ctx.fill();
   ctx.strokeStyle = '#313945';
@@ -1160,7 +1161,7 @@ function drawSatellite(ctx: CanvasRenderingContext2D, box: ReturnType<typeof sat
   ctx.strokeStyle = 'rgba(255, 181, 71, 0.6)';
   ctx.lineWidth = 1;
   ctx.beginPath();
-  ctx.roundRect(lx, ly, w, 22, 6);
+  roundedRect(ctx, lx, ly, w, 22, 6);
   ctx.fill();
   ctx.stroke();
   ctx.fillStyle = COLORS.sat;
@@ -1223,7 +1224,7 @@ function drawSpacecraft(ctx: CanvasRenderingContext2D, x: number, y: number, hea
   foil.addColorStop(0.45, '#f2b34c');
   foil.addColorStop(1, '#a8661a');
   ctx.beginPath();
-  ctx.roundRect(-6, -4.5, 12, 9, 2);
+  roundedRect(ctx, -6, -4.5, 12, 9, 2);
   ctx.fillStyle = foil;
   ctx.fill();
   ctx.strokeStyle = '#2a1a05';

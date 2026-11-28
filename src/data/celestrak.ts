@@ -83,9 +83,20 @@ export async function fetchGp(
   if (params.name !== undefined) url.searchParams.set('NAME', params.name);
   url.searchParams.set('FORMAT', 'json');
 
-  const timeout = AbortSignal.timeout(REQUEST_TIMEOUT_MS);
-  const res = await fetchImpl(url.toString(), { signal: signal ? AbortSignal.any([signal, timeout]) : timeout });
-  const text = await res.text();
+  const controller = new AbortController();
+  const abort = () => controller.abort(signal?.reason);
+  if (signal?.aborted) abort();
+  else signal?.addEventListener('abort', abort, { once: true });
+  const timeout = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
+  let res: Response;
+  let text: string;
+  try {
+    res = await fetchImpl(url.toString(), { signal: controller.signal });
+    text = await res.text();
+  } finally {
+    clearTimeout(timeout);
+    signal?.removeEventListener('abort', abort);
+  }
   // CelesTrak на пустой результат отвечает текстом «No GP data found»
   if (/no gp data found/i.test(text)) return [];
   if (!res.ok) throw new Error(`CelesTrak ответил ${res.status}: ${text.slice(0, 120)}`);

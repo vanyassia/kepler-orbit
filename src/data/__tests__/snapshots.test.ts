@@ -17,7 +17,7 @@ const dataDir = join(import.meta.dirname, '..', '..', '..', 'public', 'data');
 const gp = JSON.parse(readFileSync(join(dataDir, 'fallback-gp.json'), 'utf8')) as { savedAt: string; items: OmmRecord[] };
 const orbiters = JSON.parse(readFileSync(join(dataDir, 'orbiters.json'), 'utf8')) as {
   savedAt: string;
-  items: { naifId: number; body: string; epoch: string; eccentricity: number; meanMotionDegPerSec: number; semiMajorAxisKm: number }[];
+  items: { naifId: number; body: string; name: string; epoch: string; eccentricity: number; meanMotionDegPerSec: number; semiMajorAxisKm: number }[];
 };
 
 describe('Снимок CelesTrak (fallback-gp.json)', () => {
@@ -68,6 +68,7 @@ describe('Снимок JPL Horizons (orbiters.json)', () => {
     const it = orbiters.items.find((x) => x.body === body && x.naifId === id);
     expect(it, `аппарата ${id} нет в снимке`).toBeDefined();
     expect(it!.body).toBe(body);
+    expect(it!.name.trim().length).toBeGreaterThan(0);
     expect(Number.isFinite(Date.parse(it!.epoch))).toBe(true);
     expect(it!.eccentricity).toBeGreaterThanOrEqual(0);
     expect(it!.eccentricity).toBeLessThan(1);

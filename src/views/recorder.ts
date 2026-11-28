@@ -53,32 +53,35 @@ export function startRecording(o: RecordOptions): string | null {
   canvas.width = width;
   canvas.height = height;
   canvas.setAttribute('aria-hidden', 'true');
-  canvas.style.cssText = 'position:fixed;left:0;top:0;width:2px;height:2px;opacity:0;pointer-events:none';
+  canvas.style.cssText = 'position:fixed;left:0;top:0;width:2px;height:2px;opacity:0.001;pointer-events:none';
   document.body.appendChild(canvas);
   const ctx = canvas.getContext('2d')!;
-  drawView(o.kind, o.caption(), ctx);
 
   const type = pickVideoType((t) => MediaRecorder.isTypeSupported(t));
-  let stream: MediaStream;
+  let stream: MediaStream | undefined;
   let rec: MediaRecorder;
   try {
     stream = canvas.captureStream(FPS);
     rec = new MediaRecorder(stream, { ...(type ? { mimeType: type } : {}), videoBitsPerSecond: videoBitrate(width, height) });
   } catch (e) {
+    stream?.getTracks().forEach((track) => track.stop());
     canvas.remove();
     console.warn('Запись видео не началась:', e);
     return 'Браузер не дал записать видео';
   }
 
   const app = useAppStore.getState();
-  const before = { speed: app.speed, playing: app.playing };
+  const before = { record: app.record, speed: app.speed, playing: app.playing, time: app.simTime };
   app.setSpeed(o.speed);
   app.setPlaying(true);
 
   const chunks: Blob[] = [];
   let failed = false;
   let stopped = false;
+  let published = false;
   let raf = 0;
+  let deadline: ReturnType<typeof setTimeout> | undefined;
+  let unsubscribe = () => {};
   rec.ondataavailable = (e) => {
     if (e.data.size > 0) chunks.push(e.data);
   };
@@ -87,26 +90,45 @@ export function startRecording(o: RecordOptions): string | null {
     failed = true;
     finish();
   };
-  rec.onstop = () => {
-    stream.getTracks().forEach((t) => t.stop());
+  rec.onstop = publish;
+
+  function publish() {
+    if (published) return;
+    published = true;
+    stopClock();
+    stream?.getTracks().forEach((t) => t.stop());
     canvas.remove();
     stopActive = null;
     const mime = rec.mimeType || type || 'video/webm';
     const blob = new Blob(chunks, { type: mime.split(';')[0] });
     if (failed || blob.size === 0) setState({ status: 'error', message: 'Видео не записалось: браузер не отдал кадры' });
     else setState({ status: 'done', blob, name: o.fileName(videoExtension(mime)) });
-  };
+  }
 
-  // Конец записи: прежнее ускорение, остановка кодировщика (файл соберётся в onstop)
-  function finish() {
+  function stopClock() {
     if (stopped) return;
     stopped = true;
     cancelAnimationFrame(raf);
+    clearTimeout(deadline);
+    unsubscribe();
     const s = useAppStore.getState();
-    s.setSpeed(before.speed);
-    s.setPlaying(before.playing);
-    if (rec.state !== 'inactive') rec.stop();
-    else rec.onstop?.call(rec, new Event('stop'));
+    if (s.record === before.record) {
+      s.setSpeed(before.speed);
+      s.setPlaying(before.playing);
+    }
+  }
+
+  function finish() {
+    if (stopped) return;
+    stopClock();
+    try {
+      if (rec.state !== 'inactive') rec.stop();
+      else publish();
+    } catch (e) {
+      console.warn('Не удалось остановить кодировщик:', e);
+      failed = true;
+      publish();
+    }
   }
 
   let lastFrame = -Infinity;
@@ -127,21 +149,25 @@ export function startRecording(o: RecordOptions): string | null {
     }
   };
   try {
+    drawView(o.kind, o.caption(), ctx);
     rec.start(1000);
   } catch (e) {
     // Кодировщик не запустился: вернуть прежнее ускорение и убрать холст записи
-    stream.getTracks().forEach((t) => t.stop());
+    stream?.getTracks().forEach((t) => t.stop());
     canvas.remove();
     app.setSpeed(before.speed);
     app.setPlaying(before.playing);
+    app.setSimTime(before.time);
     console.warn('Запись видео не началась:', e);
     return 'Браузер не дал записать видео';
   }
   setState({ status: 'recording', elapsed: 0, duration: o.durationSec });
   raf = requestAnimationFrame(frame);
   // В фоновой вкладке кадры не идут: запись всё равно кончится вовремя, и ускорение вернётся
-  const deadline = setTimeout(finish, o.durationSec * 1000 + 250);
-  rec.addEventListener('stop', () => clearTimeout(deadline));
+  deadline = setTimeout(finish, o.durationSec * 1000 + 250);
+  unsubscribe = useAppStore.subscribe((state) => {
+    if (state.record !== before.record || (o.kind === 'globe' ? state.view === '2d' : state.view === '3d')) finish();
+  });
   stopActive = finish;
   return null;
 }

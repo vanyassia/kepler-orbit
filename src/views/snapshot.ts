@@ -6,6 +6,8 @@
  * перерисовывает кадр и сразу же (в той же задаче) копирует его. Подписи глобуса — обычные
  * DOM-элементы поверх холста, их приходится дорисовать на копии по их положению и стилю.
  */
+import { roundedRect } from './canvasPath';
+
 export type SnapshotKind = 'map' | 'globe';
 
 interface Source {
@@ -13,6 +15,7 @@ interface Source {
   canvas: () => HTMLCanvasElement | null;
   /** Слой подписей поверх холста, если подписи — DOM-элементы. */
   labels?: () => HTMLElement | null;
+  overlay?: (ctx: CanvasRenderingContext2D, scale: number, width: number, height: number) => void;
   /** Фон под прозрачными участками холста. */
   background?: string;
 }
@@ -70,6 +73,7 @@ export function drawView(kind: SnapshotKind, caption: SnapshotCaption, ctx: Canv
   ctx.setTransform(fit, 0, 0, fit, (width - from.width * fit) / 2, (height - from.height * fit) / 2);
   ctx.drawImage(from, 0, 0);
   const scale = from.width / Math.max(1, from.getBoundingClientRect().width);
+  src.overlay?.(ctx, scale, from.width, from.height);
   const labels = src.labels?.();
   if (labels) drawDomLabels(ctx, labels, scale, from.width, from.height);
   drawCaption(ctx, caption, scale, from.width, from.height);
@@ -101,8 +105,7 @@ function drawDomLabels(ctx: CanvasRenderingContext2D, container: HTMLElement, sc
     const radius = (parseFloat(cs.borderTopLeftRadius) || 0) * scale;
     const plate = () => {
       ctx.beginPath();
-      if (ctx.roundRect) ctx.roundRect(x, y, w, h, radius);
-      else ctx.rect(x, y, w, h);
+      roundedRect(ctx, x, y, w, h, radius);
     };
     if (!isTransparent(cs.backgroundColor)) {
       ctx.fillStyle = 'rgb(8 17 32 / 0.8)';
@@ -142,8 +145,7 @@ function drawCaption(ctx: CanvasRenderingContext2D, caption: SnapshotCaption, sc
   const th = 26 * scale;
   ctx.fillStyle = 'rgb(4 6 10 / 0.72)';
   ctx.beginPath();
-  if (ctx.roundRect) ctx.roundRect(pad, pad, tw + 2 * pad, th, 6 * scale);
-  else ctx.rect(pad, pad, tw + 2 * pad, th);
+  roundedRect(ctx, pad, pad, tw + 2 * pad, th, 6 * scale);
   ctx.fill();
   ctx.fillStyle = '#e6eef8';
   ctx.fillText(caption.title, 2 * pad, pad + th / 2);

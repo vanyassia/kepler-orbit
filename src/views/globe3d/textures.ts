@@ -45,24 +45,27 @@ const NONE: string[] = [];
  * epoch растёт после потери WebGL-контекста: снимки в видеокарте пропали, грузим заново.
  */
 function useTex(renderer: WebGLRenderer, urls: string[], kind: TextureKind, anisotropy: number, epoch: number): Texture | null {
-  const [tex, setTex] = useState<Texture | null>(null);
+  const [loaded, setLoaded] = useState<{ base: string; texture: Texture } | null>(null);
   const key = urls.join('|');
+  const base = urls[0];
   useEffect(() => {
     let alive = true;
     const isAlive = () => alive;
-    if (urls.length === 0) setTex(null);
+    if (!base) setLoaded(null);
+    else setLoaded((previous) => previous?.base === base ? previous : null);
     void (async () => {
       for (const url of urls) {
         let t = await streamTexture(renderer, url, kind, anisotropy, isAlive);
         if (t === undefined && alive) {
           const img = await loadImage(url).catch(() => null);
-          t = img && makeTexture(img, kind, anisotropy);
+          t = img && Math.max(img.naturalWidth, img.naturalHeight) <= renderer.capabilities.maxTextureSize
+            ? makeTexture(img, kind, anisotropy) : null;
         }
         if (!alive) {
           if (t) releaseTexture(renderer, t);
           return;
         }
-        if (t) setTex(t);
+        if (t) setLoaded({ base, texture: t });
       }
     })();
     return () => {
@@ -72,9 +75,9 @@ function useTex(renderer: WebGLRenderer, urls: string[], kind: TextureKind, anis
   }, [key, kind, anisotropy, epoch]);
   // После смены текстуры материал уже переключён на новую — старую можно освободить
   useEffect(() => () => {
-    if (tex) releaseTexture(renderer, tex);
-  }, [tex, renderer]);
-  return tex;
+    if (loaded) releaseTexture(renderer, loaded.texture);
+  }, [loaded, renderer]);
+  return loaded?.base === base ? loaded?.texture ?? null : null;
 }
 
 export function useEarthTextures(quality: Quality, gl: WebGLRenderer, body: BodyId = 'earth'): EarthTextures {

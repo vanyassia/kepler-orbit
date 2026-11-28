@@ -1,5 +1,5 @@
 import { useWallClock } from '../hooks/useSimClock';
-import { archiveWindow } from '../data/orbiters';
+import { archiveWindow, ORBITERS } from '../data/orbiters';
 import { useAppStore } from '../state/store';
 import styles from './DataStatus.module.css';
 import { fmtAge } from './format';
@@ -24,7 +24,7 @@ export function DataStatus() {
     return (
       <div className={styles.status} data-kind={loading ? 'loading' : 'none'}>
         <span className={styles.dot} />
-        <span>{loading ? 'Загрузка элементов…' : 'Нет данных'}</span>
+        <span className={styles.text} role="status">{loading ? 'Загрузка элементов…' : 'Нет данных'}</span>
       </div>
     );
   }
@@ -32,8 +32,10 @@ export function DataStatus() {
   const epochAgeDays = (now - record.elements.epochMs) / 86_400_000;
   const archive = archiveWindow(record.elements.body, record.elements.noradId);
   const historic = record.source === 'historic' || !!archive;
-  const stale = !historic && Math.abs(epochAgeDays) > 3;
-  const detail = archive ? `архив, ${archive.label}` :
+  const ended = record.source === 'horizons'
+    && ORBITERS.some((o) => o.body === record.elements.body && o.naifId === record.elements.noradId && o.ended);
+  const stale = !historic && !ended && record.source !== 'custom' && Math.abs(epochAgeDays) > 3;
+  const detail = archive ? `архив, ${archive.label}` : ended ? 'завершённая миссия' :
     record.source === 'manual' || record.source === 'custom' || historic
       ? null
       : record.source === 'fallback' || record.source === 'horizons'

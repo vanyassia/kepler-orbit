@@ -42,6 +42,7 @@ export default function FormulaStepsBody() {
     const earth = orbit.body.id === 'earth';
     const sym = orbit.body.rotationSymbol;
     const tMin = s.dt / 60;
+    const tTex = tMin < 0 ? `(${n(tMin, 2)})` : n(tMin, 2);
     const nDegMin = orbit.n * RAD * 60;
     const iDeg = orbit.iEq * RAD;
     // Начальное приближение — то же, что в solveKepler (kepler.ts): при e ≥ 0,8 берётся E₀ = π
@@ -52,23 +53,23 @@ export default function FormulaStepsBody() {
       {
         no: '2',
         title: 'Период, средняя угловая скорость, большая полуось',
-        tex: `\\begin{aligned}T&=\\frac{86400}{N}=\\frac{86400}{${n(el.meanMotion, 8)}}=${n(orbit.T, 2)}\\ \\text{с}=${n(orbit.T / 60, 4)}\\ \\text{мин}\\\\n&=\\frac{360^\\circ}{T}=${n(nDegMin, 5)}\\ {}^\\circ/\\text{мин}\\\\a&=\\sqrt[3]{\\mu/n^2}=${n(orbit.a, 2)}\\ \\text{км}\\\\h_{\\text{п}}&=a(1-e)-R=${n(orbit.hPerigee, 1)}\\ \\text{км},\\quad h_{\\text{а}}=a(1+e)-R=${n(orbit.hApogee, 1)}\\ \\text{км}\\end{aligned}`,
+        tex: String.raw`\begin{aligned}T&=\frac{86400}{N}\\&=\frac{86400}{${n(el.meanMotion, 8)}}=${n(orbit.T, 2)}\ \text{с}\\&=${n(orbit.T / 60, 4)}\ \text{мин}\\n&=\frac{360^\circ}{T}=${n(nDegMin, 5)}\ {}^\circ/\text{мин}\\a&=\sqrt[3]{\mu/n^2}=${n(orbit.a, 2)}\ \text{км}\\h_{\text{п}}&=a(1-e)-R=${n(orbit.hPerigee, 1)}\ \text{км}\\h_{\text{а}}&=a(1+e)-R=${n(orbit.hApogee, 1)}\ \text{км}\end{aligned}`,
       },
       earth
         ? {
             no: '4',
             title: 'Угол поворота Земли на эпоху и долгота восходящего узла',
-            tex: `\\begin{aligned}JD&=${n(julianDate(orbit.epochMs), 5)}\\\\S&=280{,}46062^\\circ+360{,}98564737^\\circ(JD-2451545{,}0)\\\\&=${n(orbit.S0 * RAD, 4)}^\\circ\\ (\\text{mod}\\ 360^\\circ)\\\\\\lambda_\\Omega&=\\Omega-S=${n(el.raanDeg, 4)}^\\circ-${n(orbit.S0 * RAD, 4)}^\\circ=${n(orbit.lambdaNode * RAD, 4)}^\\circ\\end{aligned}`,
+            tex: String.raw`\begin{aligned}JD&=${n(julianDate(orbit.epochMs), 5)}\\S&=280{,}46062^\circ\\&\quad+360{,}98564737^\circ(JD-2451545{,}0)\\&=${n(orbit.S0 * RAD, 4)}^\circ\ (\text{mod}\ 360^\circ)\\\lambda_\Omega&=\Omega-S\\&=${n(el.raanDeg, 4)}^\circ-${n(orbit.S0 * RAD, 4)}^\circ\\&=${n(orbit.lambdaNode * RAD, 4)}^\circ\end{aligned}`,
           }
         : {
             no: '4',
             title: `Угол поворота тела W (IAU) на эпоху и долгота узла, ${orbit.body.name}`,
-            tex: `\\begin{aligned}W_0&=${n(orbit.S0 * RAD, 4)}^\\circ\\\\\\lambda_\\Omega&=\\Omega-W_0=${n(orbit.lambdaNode * RAD, 4)}^\\circ\\end{aligned}`,
+            tex: `\\begin{aligned}W_0&=${n(orbit.S0 * RAD, 4)}^\\circ\\\\\\lambda_\\Omega&=${orbit.body.id === 'mars' ? '\\Omega_{\\text{экв}}' : '\\Omega'}-W_0\\\\&=${n(orbit.raanEq * RAD, 4)}^\\circ-${n(orbit.S0 * RAD, 4)}^\\circ\\\\&=${n(orbit.lambdaNode * RAD, 4)}^\\circ\\ (\\text{mod}\\ 360^\\circ)\\end{aligned}`,
           },
       {
         no: '5.1',
         title: 'Средняя аномалия',
-        tex: `\\begin{aligned}M&=M_0+n\\cdot t=${n(el.meanAnomalyDeg, 4)}^\\circ+${n(nDegMin, 5)}\\cdot${n(tMin, 2)}\\ \\text{мин}\\\\&=${n(s.M * RAD, 4)}^\\circ\\ (\\text{mod}\\ 360^\\circ)\\end{aligned}`,
+        tex: String.raw`\begin{aligned}M&=M_0+n\cdot t\\&=${n(el.meanAnomalyDeg, 4)}^\circ+${n(nDegMin, 5)}\cdot${tTex}\ \text{мин}\\&=${n(s.M * RAD, 4)}^\circ\ (\text{mod}\ 360^\circ)\end{aligned}`,
       },
       {
         no: '5.2',
@@ -78,7 +79,7 @@ export default function FormulaStepsBody() {
       {
         no: '5.3',
         title: 'Истинная аномалия',
-        tex: `\\nu=2\\operatorname{atan2}\\Big(\\sqrt{1+e}\\sin\\frac{E}{2},\\ \\sqrt{1-e}\\cos\\frac{E}{2}\\Big)=${n(s.theta * RAD, 4)}^\\circ`,
+        tex: String.raw`\begin{aligned}\nu&=2\operatorname{atan2}\big(\sqrt{1+e}\sin(E/2),\\&\qquad\sqrt{1-e}\cos(E/2)\big)\\&=${n(s.theta * RAD, 4)}^\circ\end{aligned}`,
       },
       {
         no: '5.4',
@@ -95,13 +96,13 @@ export default function FormulaStepsBody() {
       {
         no: '5.6',
         title: 'Путь по экватору',
-        tex: `ab=\\operatorname{atan2}(\\cos i\\cdot\\sin u,\\ \\cos u)=${n(s.ab * RAD, 4)}^\\circ\\quad(i=${n(iDeg, 4)}^\\circ)`,
+        tex: String.raw`\begin{aligned}ab&=\operatorname{atan2}(\cos i\cdot\sin u,\ \cos u)\\&=${n(s.ab * RAD, 4)}^\circ\quad(i=${n(iDeg, 4)}^\circ)\end{aligned}`,
       },
       {
         no: '5.7',
         title: earth ? 'Поворот Земли за время после эпохи' : `Поворот тела за время после эпохи, ${orbit.body.name}`,
         tex: earth
-          ? `\\varDelta=\\omega_{\\text{З}}\\cdot t=0{,}250684\\cdot${n(tMin, 2)}=${n(s.turn * RAD, 4)}^\\circ`
+          ? `\\varDelta=\\omega_{\\text{З}}\\cdot t=0{,}250684\\cdot${tTex}=${n(s.turn * RAD, 4)}^\\circ`
           : `\\varDelta=${sym}(t)-${sym}_0=${n(s.turn * RAD, 4)}^\\circ`,
       },
       {
@@ -122,8 +123,8 @@ export default function FormulaStepsBody() {
   return (
     <>
       <p className={styles.note}>
-        Задача двух тел: {orbit.body.name}, μ = <span className="num">{fmt(orbit.body.mu, 4)}</span> км³/с², R ={' '}
-        <span className="num">{fmt(orbit.body.radius, 1)}</span> км.{orbit.body.id === 'mars' ? ' Для Марса i и u отсчитаны от экватора вращения (учтена разница полюсов IAU 2015 и 2009).' : ''} t — время
+        {orbit.body.name}, μ = <span className="num">{fmt(orbit.body.mu, 4)}</span> км³/с², R ={' '}
+        <span className="num">{fmt(orbit.body.radius, 1)}</span> км.{orbit.body.id === 'mars' ? ' Для Марса Ωэкв, i и u отсчитаны от экватора вращения (учтена разница полюсов IAU 2015 и 2009).' : ''} t — время
         после эпохи элементов. Числа соответствуют текущему моменту; чтобы рассмотреть их, остановите время (пробел).
       </p>
       <ol className={styles.list}>

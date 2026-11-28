@@ -18,6 +18,7 @@ import { wrap2Pi, wrapPi } from './math';
 import { sunDirectionInertial } from './sun';
 import { greenwichToInertial, inertialToGreenwich } from './frames';
 import { greenwichSiderealTime, julianDate } from './time';
+import { tdbMinusUtc } from './dynamicalTime';
 
 export type BodyId = 'earth' | 'moon' | 'mars' | 'venus' | 'saturn' | 'mercury';
 
@@ -30,6 +31,8 @@ export interface CentralBody {
   mu: number;
   /** Опорный радиус для расчёта высоты, км. У Сатурна — экваториальный. */
   radius: number;
+  /** Полярный радиус для расстояний по сжатой поверхности, км. */
+  polarRadius?: number;
   /** Угол поворота тела (S для Земли, W для Луны и Марса), рад. */
   rotationAngle: (timeMs: number) => number;
   /**
@@ -47,15 +50,8 @@ export interface CentralBody {
   rotationSymbol: 'S' | 'W';
 }
 
-/**
- * TDB − UTC, с: 32,184 с (TT − TAI) + 37 високосных секунд. Формулы IAU для Луны и Марса записаны
- * во времени TDB; без поправки Марс повёрнут на 69 с назад — подспутниковые точки сдвинуты на 0,28°
- * к востоку (найдено по Фобосу и Деймосу). Звёздное время Земли по листку считается по UT — его это не касается.
- */
-const TDB_MINUS_UTC_SEC = 69.184;
-
 /** Дни от J2000.0 в шкале TDB. */
-const days = (t: number) => julianDate(t) - JD_J2000 + TDB_MINUS_UTC_SEC / 86400;
+const days = (t: number) => julianDate(t) - JD_J2000 + tdbMinusUtc(t) / 86400;
 
 const unit = (ra: number, dec: number): Vec3 => ({
   x: Math.cos(dec) * Math.cos(ra),
@@ -318,8 +314,9 @@ export const SATURN: CentralBody = {
   nameLocative: 'на Сатурне',
   mu: 37931206.23,
   radius: 60268,
+  polarRadius: 54364,
   rotationAngle: (t) => saturnOrientation(t).W,
-  turn: (t0, t) => SATURN_ROTATION * DEG * ((t - t0) / 86_400_000),
+  turn: (t0, t) => SATURN_ROTATION * DEG * ((t - t0 + (tdbMinusUtc(t) - tdbMinusUtc(t0)) * 1000) / 86_400_000),
   toFixed: (v, t) => inertialToGreenwich(v, saturnOrientation(t).W),
   toInertial: (v, t) => greenwichToInertial(v, saturnOrientation(t).W),
   sunDirection: (t) => {
@@ -340,7 +337,7 @@ const MERCURY_LIBRATION: readonly [phase: number, rate: number, amplitude: numbe
 ];
 
 /** Ориентация Меркурия по IAU 2015 (NAIF PCK00011), включая либрации. */
-function mercuryOrientation(t: number) {
+export function mercuryOrientation(t: number) {
   const d = days(t);
   const T = d / 36525;
   const libration = MERCURY_LIBRATION.reduce((sum, [phase, rate, amplitude]) =>

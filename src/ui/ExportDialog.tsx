@@ -9,6 +9,7 @@ import {
   elementsToText,
   exportFileName,
   fileType,
+  forwardExportRange,
   fromInputValue,
   MAX_ROWS,
   rowCount,
@@ -16,7 +17,7 @@ import {
   tableToText,
   toInputValue,
 } from '../data/exportData';
-import { archiveWindow } from '../data/orbiters';
+import { archiveWindow, orbitTimeBounds } from '../data/orbiters';
 import { BODIES } from '../physics/bodies';
 import type { PreparedOrbit } from '../physics/propagate';
 import { useAppStore } from '../state/store';
@@ -119,7 +120,7 @@ function ExportForm({ orbit, onClose }: { orbit: PreparedOrbit; onClose: () => v
   const revsForward = useAppStore((s) => s.revsForward);
   const view = useAppStore((s) => s.view);
   // Момент, от которого считается интервал, — время симуляции при открытии окна
-  const [now] = useState(() => Math.round(useAppStore.getState().simTime / 1000) * 1000);
+  const [now] = useState(() => useAppStore.getState().simTime);
   const [prefs, setPrefs] = useState(readPrefs);
   const update = (p: Partial<Prefs>) =>
     setPrefs((old) => {
@@ -132,6 +133,8 @@ function ExportForm({ orbit, onClose }: { orbit: PreparedOrbit; onClose: () => v
   const [customTo, setCustomTo] = useState(() => toInputValue(now + 86_400_000));
   const [notice, setNotice] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  const [preparedShare, setPreparedShare] = useState<{ blob: Blob; name: string } | null>(null);
+  useEffect(() => { setPreparedShare(null); }, [orbit, prefs.tab, prefs.image, prefs.format, prefs.range, prefs.groups, prefs.msk, step, customFrom, customTo]);
   const shareable = useMemo(canShareFile, []);
 
   useEffect(() => {
@@ -150,6 +153,7 @@ function ExportForm({ orbit, onClose }: { orbit: PreparedOrbit; onClose: () => v
 
   // Интервал таблицы
   const historical = archiveWindow(el.body, el.noradId);
+  const { startMs, endMs } = orbitTimeBounds(el);
   const requestedRange = useMemo(() => {
     switch (prefs.range) {
       case 'shown': {
@@ -159,22 +163,20 @@ function ExportForm({ orbit, onClose }: { orbit: PreparedOrbit; onClose: () => v
         return { from: now - Math.round(span.back * orbit.T) * 1000, to: now + Math.round(span.forward * orbit.T) * 1000 };
       }
       case 'rev':
-        return { from: now, to: now + Math.round(orbit.T) * 1000 };
+        return forwardExportRange(now, Math.round(orbit.T) * 1000, startMs, endMs);
       case 'day':
-        return { from: now, to: now + 86_400_000 };
+        return forwardExportRange(now, 86_400_000, startMs, endMs);
       case 'custom':
         return { from: fromInputValue(customFrom), to: fromInputValue(customTo) };
     }
-  }, [prefs.range, orbit, now, revsBack, revsForward, customFrom, customTo, historical]);
-  const range = historical
-    ? { from: Math.max(historical.startMs, requestedRange.from), to: Math.min(historical.endMs, requestedRange.to) }
-    : requestedRange;
+  }, [prefs.range, orbit, now, revsBack, revsForward, customFrom, customTo, historical, startMs, endMs]);
+  const range = { from: Math.max(startMs, requestedRange.from), to: Math.min(endMs, requestedRange.to) };
   const rangeError = !Number.isFinite(range.from) || !Number.isFinite(range.to)
     ? 'Заполните начало и конец интервала'
     : requestedRange.to <= requestedRange.from
       ? 'Конец интервала должен быть позже начала'
       : range.to <= range.from
-        ? 'Выберите время в пределах архивного витка'
+        ? 'Выберите время в пределах полёта'
         : null;
   const rows = rangeError ? 0 : rowCount(range.from, range.to, step);
   const tooMany = rows > MAX_ROWS;
@@ -214,21 +216,23 @@ function ExportForm({ orbit, onClose }: { orbit: PreparedOrbit; onClose: () => v
       const text = elementsToText(orbit, format, meta, tle);
       return { blob: new Blob([text], { type: `${mime};charset=utf-8` }), name: exportFileName(meta.satellite, 'элементы', el.epochMs, ext) };
     }
+    const time = useAppStore.getState().simTime;
     const shot = captureView(prefs.image, snapshotCaption());
     const blob = shot && (await canvasToPng(shot));
     if (!blob) return null;
-    return { blob, name: exportFileName(meta.satellite, prefs.image === 'map' ? 'карта' : 'глобус', useAppStore.getState().simTime, 'png') };
+    return { blob, name: exportFileName(meta.satellite, prefs.image === 'map' ? 'карта' : 'глобус', time, 'png') };
   };
 
-  const snapshotCaption = () => ({
-    title: `${meta.satellite} · ${fmtDateTime(useAppStore.getState().simTime)} UTC`,
-    credit: `Кеплер · ${surfaceCredit(el.body ?? 'earth', useAppStore.getState().layers.venusClouds)}`,
-  });
+  const snapshotCaption = () => {
+    const { simTime, layers } = useAppStore.getState();
+    return {
+      title: `${meta.satellite} · ${fmtDateTime(simTime)} UTC`,
+      credit: `Кеплер · ${surfaceCredit(el.body ?? 'earth', layers.venusClouds && layers.imagery)}`,
+    };
+  };
 
   const run = async (action: 'download' | 'share' | 'copy') => {
     setBusy(true);
-    // Дать окну показать «Готовим файл…» до тяжёлого расчёта
-    await new Promise((r) => setTimeout(r, 16));
     try {
       if (action === 'copy') {
         // Для вставки в ячейки таблицы — столбцы через табуляцию
@@ -236,13 +240,23 @@ function ExportForm({ orbit, onClose }: { orbit: PreparedOrbit; onClose: () => v
         flash((await copyText(text)) ? 'Скопировано — вставьте в таблицу' : 'Браузер не дал доступ к буферу обмена');
         return;
       }
-      const file = await makeFile(prefs.format);
+      if (action === 'download') await new Promise((resolve) => setTimeout(resolve, 16));
+      const file = action === 'share' && preparedShare ? preparedShare : await makeFile(prefs.format);
       if (!file) {
         flash(prefs.tab === 'image' ? 'Вид ещё не готов — откройте его и повторите' : 'Проверьте интервал и шаг');
         return;
       }
       if (action === 'share') {
-        if (await shareFile(file.blob, file.name)) flash('Готово');
+        const result = await shareFile(file.blob, file.name);
+        if (result === 'shared') {
+          setPreparedShare(null);
+          flash('Готово');
+        } else if (result === 'blocked') {
+          setPreparedShare(file);
+          flash('Файл готов. Нажмите «Поделиться» ещё раз');
+        } else if (result === 'failed') {
+          flash('Браузер не смог передать файл. Попробуйте скачать его');
+        }
       } else {
         downloadBlob(file.blob, file.name);
         flash(`Сохранено: ${file.name}`);
@@ -296,7 +310,8 @@ function ExportForm({ orbit, onClose }: { orbit: PreparedOrbit; onClose: () => v
   const startVideo = () => {
     if (!imageKind) return;
     const kind = imageKind;
-    const start = useAppStore.getState().simTime;
+    const currentTime = useAppStore.getState().simTime;
+    const start = historical && currentTime >= historical.endMs ? historical.startMs : currentTime;
     const problem = startRecording({
       kind,
       durationSec: videoSec,

@@ -168,7 +168,7 @@ export function SatelliteSearch({ className }: { className: string }) {
           {needle && items.length === 0 && !busy && (
             <div className={styles.empty}>
               <img className={styles.emptyArt} src={notFoundArt} alt="" width={72} height={72} />
-              <span>Ничего не найдено. Названия в каталоге CelesTrak — латиницей: ISS, HST, METEOR, GLONASS.</span>
+              <span>{earth ? 'Ничего не найдено. Названия в CelesTrak — латиницей, например ISS или HST.' : 'Ничего не найдено. Попробуйте название или номер NAIF.'}</span>
             </div>
           )}
           <ul id={listId} role="listbox" className={styles.list}>
@@ -245,6 +245,7 @@ export function SatelliteSearch({ className }: { className: string }) {
 function SlashShortcut({ onTrigger }: { onTrigger: () => void }) {
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
+      if (useAppStore.getState().presenting || document.querySelector('dialog[open]')) return;
       const t = e.target as HTMLElement;
       if (e.key === '/' && !['INPUT', 'TEXTAREA'].includes(t.tagName)) {
         e.preventDefault();

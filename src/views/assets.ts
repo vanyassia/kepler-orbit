@@ -49,7 +49,8 @@ export const BODY_THUMB: Record<BodyId, string> = {
  */
 export const LIGHT_DEVICE =
   typeof window !== 'undefined' &&
-  (window.matchMedia('(pointer: coarse)').matches || ((navigator as { deviceMemory?: number }).deviceMemory ?? 8) <= 4);
+  (window.matchMedia('(any-pointer: coarse)').matches || navigator.maxTouchPoints > 1
+    || ((navigator as { deviceMemory?: number }).deviceMemory ?? 8) <= 4);
 
 /** Снимок поверхности тела: сначала лёгкий, затем подробный (в лёгком режиме — только лёгкий). */
 export const SURFACE: Record<BodyId, readonly string[]> = LIGHT_DEVICE
@@ -89,11 +90,11 @@ export function surfaceCredit(body: BodyId, venusClouds = false): string {
   return body === 'venus' && venusClouds ? VENUS_CLOUDS_CREDIT : SURFACE_CREDIT[body];
 }
 
-const cache = new Map<string, Promise<HTMLImageElement>>();
+const loadingImages = new Map<string, Promise<HTMLImageElement>>();
 
 /** Загрузка и декодирование изображения (декодирование — вне основного потока). */
 export function loadImage(url: string, priority: 'high' | 'low' = 'high'): Promise<HTMLImageElement> {
-  let p = cache.get(url);
+  let p = loadingImages.get(url);
   if (!p) {
     p = new Promise<HTMLImageElement>((resolve, reject) => {
       const img = new Image();
@@ -103,8 +104,8 @@ export function loadImage(url: string, priority: 'high' | 'low' = 'high'): Promi
       img.onerror = () => reject(new Error(`Не удалось загрузить ${url}`));
       img.src = url;
     });
-    p.catch(() => cache.delete(url));
-    cache.set(url, p);
+    void p.then(() => loadingImages.delete(url), () => loadingImages.delete(url));
+    loadingImages.set(url, p);
   }
   return p;
 }
@@ -113,64 +114,70 @@ export function loadImage(url: string, priority: 'high' | 'low' = 'high'): Promi
 export interface MapImage {
   levels: (ImageBitmap | HTMLImageElement)[];
   fullUrl: string | null;
+  closed?: boolean;
 }
-
-const mapImages = new Map<string, Promise<MapImage>>();
 
 /** Копии готовит отдельный поток: пересчёт 8K до размера экрана здесь занял бы 0,3 с. */
 function loadMapImage(url: string): Promise<MapImage> {
-  let p = mapImages.get(url);
-  if (!p) {
-    const plain = () => loadImage(url).then((img) => ({ levels: [img], fullUrl: null }));
-    p = OFF_THREAD
-      ? askWorker<{ id: number; levels: ImageBitmap[]; complete: boolean }>({ type: 'levels', id: newImageId(), url }).then(
-          ({ levels, complete }) => ({ levels, fullUrl: complete ? null : url }),
-          (e) => {
-            console.warn('Снимок карты загружается обычным способом:', url, e);
-            return plain();
-          },
-        )
-      : plain();
-    p.catch(() => mapImages.delete(url));
-    mapImages.set(url, p);
-  }
-  return p;
+  const plain = () => loadImage(url).then((img) => ({ levels: [img], fullUrl: null }));
+  if (!OFF_THREAD) return plain();
+  return askWorker<{ id: number; levels: ImageBitmap[]; complete: boolean }>({ type: 'levels', id: newImageId(), url }).then(
+    ({ levels, complete }) => ({ levels, fullUrl: complete ? null : url }),
+    (e) => {
+      console.warn('Снимок карты загружается обычным способом:', url, e);
+      return plain();
+    },
+  );
 }
 
 /** Полный снимок нужен, когда самая большая копия уже уже видимой ширины карты. */
 export function ensureFullImage(img: MapImage, px: number, onReady: () => void) {
   const url = img.fullUrl;
-  const top = img.levels[img.levels.length - 1];
-  if (!url || px <= top.width) return;
+  if (!url || img.closed || px <= img.levels[img.levels.length - 1].width) return;
   img.fullUrl = null;
   void askWorker<{ id: number; levels: ImageBitmap[]; complete: boolean }>({ type: 'full', id: newImageId(), url }).then(
     ({ levels: [full] }) => {
+      if (img.closed) {
+        full.close();
+        return;
+      }
       img.levels = [...img.levels, full];
       onReady();
     },
-    () => {
-      img.fullUrl = url;
-    },
+    (e) => console.warn('Полный снимок карты недоступен:', url, e),
   );
 }
 
 /** Прогрессивная загрузка для карты: возвращает лучшее из уже подготовленного. */
 export function useProgressiveImage(urls: readonly string[]): MapImage | null {
-  const [img, setImg] = useState<MapImage | null>(null);
+  const [image, setImage] = useState<{ key: string; img: MapImage } | null>(null);
   const key = urls.join('|');
   useEffect(() => {
     let alive = true;
+    const loaded: MapImage[] = [];
+    const close = (img: MapImage) => {
+      img.closed = true;
+      for (const level of img.levels) if ('close' in level) level.close();
+      img.levels = [];
+    };
+    setImage(null);
     void (async () => {
       for (const url of urls) {
         const next = await loadMapImage(url).catch(() => null);
-        if (!alive) return;
-        if (next) setImg(next);
+        if (!next) continue;
+        if (!alive) {
+          close(next);
+          return;
+        }
+        loaded.push(next);
+        setImage({ key, img: next });
       }
     })();
     return () => {
       alive = false;
+      for (const img of loaded) close(img);
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [key]);
-  return img;
+  return image?.key === key ? image.img : null;
 }

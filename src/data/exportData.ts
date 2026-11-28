@@ -12,7 +12,7 @@
  *   json  — для программ: описание, единицы и массив строк.
  */
 import { RAD } from '../physics/constants';
-import { archiveWindow } from './orbiters';
+import { orbitTimeBounds } from './orbiters';
 import type { PreparedOrbit, SatelliteState } from '../physics/propagate';
 import { propagate } from '../physics/propagate';
 
@@ -108,6 +108,12 @@ export function rowCount(fromMs: number, toMs: number, stepSec: number): number 
   return n + 1 + (fromMs + n * stepMs < toMs ? 1 : 0);
 }
 
+/** У конца архива короткий или пустой остаток заменяем последним полным доступным интервалом. */
+export function forwardExportRange(now: number, durationMs: number, startMs: number, endMs: number) {
+  const from = now >= endMs ? Math.max(startMs, endMs - durationMs) : now;
+  return { from, to: Math.min(from + durationMs, endMs) };
+}
+
 export interface Table {
   /** Заголовки столбцов (первые — время). */
   titles: string[];
@@ -125,8 +131,8 @@ export interface Table {
 
 export function buildTrackTable(orbit: PreparedOrbit, opt: TrackExportOptions): Table {
   const columns = [...BASE_COLUMNS, ...(['motion', 'anomalies', 'eci', 'ecef'] as const).filter((g) => opt.groups.includes(g)).flatMap((g) => GROUP_COLUMNS[g])];
-  const historical = archiveWindow(orbit.elements.body, orbit.elements.noradId);
-  const times = exportTimes(Math.max(opt.fromMs, historical?.startMs ?? -Infinity), Math.min(opt.toMs, historical?.endMs ?? Infinity), opt.stepSec);
+  const { startMs, endMs } = orbitTimeBounds(orbit.elements);
+  const times = exportTimes(Math.max(opt.fromMs, startMs), Math.min(opt.toMs, endMs), opt.stepSec);
   const rows = times.map((t) => {
     const s = propagate(orbit, t);
     return columns.map((c) => c.value(s));

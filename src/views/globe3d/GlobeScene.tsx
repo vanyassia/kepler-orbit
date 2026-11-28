@@ -15,6 +15,8 @@ import {
   LinearFilter,
   LinearMipmapLinearFilter,
   Matrix4,
+  Mesh as ThreeMesh,
+  MeshStandardMaterial,
   Quaternion,
   RGBAFormat,
   ShaderMaterial,
@@ -38,7 +40,7 @@ import { boardDashScale, boardFov, boardHalfAngle, clampZoom } from '../boardVie
 import { frameDue, pixelsPerUnit, simMsPerShift } from '../frameRate';
 import { glowPixels, type Rgba } from '../glowPixels';
 import { MAX_WINDOW_POINTS, ORBIT_COLOR, orbitSource, Revolutions, revolutionColor, SAT_COLOR, TrackCache, trackSpan } from '../trackCache';
-import { axisToScene, geoToLocal, toScene } from './coords';
+import { axisToScene, geoToLocal, radialScale, toScene } from './coords';
 import { DynamicLine } from './DynamicLine';
 import type { LabelSpec } from './LabelLayer';
 import { LabelLayer, OFFSET } from './LabelLayer';
@@ -252,6 +254,27 @@ export function GlobeScene({ overlay, onReady }: { overlay: React.RefObject<HTML
   }, [cassiniModel]);
   /** Естественные спутники (Луна, Фобос, Деймос) — тела вместо модели аппарата (naturalModel.ts). */
   const naturalModels = useMemo(() => createNaturalModels(), []);
+  useEffect(() => {
+    const moon = naturalModels.moon;
+    moon.userData.disposed = false;
+    return () => {
+      moon.userData.disposed = true;
+      const geometries = new Set<ThreeMesh['geometry']>();
+      const materials = new Set<Exclude<ThreeMesh['material'], unknown[]>>();
+      for (const model of [satModel, issModel, vostokModel, sputnikModel, ...Object.values(naturalModels)]) {
+        model.traverse((object) => {
+          if (!(object instanceof ThreeMesh)) return;
+          geometries.add(object.geometry);
+          for (const material of Array.isArray(object.material) ? object.material : [object.material]) materials.add(material);
+        });
+      }
+      for (const geometry of geometries) geometry.dispose();
+      for (const material of materials) {
+        if (material instanceof MeshStandardMaterial) material.map?.dispose();
+        material.dispose();
+      }
+    };
+  }, [satModel, issModel, vostokModel, sputnikModel, naturalModels]);
   const satGlow = useRef<Sprite>(null!);
   const sunLight = useRef<DirectionalLight>(null!);
   const sunSprite = useRef<Sprite>(null!);
@@ -262,19 +285,20 @@ export function GlobeScene({ overlay, onReady }: { overlay: React.RefObject<HTML
   const labelLayer = useRef<LabelLayer | null>(null);
 
   // Материалы с шейдерами и динамические линии создаются один раз
+  const blank = useMemo(() => ({ day: solid(14, 32, 60), black: solid(0, 0, 0), flat: solid(128, 128, 255) }), []);
   const mats = useMemo(() => {
     const sunDir = { value: new Vector3(1, 0, 0) };
     const cloudShift = { value: 0 };
-    const cloudsMap = { value: solid(0, 0, 0) };
+    const cloudsMap = { value: blank.black };
     const nightOn = { value: 1 };
     return {
       earth: new ShaderMaterial({
         ...earthShader,
         uniforms: {
-          dayMap: { value: solid(14, 32, 60) },
-          nightMap: { value: solid(0, 0, 0) },
-          normalMap: { value: solid(128, 128, 255) },
-          specMap: { value: solid(0, 0, 0) },
+          dayMap: { value: blank.day },
+          nightMap: { value: blank.black },
+          normalMap: { value: blank.flat },
+          specMap: { value: blank.black },
           cloudsMap,
           sunDir,
           cloudShift,
@@ -299,8 +323,7 @@ export function GlobeScene({ overlay, onReady }: { overlay: React.RefObject<HTML
         depthWrite: false,
       }),
     };
-  }, []);
-  useEffect(() => () => mats.rings.dispose(), [mats]);
+  }, [blank]);
 
   const lines = useMemo(
     () => ({
@@ -317,21 +340,28 @@ export function GlobeScene({ overlay, onReady }: { overlay: React.RefObject<HTML
     }),
     [],
   );
+  useEffect(() => () => {
+    for (const material of Object.values(mats)) material.dispose();
+    for (const texture of [...Object.values(blank), ...Object.values(sprites)]) texture.dispose();
+    for (const line of Object.values(lines)) {
+      line.geometry.dispose();
+      (line.material as LineMaterial).dispose();
+    }
+  }, [mats, blank, sprites, lines]);
   const trackCache = useMemo(() => new TrackCache(), []);
   /** Начала следующих витков (в ГСК) — для подписей «+k»; null — узла нет в окне. */
   const nodeLocal = useRef<(Vector3 | null)[]>([]);
 
   // Подстановка загруженных текстур; огни городов, океаны, рельеф и облака Земли — только у Земли,
   // а у Венеры по переключателю подставляется плотный облачный покров
-  const blank = useMemo(() => ({ black: solid(0, 0, 0), flat: solid(128, 128, 255) }), []);
   const venusCloudsReady = useRef(false);
   useEffect(() => {
     const u = mats.earth.uniforms;
     const earth = bodyId === 'earth';
-    const venusCloudsOn = bodyId === 'venus' && layers.venusClouds && !!tex.venusClouds;
+    const venusCloudsOn = bodyId === 'venus' && layers.venusClouds && layers.imagery && !!tex.venusClouds;
     venusCloudsReady.current = venusCloudsOn;
     const dayTex = venusCloudsOn ? tex.venusClouds : tex.day;
-    if (dayTex) u.dayMap.value = dayTex;
+    u.dayMap.value = dayTex ?? blank.day;
     if (!venusCloudsOn) u.dayShift.value = 0;
     u.nightMap.value = earth && tex.night ? tex.night : blank.black;
     u.normalMap.value = earth && tex.normal ? tex.normal : blank.flat;
@@ -343,7 +373,7 @@ export function GlobeScene({ overlay, onReady }: { overlay: React.RefObject<HTML
     u.duskStrength.value = look.dusk;
     u.nightAmbient.value = look.nightAmbient;
     if (look.atmo) mats.atmosphere.uniforms.atmoColor.value.set(...look.atmo);
-  }, [tex.day, tex.night, tex.normal, tex.specular, tex.clouds, tex.venusClouds, layers.venusClouds, mats, bodyId, blank]);
+  }, [tex.day, tex.night, tex.normal, tex.specular, tex.clouds, tex.venusClouds, layers.venusClouds, layers.imagery, mats, bodyId, blank]);
 
   // Глобус готов, когда загружен хотя бы первый (лёгкий) дневной снимок
   useEffect(() => {
@@ -394,7 +424,7 @@ export function GlobeScene({ overlay, onReady }: { overlay: React.RefObject<HTML
     if (orbit) {
       specs.push({
         id: 'sat',
-        text: record ? labelTitle(record.elements) : '',
+        text: record ? `${labelTitle(record.elements)}, ${fmt(propagate(orbit, useAppStore.getState().simTime).h, 0)} км` : '',
         className: 'globe-label sat',
         // В виде с борта камера стоит на самом спутнике: подпись — у подспутниковой точки, в центре кадра
         anchor: (out) =>
@@ -407,7 +437,8 @@ export function GlobeScene({ overlay, onReady }: { overlay: React.RefObject<HTML
     if (orbit) {
       // Длительность окна трассы подписана на карте; на глобусе концы отмечены только точками
       // Начала следующих витков
-      for (let k = 1; k <= revsForward; k++) {
+      const forward = Math.ceil(trackSpan(orbit, revsBack, revsForward).forward);
+      for (let k = 1; k <= forward; k++) {
         specs.push({
           id: `node-${k}`,
           text: `+${k}`,
@@ -455,8 +486,8 @@ export function GlobeScene({ overlay, onReady }: { overlay: React.RefObject<HTML
       helper('asc', '☊ восходящий узел', geometry.ascNode);
       helper('desc', '☋', geometry.descNode);
       if (orbit.e > 0.01) {
-        helper('peri', 'перигей', geometry.perigee);
-        helper('apo', 'апогей', geometry.apogee);
+        helper('peri', bodyId === 'earth' ? 'перигей' : 'перицентр', geometry.perigee);
+        helper('apo', bodyId === 'earth' ? 'апогей' : 'апоцентр', geometry.apogee);
       }
     }
     labelSpecs.current = specs;
@@ -475,16 +506,21 @@ export function GlobeScene({ overlay, onReady }: { overlay: React.RefObject<HTML
   useEffect(() => {
     if (!board) return;
     const el = gl.domElement;
+    let gestureZoom: number | null = null;
+    let pinch: { dist: number; zoom: number } | null = null;
     const onWheel = (e: WheelEvent) => {
       e.preventDefault();
+      if (pinch || gestureZoom !== null) return;
       // Щипок на трекпаде приходит колёсиком с ctrlKey — он чувствительнее, шаг крупнее
       zoomBoard(Math.exp(e.deltaY * (e.ctrlKey ? 0.01 : 0.0015)));
     };
     // Щипок двумя пальцами на телефоне
-    let pinch: { dist: number; zoom: number } | null = null;
     const spread = (t: TouchList) => Math.hypot(t[0].clientX - t[1].clientX, t[0].clientY - t[1].clientY);
     const onTouchStart = (e: TouchEvent) => {
-      if (e.touches.length === 2) pinch = { dist: spread(e.touches), zoom: boardZoom.current };
+      if (e.touches.length === 2) {
+        gestureZoom = null;
+        pinch = { dist: spread(e.touches), zoom: boardZoom.current };
+      }
     };
     const onTouchMove = (e: TouchEvent) => {
       if (!pinch || e.touches.length !== 2) return;
@@ -496,17 +532,19 @@ export function GlobeScene({ overlay, onReady }: { overlay: React.RefObject<HTML
       if (e.touches.length < 2) pinch = null;
     };
     // Safari на Mac: щипок на трекпаде — отдельные события gesture*
-    let gestureZoom = 1;
     const onGestureStart = (e: Event) => {
       e.preventDefault();
+      if (pinch) return;
       gestureZoom = boardZoom.current;
     };
     const onGestureChange = (e: Event) => {
       e.preventDefault();
+      if (pinch || gestureZoom === null) return;
       const scale = (e as Event & { scale?: number }).scale ?? 1;
       boardZoom.current = clampZoom(gestureZoom / Math.max(0.01, scale));
       invalidate();
     };
+    const onGestureEnd = () => { gestureZoom = null; };
     el.addEventListener('wheel', onWheel, { passive: false });
     el.addEventListener('touchstart', onTouchStart, { passive: true });
     el.addEventListener('touchmove', onTouchMove, { passive: false });
@@ -514,6 +552,7 @@ export function GlobeScene({ overlay, onReady }: { overlay: React.RefObject<HTML
     el.addEventListener('touchcancel', onTouchEnd);
     el.addEventListener('gesturestart', onGestureStart);
     el.addEventListener('gesturechange', onGestureChange);
+    el.addEventListener('gestureend', onGestureEnd);
     return () => {
       el.removeEventListener('wheel', onWheel);
       el.removeEventListener('touchstart', onTouchStart);
@@ -522,6 +561,7 @@ export function GlobeScene({ overlay, onReady }: { overlay: React.RefObject<HTML
       el.removeEventListener('touchcancel', onTouchEnd);
       el.removeEventListener('gesturestart', onGestureStart);
       el.removeEventListener('gesturechange', onGestureChange);
+      el.removeEventListener('gestureend', onGestureEnd);
     };
   }, [board, gl, invalidate, zoomBoard]);
 
@@ -590,11 +630,12 @@ export function GlobeScene({ overlay, onReady }: { overlay: React.RefObject<HTML
     },
     [camera, invalidate],
   );
-  const fitWidth = showCassini && frameloop !== 'never' ? size.width : 0;
-  const fitHeight = showCassini && frameloop !== 'never' ? size.height : 0;
+  const fitWidth = bodyId === 'saturn' && frameloop !== 'never' ? size.width : 0;
+  const fitHeight = bodyId === 'saturn' && frameloop !== 'never' ? size.height : 0;
   const previousOrbit = useRef<typeof orbit>(null);
   useEffect(() => {
     if (!orbit || !geometry) return;
+    if (orbit.body.id === 'saturn' && (fitWidth <= 0 || fitHeight <= 0)) return;
     const newOrbit = previousOrbit.current !== orbit;
     previousOrbit.current = orbit;
     // С борта камера перелетает на новый спутник и остаётся на нём
@@ -602,7 +643,7 @@ export function GlobeScene({ overlay, onReady }: { overlay: React.RefObject<HTML
       if (newOrbit) startBoardFlight();
       return;
     }
-    if (showCassini && (fitWidth <= 0 || fitHeight <= 0 || manualCassini.current === orbit)) return;
+    if ((!newOrbit && !showCassini) || (showCassini && manualCassini.current === orbit)) return;
     if (showCassini) camera.up.copy(WORLD_UP);
     const to = overviewPosition(orbit, useAppStore.getState().simTime, showCassini ? { width: fitWidth, height: fitHeight } : size,
       showCassini ? { ellipse: geometry.ellipse, radius: cassiniRadius } : undefined);
@@ -653,6 +694,7 @@ export function GlobeScene({ overlay, onReady }: { overlay: React.RefObject<HTML
   const lastLabelUpdate = useRef(0);
   /** Какой набор точек трассы сейчас в линиях. */
   const shownRevision = useRef(-1);
+  const shownRevs = useRef<Revolutions | null>(null);
   const buf = useMemo(
     () => ({
       past: new Float32Array(MAX_WINDOW_POINTS * 3),
@@ -749,8 +791,10 @@ export function GlobeScene({ overlay, onReady }: { overlay: React.RefObject<HTML
       for (const [kind, mesh] of Object.entries(naturalModels)) mesh.visible = kind === natural && !onBoard;
       lines.radius.visible = !onBoard;
       // Пунктир будущей трассы: с борта штрихи короче — иначе первый штрих на полэкрана, а за ним «обрыв»
+      const cameraDistance = camera.position.length();
+      const surfaceRadius = radialScale(camera.position.y / Math.max(1e-6, cameraDistance), polarRatio);
       (lines.future.material as LineMaterial).dashScale = onBoard
-        ? boardDashScale(camera.position.length() - 1, boardHalfAngle(camera.position.length(), boardZoom.current))
+        ? boardDashScale(cameraDistance - surfaceRadius, boardHalfAngle(cameraDistance / surfaceRadius, boardZoom.current))
         : 1;
       subMarker.current.visible = !onBoard;
       if (natural) {
@@ -759,7 +803,7 @@ export function GlobeScene({ overlay, onReady }: { overlay: React.RefObject<HTML
       }
       // Быстрее всего на экране движется спутник или поверхность под ним — считаем по ближнему из них
       const nearest = onBoard
-        ? Math.max(0.002, camera.position.length() - 1)
+        ? Math.max(0.002, cameraDistance - surfaceRadius)
         : Math.max(0.15, Math.min(camera.position.length() - 1, camera.position.distanceTo(satPos)));
       drawn.current.stepMs = simMsPerShift((s.V / b.radius) * pixelsPerUnit(size.height, (camera as PerspectiveCamera).fov, nearest));
 
@@ -831,14 +875,22 @@ export function GlobeScene({ overlay, onReady }: { overlay: React.RefObject<HTML
       // Трасса (в ГСК, внутри группы Земли), цвет — по номеру витка. Пересобирается, когда окно
       // сдвинулось на шаг сетки; в остальных кадрах меняется только точка под спутником
       const span = trackSpan(o, st.revsBack, st.revsForward);
-      const w = trackCache.get(orbitSource(o), t, span.back, span.forward)!;
-      if (w.revision === shownRevision.current) {
+      const source = orbitSource(o);
+      const w = trackCache.get(source, t, span.back, span.forward);
+      if (!w) {
+        lines.past.setPoints([], 0);
+        lines.future.setPoints([], 0);
+        shownRevision.current = -1;
+        return;
+      }
+      if (w.revision === shownRevision.current && shownRevs.current?.offsetAt(t) === 0) {
         geoToLocal(w.current.lat, w.current.lon, TRACK_R, tmp.v, polarRatio);
         lines.past.moveLast(tmp.v.x, tmp.v.y, tmp.v.z);
         lines.future.moveFirst(tmp.v.x, tmp.v.y, tmp.v.z);
       } else {
         shownRevision.current = w.revision;
         const revs = new Revolutions(o, t, span.back, span.forward);
+        shownRevs.current = revs;
         const fill = (pts: TrackWindow['past'], arr: Float32Array, rgb: Float32Array) => {
           const n = Math.min(pts.length, MAX_WINDOW_POINTS);
           for (let k = 0; k < n; k++) {
@@ -866,7 +918,7 @@ export function GlobeScene({ overlay, onReady }: { overlay: React.RefObject<HTML
         nodeLocal.current = [];
         for (const n of revs.nodes) {
           if (n <= t || n > windowEnd) continue;
-          const p = orbitSource(o).at(n);
+          const p = source.at(n);
           if (p) nodeLocal.current[revs.offsetAt(n)] = geoToLocal(p.lat, p.lon, TRACK_R, undefined, polarRatio);
         }
       }
@@ -876,7 +928,7 @@ export function GlobeScene({ overlay, onReady }: { overlay: React.RefObject<HTML
 
       // Подпись спутника (10 раз в секунду)
       const now = performance.now();
-      if (now - lastLabelUpdate.current > 100) {
+      if (!st.playing || now - lastLabelUpdate.current > 100) {
         lastLabelUpdate.current = now;
         const title = st.record ? labelTitle(st.record.elements) : '';
         labelLayer.current?.setText('sat', `${title}, ${fmt(s.h, 0)} км`);
@@ -923,7 +975,7 @@ export function GlobeScene({ overlay, onReady }: { overlay: React.RefObject<HTML
       </sprite>
 
       {saturnGeometry && (
-        <mesh material={mats.rings} rotation-x={-Math.PI / 2}>
+        <mesh material={mats.rings} rotation-x={-Math.PI / 2} renderOrder={1}>
           <ringGeometry args={[SATURN_RING_INNER, SATURN_RING_OUTER, 384]} />
         </mesh>
       )}

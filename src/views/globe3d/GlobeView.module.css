@@ -208,11 +208,6 @@
   color: #dcdfe6;
 }
 
-:global(.globe-label.ref) {
-  border: 1px solid rgb(255 111 181 / 0.6);
-  color: #ff6fb5;
-  font-weight: 600;
-}
 
 .camIcon {
   display: none;

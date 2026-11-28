@@ -20,7 +20,7 @@ import { fmt, fmtDateTime, fmtDuration, fmtLat } from './format';
 import styles from './OrbitCharts.module.css';
 
 /** Поле слева под подписи оси, высота одного графика, отступы сверху и снизу — px. */
-const GUTTER = 50;
+const GUTTER = 70;
 const PLOT_H = 52;
 const PAD_Y = 6;
 const archiveDate = new Intl.DateTimeFormat('ru-RU', { dateStyle: 'short', timeZone: 'UTC' });
@@ -147,7 +147,8 @@ export function OrbitCharts() {
         aria-valuetext={valueText}
         onKeyDown={onKey}
         onPointerMove={(e) => setHoverMs(msAt(e.clientX))}
-        onPointerLeave={(e) => e.pointerType === 'mouse' && setHoverMs(null)}
+        onPointerLeave={() => setHoverMs(null)}
+        onLostPointerCapture={() => setHoverMs(null)}
         onPointerUp={(e) => {
           if (e.button !== 0) return;
           if (e.pointerType === 'mouse') e.currentTarget.focus({ preventScroll: true });
@@ -237,7 +238,7 @@ function Chart({
 
   return (
     <div className={styles.chart}>
-      <div className={styles.head}>
+      <div className={styles.head} style={{ paddingLeft: GUTTER }}>
         <span className={`${styles.label} caps`}>
           <CapsLabel text={def.label} />
         </span>

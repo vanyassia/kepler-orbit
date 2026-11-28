@@ -90,7 +90,7 @@ export const ORBIT_TEMPLATES: OrbitTemplate[] = [
     hApo: 700,
     inclinationDeg: 98.16,
     ...zeroAngles,
-    note: 'Высота 700 км и наклонение 98,16°, как у настоящих солнечно-синхронных спутников. В модели двух тел плоскость орбиты не поворачивается за Солнцем: это делает сжатие Земли, которого в модели нет.',
+    note: 'Высота 700 км и наклонение 98,16°, как у настоящих солнечно-синхронных спутников. В этом расчёте плоскость орбиты не поворачивается за Солнцем: это делает сжатие Земли, которого в модели нет.',
   },
   {
     id: 'polar',
@@ -125,7 +125,7 @@ export const ORBIT_TEMPLATES: OrbitTemplate[] = [
     raanDeg: 0,
     argPerigeeDeg: 270,
     meanAnomalyDeg: 0,
-    note: 'Орбита картографических аппаратов Марса: 255 × 320 км, i = 92,65°. В модели двух тел плоскость не поворачивается за Солнцем — это делает сжатие Марса.',
+    note: 'Орбита картографических аппаратов Марса: 255 × 320 км, i = 92,65°. В этом расчёте плоскость не поворачивается за Солнцем — это делает сжатие Марса.',
   },
   {
     id: 'mars-polar',
@@ -328,6 +328,7 @@ export function repeatTemplate(body: BodyId, c: RepeatCycle, inclinationDeg: num
   const h = repeatHeight(body, c);
   const g = gcd(c.n, c.m);
   const same = g > 1 ? ` Это тот же узор, что ${revs(c.n / g)} за ${days(c.m / g)}.` : '';
+  const libration = body === 'moon' || body === 'mercury' ? ' Из-за неравномерного вращения узор может немного смещаться.' : '';
   return {
     id: 'repeat',
     label: 'Повторяющаяся трасса',
@@ -338,6 +339,6 @@ export function repeatTemplate(body: BodyId, c: RepeatCycle, inclinationDeg: num
     inclinationDeg,
     ...zeroAngles,
     repeat: c,
-    note: `Ровно ${revs(c.n)} за ${days(c.m)} (${DAY_NAME[body]}): тело поворачивается под орбитой, и спутник возвращается в ту же точку — трасса замыкается в узор.${same} На карте и глобусе показан весь цикл.`,
+    note: `${revs(c.n)} за ${days(c.m)} (${DAY_NAME[body]}). Трасса почти замыкается в узор.${libration}${same} На карте и глобусе показан весь цикл.`,
   };
 }

@@ -115,6 +115,7 @@
 
 @media (max-width: 380px) {
   .item {
+    min-width: 36px;
     padding-inline: 3px;
   }
 

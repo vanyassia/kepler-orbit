@@ -201,6 +201,9 @@ describe('Лёгкий расчёт подспутниковой точки', ()
     ['орбита «Молния»', { ...base, meanMotion: 2.006, eccentricity: 0.68 }],
     ['полярная орбита Луны', { ...base, body: 'moon', meanMotion: 12.3, eccentricity: 0.01 }],
     ['орбита Марса (другой полюс)', { ...base, body: 'mars', meanMotion: 12.9, eccentricity: 0.3 }],
+    ['обратная орбита Венеры', { ...base, body: 'venus', inclinationDeg: 160, meanMotion: 0.1, eccentricity: 0.94 }],
+    ['орбита Сатурна', { ...base, body: 'saturn', meanMotion: 0.7, eccentricity: 0.3 }],
+    ['орбита Меркурия', { ...base, body: 'mercury', meanMotion: 2, eccentricity: 0.7 }],
   ];
   it.each(cases)('%s: совпадает с полным расчётом', (_name, el) => {
     const orbit = prepareOrbit(el);
