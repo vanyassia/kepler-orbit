@@ -26,7 +26,7 @@ const ROOT = resolve(import.meta.dirname, '..');
 const SRC = resolve(process.env.SRC_DIR ?? join(ROOT, '.cache', 'textures-src'));
 const OUT = join(ROOT, 'public', 'textures');
 const SSS_REFERER = 'https://www.solarsystemscope.com/textures/';
-const MERCURY_MOSAIC = 'mercury_mdis_4k.png';
+const MERCURY_MOSAIC = 'mercury_mdis_seamless_4k.png';
 const mercuryOnly = process.argv.includes('--mercury');
 
 const sources = {
@@ -126,7 +126,18 @@ async function fetchMercuryMosaic(dst) {
       renameSync(`${file}.part`, file);
     }));
   }
-  execFileSync('ffmpeg', ['-v', 'error', '-y', '-i', join(tiles, '%03d.jpg'), '-vf', 'tile=16x8:nb_frames=128', '-frames:v', '1', dst], { stdio: 'inherit' });
+  // Последний столбец мозаики NASA затемнён. На стыке долгот ±180° восстанавливаем
+  // его средним между предпоследним и первым столбцами, сохраняя привязку текстуры.
+  const filters = [
+    'tile=16x8:nb_frames=128,format=gbrp,split=3[base][west][east]',
+    '[west]crop=1:ih:0:0[westEdge]',
+    '[east]crop=1:ih:iw-2:0[eastEdge]',
+    '[westEdge][eastEdge]blend=all_mode=average[seam]',
+    '[base][seam]overlay=x=W-w:y=0:format=gbrp',
+  ];
+  const partial = `${dst}.part.png`;
+  execFileSync('ffmpeg', ['-v', 'error', '-y', '-i', join(tiles, '%03d.jpg'), '-filter_complex', filters.join(';'), '-frames:v', '1', partial], { stdio: 'inherit' });
+  renameSync(partial, dst);
 }
 
 mkdirSync(SRC, { recursive: true });

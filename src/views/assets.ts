@@ -28,8 +28,8 @@ export const TEXTURES = {
   venusClouds4k: `${base}textures/venus_clouds_4k.webp`,
   saturn2k: `${base}textures/saturn_2k.webp`,
   saturn4k: `${base}textures/saturn_4k.webp`,
-  mercury2k: `${base}textures/mercury_2k.webp`,
-  mercury4k: `${base}textures/mercury_4k.webp`,
+  mercury2k: `${base}textures/mercury_2k.webp?v=2`,
+  mercury4k: `${base}textures/mercury_4k.webp?v=2`,
 } as const;
 
 /** Значки тел в переключателе: 160×80 пикселей, а не полные снимки. */
@@ -39,7 +39,7 @@ export const BODY_THUMB: Record<BodyId, string> = {
   mars: `${base}textures/thumb_mars.webp`,
   venus: `${base}textures/thumb_venus.webp`,
   saturn: `${base}textures/thumb_saturn.webp`,
-  mercury: `${base}textures/thumb_mercury.webp`,
+  mercury: `${base}textures/thumb_mercury.webp?v=2`,
 };
 
 /**
